@@ -64,21 +64,21 @@ def _run_load(file: Path, mode: Literal["schema", "data", "auto"]) -> None:
     )
 
 
-@load_app.callback(invoke_without_command=True)
-def load_auto(
-    ctx: typer.Context,
-    file: Optional[Path] = typer.Argument(None, help="RDF 파일 경로 (TTL, JSON-LD, RDF/XML)."),
-) -> None:
+@load_app.callback(
+    invoke_without_command=True,
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+def load_auto(ctx: typer.Context) -> None:
     """RDF 파일을 자동 감지 모드로 로드합니다 (TBox/ABox 자동 판별)."""
     if ctx.invoked_subcommand is not None:
         return
-    if file is None:
+    if not ctx.args:
         console.print("[red]Error:[/] 파일 경로를 지정하세요.")
         console.print("  사용법: ontorag load <FILE>")
         console.print("         ontorag load schema <FILE>")
         console.print("         ontorag load data <FILE>")
         raise typer.Exit(1)
-    _run_load(file, "auto")
+    _run_load(Path(ctx.args[0]), "auto")
 
 
 @load_app.command("schema")
