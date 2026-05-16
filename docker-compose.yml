@@ -5,7 +5,6 @@ services:
       dockerfile: docker/fuseki/Dockerfile
     environment:
       FUSEKI_DATASET: ${FUSEKI_DATASET:-ontorag}
-      ADMIN_PASSWORD: ${FUSEKI_PASSWORD:-admin}
     ports:
       - "3030:3030"
     healthcheck:

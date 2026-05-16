@@ -26,9 +26,7 @@ HEALTHCHECK --interval=10s --timeout=5s --retries=6 --start-period=40s \
 
 ENTRYPOINT ["sh", "-c", \
     "chmod -R 777 /fuseki/databases 2>/dev/null; \
-     echo \"admin=${ADMIN_PASSWORD}\" > /tmp/passwd \
-     && java -Xmx512m -jar fuseki-server.jar \
+     java -Xmx512m -jar fuseki-server.jar \
           --port=3030 \
-          --passwd=/tmp/passwd \
           --update \
           --mem /${FUSEKI_DATASET}"]
