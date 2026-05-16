@@ -337,6 +337,19 @@ d:Blastoise
 
 # ── Pokemon — 피카츄 (Electric) ───────────────────────────────────────────────
 
+d:Pichu
+    a pk:Pokemon ;
+    rdfs:label "피츄" ;
+    pk:nationalDex "172"^^xsd:integer ;
+    pk:hp "20"^^xsd:integer ;
+    pk:attack "40"^^xsd:integer ;
+    pk:defense "15"^^xsd:integer ;
+    pk:spAttack "35"^^xsd:integer ;
+    pk:spDefense "35"^^xsd:integer ;
+    pk:speed "60"^^xsd:integer ;
+    pk:hasType d:TypeElectric ;
+    pk:hasMove d:MoveTackle .
+
 d:Pikachu
     a pk:Pokemon ;
     rdfs:label "피카츄" ;
@@ -349,7 +362,22 @@ d:Pikachu
     pk:speed "90"^^xsd:integer ;
     pk:hasType d:TypeElectric ;
     pk:hasMove d:MoveThunderbolt, d:MoveTackle, d:MoveThunder ;
+    pk:evolvesFrom d:Pichu ;
     pk:trainedBy d:TrainerAsh .
+
+d:Raichu
+    a pk:Pokemon ;
+    rdfs:label "라이츄" ;
+    pk:nationalDex "26"^^xsd:integer ;
+    pk:hp "60"^^xsd:integer ;
+    pk:attack "90"^^xsd:integer ;
+    pk:defense "55"^^xsd:integer ;
+    pk:spAttack "90"^^xsd:integer ;
+    pk:spDefense "80"^^xsd:integer ;
+    pk:speed "110"^^xsd:integer ;
+    pk:hasType d:TypeElectric ;
+    pk:hasMove d:MoveThunderbolt, d:MoveThunder ;
+    pk:evolvesFrom d:Pikachu .
 
 # ── Pokemon — 잠만보 (Normal) ─────────────────────────────────────────────────
 
