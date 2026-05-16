@@ -6,9 +6,12 @@ from pathlib import Path
 from typing import Literal, Optional
 
 import typer
+from dotenv import load_dotenv
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
+
+load_dotenv()  # load .env from cwd before any command runs (override=False keeps real env vars)
 
 console = Console()
 
