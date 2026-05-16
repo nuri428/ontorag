@@ -28,8 +28,9 @@ _SYSTEM = """\
 
 ## URI 처리 규칙
 
-- 엔티티 URI를 모를 때: find_entities(filters=[{{"property": "rdfs:label", "op": "=", "value": "이름"}}])로 URI를 먼저 조회하세요.
-- URI를 절대 추측하지 마세요.
+- 엔티티 URI를 모를 때: 먼저 get_schema로 클래스 URI를 확인하고, find_entities(filters=[{{"property": "rdfs:label", "op": "=", "value": "이름"}}])로 인스턴스 URI를 조회하세요.
+- URI는 반드시 툴이 반환한 값만 사용하세요. URI나 prefix:name을 직접 구성하거나 추측하는 것은 절대 금지입니다.
+- 조회 결과가 없으면 get_schema로 올바른 클래스 URI를 먼저 확인하세요.
 - 최종 답변에 URI를 절대 노출하지 마세요. 이름(label)만 사용하세요.
 
 ## 답변 스타일
