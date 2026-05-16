@@ -24,6 +24,9 @@ app = typer.Typer(
 load_app = typer.Typer(help="RDF 파일을 그래프 스토어에 로드합니다.")
 app.add_typer(load_app, name="load")
 
+clear_app = typer.Typer(help="그래프 스토어의 TBox/ABox 데이터를 삭제합니다.")
+app.add_typer(clear_app, name="clear")
+
 config_app = typer.Typer(help="LLM 및 스토어 설정을 관리합니다.")
 app.add_typer(config_app, name="config")
 
@@ -112,6 +115,48 @@ def load_data(
     --replace 플래그를 사용하면 기존 ABox를 완전히 교체합니다.
     """
     _run_load(file, "data", replace=replace)
+
+
+# ── clear subcommands ────────────────────────────────────────────────────────
+
+def _run_clear(target: str) -> None:
+    """Drop named graph(s) from the store with confirmation prompt."""
+    from ontorag.stores.fuseki import FusekiStore
+
+    label = {"schema": "스키마(TBox)", "data": "데이터(ABox)", "all": "전체(TBox + ABox)"}[target]
+    confirmed = typer.confirm(f"[경고] {label}을 삭제합니다. 계속하시겠습니까?")
+    if not confirmed:
+        console.print("[dim]취소했습니다.[/]")
+        raise typer.Exit(0)
+
+    store = FusekiStore.from_env()
+    try:
+        removed = asyncio.run(store.clear_graph(target))  # type: ignore[arg-type]
+    except Exception as exc:
+        console.print(f"[red]Error:[/] {exc}")
+        raise typer.Exit(1)
+
+    for graph, count in removed.items():
+        graph_label = "스키마(TBox)" if graph == "schema" else "데이터(ABox)"
+        console.print(f"[green]✓[/] {graph_label} 삭제 완료 — {count:,} 트리플 제거")
+
+
+@clear_app.command("schema")
+def clear_schema() -> None:
+    """스키마(TBox) 그래프를 삭제합니다."""
+    _run_clear("schema")
+
+
+@clear_app.command("data")
+def clear_data() -> None:
+    """인스턴스 데이터(ABox) 그래프를 삭제합니다."""
+    _run_clear("data")
+
+
+@clear_app.command("all")
+def clear_all() -> None:
+    """스키마(TBox)와 인스턴스 데이터(ABox)를 모두 삭제합니다."""
+    _run_clear("all")
 
 
 # ── status command ───────────────────────────────────────────────────────────

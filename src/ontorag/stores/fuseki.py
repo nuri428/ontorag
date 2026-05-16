@@ -125,6 +125,39 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
         )
         response.raise_for_status()
 
+    async def _gsp_delete(self, named_graph: str) -> None:
+        """Drop a named graph via GSP DELETE (no-op if graph does not exist)."""
+        client = await self._http()
+        response = await client.delete(
+            f"{self._base}/{self._dataset}/data",
+            params={"graph": named_graph},
+        )
+        # 404 = graph didn't exist — treat as success
+        if response.status_code != 404:
+            response.raise_for_status()
+
+    async def clear_graph(self, target: Literal["schema", "data", "all"]) -> dict[str, int]:
+        """Drop one or both named graphs and return how many triples were removed.
+
+        Args:
+            target: "schema" clears TBox, "data" clears ABox, "all" clears both.
+
+        Returns:
+            Dict mapping graph name → triples removed before deletion.
+        """
+        await self._ensure_dataset()
+        removed: dict[str, int] = {}
+
+        if target in ("schema", "all"):
+            removed["schema"] = await self._count_graph(SCHEMA_GRAPH_URI)
+            await self._gsp_delete(SCHEMA_GRAPH_URI)
+
+        if target in ("data", "all"):
+            removed["data"] = await self._count_graph(DATA_GRAPH_URI)
+            await self._gsp_delete(DATA_GRAPH_URI)
+
+        return removed
+
     async def _sparql_select(self, sparql: str) -> dict[str, Any]:
         """Execute a SPARQL SELECT query (internal use only — not MCP-exposed).
 

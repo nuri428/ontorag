@@ -164,6 +164,10 @@ ontorag load data   <FILE>               # Load ABox — appends to existing dat
 ontorag load data   <FILE> --replace     # Load ABox — replaces existing data
 ontorag load        <FILE>               # Auto-detect TBox vs ABox
 
+ontorag clear schema                     # Drop TBox graph
+ontorag clear data                       # Drop ABox graph
+ontorag clear all                        # Drop both graphs
+
 ontorag serve [--host HOST] [--port PORT] [--reload]
 
 ontorag chat                    # Interactive REPL
