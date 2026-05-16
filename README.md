@@ -1,48 +1,73 @@
 # ontorag
 
-**Ontology-aware RAG framework.** RDF/OWL ontology as the source of truth for LLM-based retrieval and reasoning.
+**Ontology-aware RAG framework — RDF/OWL as the source of truth.**
 
-Unlike typical RAG (chunks + embeddings), **ontorag** treats the ontology schema and instance data as the primary structure. An LLM agent calls ontology-aware MCP tools instead of doing similarity search.
+[![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/ontorag)](https://pypi.org/project/ontorag/)
+
+[한국어 문서](README.ko.md)
+
+---
+
+Most RAG systems treat knowledge as flat text chunks searched by embedding similarity.
+**ontorag** treats the ontology as the source of truth: an LLM agent navigates your RDF/OWL graph using structured MCP tools rather than approximate vector search.
+
+```
+User query → LLM agent → ontology tools (get_schema / find_entities / traverse_graph …)
+                                      ↓
+                              Apache Jena Fuseki  (SPARQL 1.1)
+                                      ↓
+                         Structured JSON answers
+```
+
+---
+
+## Key features
+
+| Feature | Detail |
+|---|---|
+| **Ontology-first** | RDF/OWL schema (TBox) + instance data (ABox) as primary structure |
+| **Agentic MCP loop** | LLM calls 9 typed tools; tool calls visible in SSE stream |
+| **Multi-LLM** | Anthropic Claude · OpenAI · Ollama (local) |
+| **GraphStore Protocol** | Abstract interface — swap Fuseki → Neo4j without changing tool code |
+| **SSE streaming** | `thinking / tool_call / tool_result / text / done` events |
+| **Progressive disclosure** | `get_schema` (compact) + `get_class_detail` (drill-down) |
+| **Injection-safe L2 DSL** | `query_pattern` translates JSON triple patterns to SPARQL internally |
+| **Docker first** | `docker compose up` → ready in < 60 s |
 
 ---
 
 ## Quickstart
 
-**Prerequisites**: Docker, Docker Compose, an Anthropic (or OpenAI) API key.
+**Prerequisites:** Docker · Docker Compose · Anthropic _or_ OpenAI API key
 
 ```bash
-# 1. Clone and configure
-git clone https://github.com/yourorg/ontorag
+git clone https://github.com/nuri428/ontorag.git
 cd ontorag
-cp .env.example .env
-# Edit .env: set ANTHROPIC_API_KEY (or OPENAI_API_KEY)
+cp .env.example .env          # set ANTHROPIC_API_KEY (or OPENAI_API_KEY)
 
-# 2. Start Fuseki + API server
-docker compose up
+docker compose up -d          # starts Fuseki + API on port 8000
 
-# 3. Load the Pokemon example ontology
+# Load the bundled Pokémon ontology
 ontorag load schema examples/pokemon/schema.ttl
 ontorag load data   examples/pokemon/data.ttl
 
-# 4. Chat
+# Start chatting
 ontorag chat
 ```
 
-Expected chat session:
+Example session:
 
 ```
-> 포켓몬 목록을 보여줘
-  ⟳ 분석 중... (턴 1)
+> How many Pokémon are in the database?
+  ⟳ Thinking... (turn 1)
   → get_schema {}
-  ← get_schema 결과 수신
-  → find_entities {"class_uri": "http://example.org/pokemon#Pokemon", "limit": 20}
-  ← find_entities 결과 수신
+  ← get_schema  received
+  → count_entities {"class_uri": "http://example.org/pokemon#Pokemon"}
+  ← count_entities  received
 
-현재 등록된 포켓몬 목록입니다:
-- 이상해씨 (Bulbasaur) — 풀/독 타입
-- 파이리 (Charmander) — 불꽃 타입
-- 꼬부기 (Squirtle) — 물 타입
-...
+There are 12 Pokémon registered in the database.
 ```
 
 ---
@@ -50,39 +75,42 @@ Expected chat session:
 ## Architecture
 
 ```
-사용자 (CLI / HTTP)
-        │
-        ▼ POST /chat  (SSE 스트림)
-┌───────────────────────────────────────┐
-│           FastAPI Server              │
-│                                       │
-│  /chat ──▶ AgentLoop                  │
-│                │                      │
-│           LLM (Claude/GPT/Ollama)     │
-│                │ tool_use             │
-│   ┌────────────────────────────────┐  │
-│   │  L1 intent tools (8):          │  │
-│   │  get_schema   find_entities    │  │
-│   │  describe_entity count_entities│  │
-│   │  traverse_graph  find_path     │  │
-│   │  find_related  get_class_detail│  │
-│   │  L2 DSL: query_pattern         │  │
-│   └────────────┬───────────────────┘  │
-└────────────────┼──────────────────────┘
-                 │ SPARQL (HTTP)
-                 ▼
-      Apache Jena Fuseki
+User  (CLI / browser)
+  │
+  ▼  POST /chat   (SSE stream)
+┌────────────────────────────────────────┐
+│             FastAPI Server             │
+│                                        │
+│   /chat ──▶  AgentLoop                 │
+│                  │                     │
+│        LLM  (Claude / GPT / Ollama)    │
+│                  │  tool_use           │
+│  ┌───────────────────────────────────┐ │
+│  │  L1 intent tools  (MCP exposed):  │ │
+│  │  get_schema        find_entities  │ │
+│  │  get_class_detail  describe_entity│ │
+│  │  count_entities    traverse_graph │ │
+│  │  find_path         find_related   │ │
+│  │  L2 DSL:  query_pattern           │ │
+│  │  L3 dev:  query_sparql_raw (hide) │ │
+│  └───────────────┬───────────────────┘ │
+└──────────────────┼─────────────────────┘
+                   │ SPARQL (HTTP)
+                   ▼
+        Apache Jena Fuseki   ← Phase 1
+        Neo4j + n10s         ← Phase 2
 ```
 
-SSE stream events visible to the client:
+### SSE event types
 
-```json
-{"type": "thinking",    "content": "스키마를 확인합니다..."}
-{"type": "tool_call",   "tool": "get_schema",     "content": {}}
-{"type": "tool_result", "tool": "get_schema",     "content": {...}}
-{"type": "text",        "content": "Person 클래스는..."}
-{"type": "done"}
-```
+| Event | Payload | When |
+|---|---|---|
+| `thinking` | `content: str` | Before each LLM turn |
+| `tool_call` | `tool: str, content: dict` | LLM requested a tool |
+| `tool_result` | `tool: str, content: any` | Tool returned |
+| `text` | `content: str` | LLM final answer chunk |
+| `done` | — | Turn complete |
+| `error` | `content: str` | Unrecoverable error |
 
 ---
 
@@ -90,14 +118,14 @@ SSE stream events visible to the client:
 
 ```bash
 pip install ontorag
-# or with uv:
+# or
 uv add ontorag
 ```
 
-Optional LLM providers:
+To use OpenAI or Ollama:
 
 ```bash
-pip install ontorag openai   # for OpenAI / Ollama
+pip install ontorag openai
 ```
 
 ---
@@ -105,155 +133,191 @@ pip install ontorag openai   # for OpenAI / Ollama
 ## Configuration
 
 ```bash
-# Set provider and API key
+# Anthropic (default)
 ontorag config set --provider anthropic --api-key sk-ant-...
-ontorag config set --provider openai    --api-key sk-...
-ontorag config set --provider ollama    --ollama-url http://localhost:11434
 
-# Set model
+# OpenAI
+ontorag config set --provider openai --api-key sk-...
+
+# Ollama (local, no key required)
+ontorag config set --provider ollama --ollama-url http://localhost:11434
+
+# Override model
 ontorag config set --model claude-opus-4-7
-ontorag config set --model gpt-4o
+ontorag config set --model gpt-4o-mini
 
-# Set Fuseki URL (default: http://localhost:3030)
+# Fuseki endpoint
 ontorag config set --fuseki-url http://localhost:3030
 
-# Show current config
+# Inspect
 ontorag config show
 ```
 
-Settings are persisted to `.env` in the current directory.
+Settings are written to `.env` in the current directory.
 
-Environment variables (for Docker / CI):
+### Environment variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `LLM_PROVIDER` | `anthropic` | `anthropic` \| `openai` \| `ollama` |
+| `LLM_PROVIDER` | `anthropic` | `anthropic` · `openai` · `ollama` |
 | `LLM_MODEL` | provider default | Model name |
 | `ANTHROPIC_API_KEY` | — | Required for Anthropic |
 | `OPENAI_API_KEY` | — | Required for OpenAI |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama base URL |
-| `FUSEKI_URL` | `http://localhost:3030` | Fuseki SPARQL endpoint |
-| `FUSEKI_DATASET` | `ontorag` | Fuseki dataset name |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server |
+| `FUSEKI_URL` | `http://localhost:3030` | SPARQL endpoint |
+| `FUSEKI_DATASET` | `ontorag` | Dataset name |
 
 ---
 
-## CLI Reference
+## CLI reference
 
 ```bash
-# Load ontology
-ontorag load schema <FILE>   # TBox (class/property definitions)
-ontorag load data   <FILE>   # ABox (instance data)
-ontorag load        <FILE>   # auto-detect
+ontorag load schema <FILE>      # Load TBox (class / property definitions)
+ontorag load data   <FILE>      # Load ABox (instance data)
+ontorag load        <FILE>      # Auto-detect TBox vs ABox
 
-# Server
-ontorag serve [--host 0.0.0.0] [--port 8000] [--reload]
+ontorag serve [--host HOST] [--port PORT] [--reload]
 
-# Interactive chat
-ontorag chat
+ontorag chat                    # Interactive REPL
 
-# Status
-ontorag status
+ontorag status                  # Graph store connection + triple counts
 
-# Config
 ontorag config set [OPTIONS]
 ontorag config show
 ```
 
 ---
 
-## API
+## REST API
 
-### POST /chat
-
-Stream a chat turn as Server-Sent Events.
+### `POST /chat`
 
 ```bash
 curl -N -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
-  -d '{"message": "포켓몬 종류가 몇 개야?"}'
+  -d '{"message": "List all Fire-type Pokémon"}'
 ```
 
-Response stream:
-
 ```
-data: {"type": "thinking", "content": "분석 중... (턴 1)"}
-data: {"type": "tool_call", "tool": "get_schema", "content": {}}
-data: {"type": "tool_result", "tool": "get_schema", "content": {...}}
-data: {"type": "text", "content": "현재 12종의 포켓몬이 등록되어 있습니다."}
+data: {"type": "thinking",    "content": "Analysing... (turn 1)"}
+data: {"type": "tool_call",   "tool": "get_schema",      "content": {}}
+data: {"type": "tool_result", "tool": "get_schema",      "content": {...}}
+data: {"type": "tool_call",   "tool": "find_entities",   "content": {...}}
+data: {"type": "tool_result", "tool": "find_entities",   "content": [...]}
+data: {"type": "text",        "content": "Fire-type Pokémon: Charmander, ..."}
 data: {"type": "done"}
 ```
 
-### MCP Tools (via /mcp)
+### `GET /mcp`
 
-ontorag exposes its ontology tools as an MCP server at `/mcp`. Any MCP client can connect and call the 9 tools directly.
+MCP (Model Context Protocol) endpoint. Any MCP-compatible client can connect and call the 9 ontology tools directly.
 
 ---
 
-## Example: Pokemon Ontology
+## MCP tools
 
-The included example demonstrates all framework features:
+| Tool | Layer | Description |
+|---|---|---|
+| `get_schema` | L1 | Class list with property counts (~30 tokens/class) |
+| `get_class_detail` | L1 | Properties, parents, children, instance sample |
+| `find_entities` | L1 | Filter instances by class + optional predicates |
+| `describe_entity` | L1 | All properties and relationships of one entity |
+| `count_entities` | L1 | Instance count for a class |
+| `traverse_graph` | L1 | BFS from a node (outgoing / incoming / both) |
+| `find_path` | L1 | Shortest path between two entities |
+| `find_related` | L1 | Cross-class join via a predicate |
+| `query_pattern` | L2 | JSON triple-pattern DSL → safe SPARQL translation |
+
+---
+
+## Example: Pokémon ontology
+
+The bundled example exercises every feature of the framework.
 
 ```
 examples/pokemon/
-├── schema.ttl   # TBox: Pokemon, Type, Move, Trainer, Region classes
-└── data.ttl     # ABox: Kanto region, 12 Pokemon, 3 Trainers, 18 Types
+├── schema.ttl   # TBox: Pokemon, LegendaryPokemon, Type, Move, Trainer, Region
+└── data.ttl     # ABox: Kanto region · 12 Pokémon · 3 Trainers · 18 Types
 ```
 
-Key ontology features used:
+**Ontology highlights:**
 
-- `owl:TransitiveProperty` — `evolvesFrom` (Venusaur → Ivysaur → Bulbasaur)
-- `rdfs:subClassOf` — `LegendaryPokemon` inherits from `Pokemon`
-- Inference — `find_entities(Pokemon)` includes LegendaryPokemon instances automatically
+- `pk:evolvesFrom` — declared `owl:TransitiveProperty`; Fuseki inference follows full chains
+- `pk:LegendaryPokemon rdfs:subClassOf pk:Pokemon` — `find_entities(Pokemon)` includes Mewtwo automatically
+- `strongAgainst` / `weakAgainst` — type effectiveness modelled as object properties
 
-Sample queries:
+**Sample queries:**
 
 ```
-> 이상해씨의 진화 체인을 알려줘
-> 불꽃 타입 포켓몬 목록과 지우의 포켓몬은?
-> 뮤츠의 모든 속성을 보여줘
-> 물 타입에 약한 포켓몬 찾아줘
+> Show the full evolution chain of Venusaur
+> Which Pokémon does Ash own?
+> Find all Pokémon weak to Water type
+> What are Mewtwo's stats?
 ```
 
 ---
 
-## LLM Providers
+## LLM providers
 
-| Provider | Env var | Default model |
-|---|---|---|
-| Anthropic (default) | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` |
-| OpenAI | `OPENAI_API_KEY` | `gpt-4o` |
-| Ollama (local) | `OLLAMA_BASE_URL` | `llama3.1` |
+| Provider | Key variable | Default model | Notes |
+|---|---|---|---|
+| **Anthropic** (default) | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` | Best tool-use accuracy |
+| **OpenAI** | `OPENAI_API_KEY` | `gpt-4o` | |
+| **Ollama** | `OLLAMA_BASE_URL` | `llama3.1` | Local, no key needed |
 
 ---
 
 ## Docker
 
 ```bash
-# Development (Fuseki + API with hot-reload)
+# Development — hot reload enabled
 docker compose up
 
 # Production
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
-Services:
-
-- `fuseki` — Apache Jena Fuseki on port 3030
-- `api` — ontorag FastAPI server on port 8000
+| Service | Port | Notes |
+|---|---|---|
+| `fuseki` | 3030 | Apache Jena Fuseki; admin UI at `/dataset.html` |
+| `api` | 8000 | ontorag FastAPI; OpenAPI at `/docs`, MCP at `/mcp` |
 
 ---
 
-## Positioning
+## Comparison
 
-| Framework | Ontology support | LLM agent | Notes |
+| Framework | Ontology | Agent | Notes |
 |---|---|---|---|
-| LangChain / LlamaIndex | Minimal | Yes | Code-first RAG, ontology not central |
-| Dify | None | Yes | Visual builder |
+| LangChain / LlamaIndex | Minimal | Yes | Code-first RAG, ontology is a plugin |
+| Dify | None | Yes | Visual builder, no OWL support |
 | GraphRAG (Microsoft) | KG from text | Yes | User-defined ontology weak |
-| **ontorag** | **First-class** | **Yes** | RDF/OWL/SPARQL as source of truth |
+| **ontorag** | **First-class** | **Yes** | RDF/OWL/SPARQL as primary structure |
+
+---
+
+## Roadmap
+
+- **v0.1** (current) — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE streaming
+- **v0.2** — Neo4j + n10s adapter · `GRAPH_STORE` env var to switch backends
+- **v0.3** — Web UI · Vector similarity tool (`find_similar`) · Multi-ontology support
+
+---
+
+## Contributing
+
+```bash
+# Set up dev environment
+uv sync --extra dev
+
+# Run tests
+uv run pytest tests/ --cov=src/ontorag
+
+# Run the API in dev mode
+uv run ontorag serve --reload
+```
 
 ---
 
 ## License
 
-MIT
+[MIT](LICENSE)
