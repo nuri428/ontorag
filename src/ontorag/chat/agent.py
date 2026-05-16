@@ -15,11 +15,15 @@ logger = logging.getLogger(__name__)
 _SYSTEM = """\
 당신은 RDF 온톨로지 전문 에이전트입니다.
 사용자의 질문에 답하기 위해 제공된 툴을 사용해 온톨로지 스키마와 인스턴스 데이터를 조회하세요.
+
 툴 호출 전략:
 1. get_schema로 도메인 클래스 구조를 파악하세요.
-2. 특정 클래스의 속성이 필요하면 get_class_detail을 사용하세요.
-3. 인스턴스 검색은 find_entities, 상세 조회는 describe_entity를 사용하세요.
-4. L1 툴로 불가능한 복잡한 쿼리만 query_pattern을 사용하세요.
+2. 엔티티 URI를 모를 때는 find_entities(filters=[{"property": "rdfs:label", "op": "=", "value": "이름"}])로 URI를 먼저 조회하세요. URI를 절대 추측하지 마세요.
+3. 진화·부모·소속 같은 관계 탐색은 traverse_graph를 사용하세요.
+4. 특정 클래스의 속성이 필요하면 get_class_detail을 사용하세요.
+5. 인스턴스 상세 조회는 describe_entity를 사용하세요.
+6. L1 툴로 불가능한 복잡한 쿼리만 query_pattern을 사용하세요.
+
 최종 사용자 답변에 URI를 절대 노출하지 마세요. rdfs:label이나 자연스러운 이름만 사용하고, URI는 도구 호출 입력에만 사용하세요.
 항상 한국어로 답변하세요."""
 
@@ -45,11 +49,35 @@ _TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "find_entities",
-        "description": "클래스 인스턴스를 검색합니다. 필터 조건을 추가할 수 있습니다.",
+        "description": (
+            "클래스 인스턴스를 검색합니다. "
+            "엔티티 URI를 모를 때 label로 검색하려면 "
+            'filters=[{"property": "rdfs:label", "op": "=", "value": "피카츄"}] 처럼 사용하세요.'
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "class_uri": {"type": "string", "description": "클래스 URI"},
+                "filters": {
+                    "type": "array",
+                    "description": "필터 조건 목록. rdfs:label로 이름 검색 가능.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "property": {
+                                "type": "string",
+                                "description": "속성 URI 또는 prefixed name (예: rdfs:label, pk:hp)",
+                            },
+                            "op": {
+                                "type": "string",
+                                "enum": ["=", "!=", ">", ">=", "<", "<=", "contains", "starts_with"],
+                                "default": "=",
+                            },
+                            "value": {"type": "string", "description": "비교할 값"},
+                        },
+                        "required": ["property", "value"],
+                    },
+                },
                 "limit": {"type": "integer", "default": 20, "description": "최대 결과 수"},
             },
             "required": ["class_uri"],
@@ -79,17 +107,24 @@ _TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "traverse_graph",
-        "description": "시작 노드에서 그래프를 순회합니다.",
+        "description": (
+            "시작 엔티티에서 관계를 따라 연결된 엔티티를 찾습니다. "
+            "진화·부모·소속 같은 관계 탐색에 사용하세요. "
+            "direction 주의: predicate가 'B evolvesFrom A' 방향이면 "
+            "'A가 진화한 것(B)'을 찾으려면 direction=incoming 사용. "
+            "예: '피카츄의 진화형?' → traverse_graph(start_uri=피카츄URI, predicate=evolvesFrom, direction=incoming)"
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "start_uri": {"type": "string"},
-                "predicate": {"type": "string", "description": "따라갈 predicate URI (없으면 전체)"},
+                "start_uri": {"type": "string", "description": "시작 엔티티 URI"},
+                "predicate": {"type": "string", "description": "따라갈 predicate URI (없으면 전체 관계)"},
                 "max_depth": {"type": "integer", "default": 2},
                 "direction": {
                     "type": "string",
                     "enum": ["outgoing", "incoming", "both"],
                     "default": "outgoing",
+                    "description": "outgoing=start→neighbor, incoming=neighbor→start, both=양방향",
                 },
             },
             "required": ["start_uri"],
@@ -230,9 +265,19 @@ class AgentLoop:
             return (await store.get_class_detail(args["class_uri"])).model_dump()
 
         if name == "find_entities":
+            from ontorag.stores.base import EntityFilter, FilterOp
+            raw_filters = args.get("filters") or []
+            filters = [
+                EntityFilter(
+                    property=f["property"],
+                    op=FilterOp(f.get("op", "=")),
+                    value=f["value"],
+                )
+                for f in raw_filters
+            ] or None
             results = await store.find_entities(
                 class_uri=args["class_uri"],
-                filters=None,
+                filters=filters,
                 limit=args.get("limit", 20),
             )
             return [r.model_dump() for r in results]

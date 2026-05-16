@@ -100,7 +100,7 @@ WHERE {{
             uris_block = " ".join(f"<{n['uri']}>" for n in nodes)
             lbl_q = f"SELECT ?uri ?label WHERE {{ VALUES ?uri {{ {uris_block} }} GRAPH <{_DATA}> {{ ?uri rdfs:label ?label . }} }}"
             lbl_bindings = (await self._sparql_select(lbl_q)).get("results", {}).get("bindings", [])
-            uri_labels = {b["uri"]["value"]: b["label"]["value"] for b in lbl_bindings}
+            uri_labels = {b["uri"]["value"]: b["label"]["value"] for b in lbl_bindings if "uri" in b and "label" in b}
             for node in nodes:
                 node["label"] = uri_labels.get(node["uri"])
 
@@ -173,7 +173,7 @@ WHERE {{
             uris_block = " ".join(f"<{n['uri']}>" for n in path_nodes)
             lbl_q = f"SELECT ?uri ?label WHERE {{ VALUES ?uri {{ {uris_block} }} GRAPH <{_DATA}> {{ ?uri rdfs:label ?label . }} }}"
             lbl_bindings = (await self._sparql_select(lbl_q)).get("results", {}).get("bindings", [])
-            uri_labels = {b["uri"]["value"]: b["label"]["value"] for b in lbl_bindings}
+            uri_labels = {b["uri"]["value"]: b["label"]["value"] for b in lbl_bindings if "uri" in b and "label" in b}
             for node in path_nodes:
                 node["label"] = uri_labels.get(node["uri"])
 
