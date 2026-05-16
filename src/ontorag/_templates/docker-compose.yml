@@ -3,7 +3,7 @@
 # Then: ontorag serve   (starts the API locally)
 services:
   fuseki:
-    image: stain/jena-fuseki:5.0.0
+    image: stain/jena-fuseki:4.8.0
     platform: linux/amd64
     environment:
       FUSEKI_DATASET: ${FUSEKI_DATASET:-ontorag}
