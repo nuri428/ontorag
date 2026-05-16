@@ -159,9 +159,10 @@ Settings are written to `.env` in the current directory.
 ```bash
 ontorag init [DIR]              # Scaffold project files (docker-compose, .env.example, examples)
 
-ontorag load schema <FILE>      # Load TBox (class / property definitions)
-ontorag load data   <FILE>      # Load ABox (instance data)
-ontorag load        <FILE>      # Auto-detect TBox vs ABox
+ontorag load schema <FILE>               # Load TBox (class / property definitions)
+ontorag load data   <FILE>               # Load ABox — appends to existing data
+ontorag load data   <FILE> --replace     # Load ABox — replaces existing data
+ontorag load        <FILE>               # Auto-detect TBox vs ABox
 
 ontorag serve [--host HOST] [--port PORT] [--reload]
 

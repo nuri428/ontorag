@@ -159,9 +159,10 @@ ontorag config show
 ```bash
 ontorag init [DIR]              # 프로젝트 파일 생성 (docker-compose, .env.example, examples)
 
-ontorag load schema <FILE>      # TBox 로드 (클래스/속성 정의)
-ontorag load data   <FILE>      # ABox 로드 (인스턴스 데이터)
-ontorag load        <FILE>      # TBox/ABox 자동 감지
+ontorag load schema <FILE>               # TBox 로드 (클래스/속성 정의)
+ontorag load data   <FILE>               # ABox 로드 — 기존 데이터에 추가
+ontorag load data   <FILE> --replace     # ABox 로드 — 기존 데이터를 교체
+ontorag load        <FILE>               # TBox/ABox 자동 감지
 
 ontorag serve [--host HOST] [--port PORT] [--reload]
 

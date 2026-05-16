@@ -30,7 +30,11 @@ app.add_typer(config_app, name="config")
 
 # ── load subcommands ─────────────────────────────────────────────────────────
 
-def _run_load(file: Path, mode: Literal["schema", "data", "auto"]) -> None:
+def _run_load(
+    file: Path,
+    mode: Literal["schema", "data", "auto"],
+    replace: bool = False,
+) -> None:
     """Parse + upload RDF file with a Rich spinner and result summary."""
     from ontorag.stores.fuseki import FusekiStore
 
@@ -49,7 +53,7 @@ def _run_load(file: Path, mode: Literal["schema", "data", "auto"]) -> None:
     ) as progress:
         progress.add_task(f"{file.name} 로딩 중...", total=None)
         try:
-            result = asyncio.run(store.load_rdf(str(file), mode))
+            result = asyncio.run(store.load_rdf(str(file), mode, replace=replace))
         except FileNotFoundError as exc:
             console.print(f"[red]Error:[/] {exc}")
             raise typer.Exit(1)
@@ -61,9 +65,10 @@ def _run_load(file: Path, mode: Literal["schema", "data", "auto"]) -> None:
     mode_label = {"schema": "스키마(TBox)", "data": "데이터(ABox)"}.get(
         result.mode, result.mode
     )
+    action = "교체했습니다" if replace and result.mode == "data" else "로드했습니다"
     console.print(
         f"[green]✓[/] [bold]{result.triples_loaded:,}[/] 트리플을 "
-        f"[bold]{mode_label}[/]로 로드했습니다 ← {file.name}"
+        f"[bold]{mode_label}[/]로 {action} ← {file.name}"
     )
 
 
@@ -95,9 +100,18 @@ def load_schema(
 @load_app.command("data")
 def load_data(
     file: Path = typer.Argument(..., help="인스턴스 데이터(ABox) RDF 파일."),
+    replace: bool = typer.Option(
+        False,
+        "--replace",
+        help="기존 데이터 그래프를 완전히 교체합니다 (기본값: 추가).",
+    ),
 ) -> None:
-    """인스턴스 데이터(ABox) RDF 파일을 로드합니다. 기존 데이터에 추가됩니다."""
-    _run_load(file, "data")
+    """인스턴스 데이터(ABox) RDF 파일을 로드합니다.
+
+    기본값은 기존 데이터에 추가(append)입니다.
+    --replace 플래그를 사용하면 기존 ABox를 완전히 교체합니다.
+    """
+    _run_load(file, "data", replace=replace)
 
 
 # ── status command ───────────────────────────────────────────────────────────

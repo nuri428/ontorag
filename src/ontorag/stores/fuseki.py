@@ -157,15 +157,19 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
         self,
         path: str,
         mode: Literal["schema", "data", "auto"] = "auto",
+        replace: bool = False,
     ) -> LoadResult:
         """Parse an RDF file and upload it to the appropriate named graph.
 
-        Schema (TBox) → PUT urn:ontorag:schema (replaces; one canonical schema).
-        Data (ABox)   → POST urn:ontorag:data (appends; multiple data files OK).
+        Schema (TBox) → PUT urn:ontorag:schema (always replaces; one canonical schema).
+        Data (ABox)   → POST urn:ontorag:data (appends by default).
+                        Pass replace=True to DROP the existing data graph first.
 
         Args:
             path: Local file path (TTL, JSON-LD, RDF/XML, N3).
             mode: "schema", "data", or "auto" (auto-detects from content).
+            replace: If True and mode is "data", replaces the entire data graph
+                     instead of appending. Ignored for schema (always replaced).
 
         Returns:
             LoadResult with triple count and resolved mode.
@@ -188,8 +192,8 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
             detect_mode(graph) if mode == "auto" else mode  # type: ignore[assignment]
         )
 
-        if resolved_mode == "schema":
-            await self._gsp_put(graph, SCHEMA_GRAPH_URI)
+        if resolved_mode == "schema" or replace:
+            await self._gsp_put(graph, SCHEMA_GRAPH_URI if resolved_mode == "schema" else DATA_GRAPH_URI)
         else:
             await self._gsp_post(graph, DATA_GRAPH_URI)
 
