@@ -264,8 +264,13 @@ def config_show() -> None:
 # ── chat command ─────────────────────────────────────────────────────────────
 
 @app.command()
-def chat() -> None:
-    """온톨로지 Q&A 대화 세션을 시작합니다 (REPL)."""
+def chat(
+    message: Optional[str] = typer.Argument(None, help="첫 메시지 (생략 시 REPL 프롬프트로 진입)"),
+) -> None:
+    """온톨로지 Q&A 대화 세션을 시작합니다 (REPL).
+
+    첫 메시지를 인자로 전달할 수도 있습니다: ontorag chat "질문"
+    """
     from rich.markup import escape
     from rich.panel import Panel
 
@@ -286,11 +291,18 @@ def chat() -> None:
         border_style="blue",
     ))
 
-    async def run_turn(message: str) -> None:
+    async def run_turn(msg: str) -> None:
         from ontorag.chat.agent import AgentLoop
         agent = AgentLoop(store, llm)
-        async for event in agent.run(message):
+        async for event in agent.run(msg):
             _render_event(event)
+
+    # 인자로 첫 메시지가 주어진 경우 바로 처리
+    if message:
+        try:
+            asyncio.run(run_turn(message))
+        except Exception as exc:
+            console.print(f"[red]Error:[/] {escape(str(exc))}")
 
     while True:
         try:
