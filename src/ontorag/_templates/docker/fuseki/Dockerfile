@@ -7,6 +7,7 @@ ARG FUSEKI_VERSION=5.0.0
 
 RUN apk add --no-cache curl \
     && mkdir -p /opt/fuseki /fuseki/databases \
+    && chmod 777 /fuseki/databases \
     && curl -fsSL \
        "https://archive.apache.org/dist/jena/binaries/apache-jena-fuseki-${FUSEKI_VERSION}.tar.gz" \
        | tar -xz -C /opt \
@@ -24,7 +25,8 @@ HEALTHCHECK --interval=10s --timeout=5s --retries=6 --start-period=40s \
     CMD curl -sf http://localhost:3030/$/ping || exit 1
 
 ENTRYPOINT ["sh", "-c", \
-    "echo \"admin=${ADMIN_PASSWORD}\" > /tmp/passwd \
+    "chmod -R 777 /fuseki/databases 2>/dev/null; \
+     echo \"admin=${ADMIN_PASSWORD}\" > /tmp/passwd \
      && java -Xmx512m -jar fuseki-server.jar \
           --port=3030 \
           --passwd=/tmp/passwd \

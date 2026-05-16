@@ -8,8 +8,6 @@ services:
       ADMIN_PASSWORD: ${FUSEKI_PASSWORD:-admin}
     ports:
       - "3030:3030"
-    volumes:
-      - fuseki_data:/fuseki/databases
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:3030/$/ping || exit 1"]
       interval: 10s
@@ -42,5 +40,3 @@ services:
       retries: 3
       start_period: 15s
 
-volumes:
-  fuseki_data:
