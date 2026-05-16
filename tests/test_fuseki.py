@@ -98,8 +98,6 @@ async def test_load_rdf_raises_for_missing_file(store):
 async def test_status_connected(store):
     ping_resp = _ok_response(200)
 
-    ensure_resp = _ok_response(201)  # _ensure_dataset
-
     sparql_resp = MagicMock()
     sparql_resp.status_code = 200
     sparql_resp.raise_for_status = MagicMock()
@@ -110,8 +108,8 @@ async def test_status_connected(store):
 
     mock_client = AsyncMock()
     mock_client.get.return_value = ping_resp
-    # post: first call _ensure_dataset, then two SPARQL COUNT queries
-    mock_client.post.side_effect = [ensure_resp, sparql_resp, sparql_resp]
+    # post: two SPARQL COUNT queries (no _ensure_dataset in status())
+    mock_client.post.side_effect = [sparql_resp, sparql_resp]
 
     with patch.object(store, "_http", return_value=mock_client):
         s = await store.status()

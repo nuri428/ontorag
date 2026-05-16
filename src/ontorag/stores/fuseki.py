@@ -98,7 +98,9 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
             data={"dbName": self._dataset, "dbType": "mem"},
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
-        if response.status_code not in (200, 201, 409):
+        # 409 = already exists (persistent Fuseki), 403 = admin API blocked but
+        # dataset was pre-created by --mem flag — both are safe to ignore.
+        if response.status_code not in (200, 201, 403, 409):
             response.raise_for_status()
 
     async def _gsp_put(self, graph: Graph, named_graph: str) -> None:
@@ -211,7 +213,6 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
             client = await self._http()
             response = await client.get(f"{self._base}/$/ping")
             response.raise_for_status()
-            await self._ensure_dataset()
         except Exception as exc:
             logger.warning("Fuseki ping failed: %s", exc)
             return StoreStatus(
