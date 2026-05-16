@@ -37,7 +37,7 @@ _SYSTEM_BASE = """\
 
 - 사용자 질문에 직접 답하세요. 묻지 않은 추가 정보는 생략하거나 한 줄로만 덧붙이세요.
 - 엔티티 이름이 명확한 짧은 질문은 get_schema 없이 즉시 find_entities → traverse_graph 순으로 진행하세요.
-- 항상 한국어로 답변하세요."""
+- 사용자 메시지가 한국어면 한국어로, 영어면 영어로 답변하세요."""
 
 
 def _format_schema_for_prompt(schema: Any) -> str:
