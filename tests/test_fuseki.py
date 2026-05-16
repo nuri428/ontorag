@@ -37,8 +37,9 @@ def store():
     return FusekiStore("http://localhost:3030", "test", "admin", "admin")
 
 
-def _ok_response():
+def _ok_response(status_code: int = 200):
     resp = MagicMock()
+    resp.status_code = status_code
     resp.raise_for_status = MagicMock()
     return resp
 
@@ -46,7 +47,8 @@ def _ok_response():
 @pytest.mark.asyncio
 async def test_load_rdf_schema_uses_put(store, schema_file):
     mock_client = AsyncMock()
-    mock_client.put.return_value = _ok_response()
+    mock_client.post.return_value = _ok_response(201)  # _ensure_dataset
+    mock_client.put.return_value = _ok_response(200)   # GSP PUT
 
     with patch.object(store, "_http", return_value=mock_client):
         result = await store.load_rdf(schema_file, "schema")
@@ -61,21 +63,24 @@ async def test_load_rdf_schema_uses_put(store, schema_file):
 @pytest.mark.asyncio
 async def test_load_rdf_data_uses_post(store, data_file):
     mock_client = AsyncMock()
-    mock_client.post.return_value = _ok_response()
+    # post is called twice: _ensure_dataset (201) + GSP data upload (200)
+    mock_client.post.side_effect = [_ok_response(201), _ok_response(200)]
 
     with patch.object(store, "_http", return_value=mock_client):
         result = await store.load_rdf(data_file, "data")
 
     assert result.mode == "data"
-    mock_client.post.assert_called_once()
-    _, kwargs = mock_client.post.call_args
+    assert mock_client.post.call_count == 2
+    # Second call is the actual GSP data upload
+    _, kwargs = mock_client.post.call_args_list[1]
     assert kwargs["params"]["graph"] == DATA_GRAPH_URI
 
 
 @pytest.mark.asyncio
 async def test_load_rdf_auto_detects_schema(store, schema_file):
     mock_client = AsyncMock()
-    mock_client.put.return_value = _ok_response()
+    mock_client.post.return_value = _ok_response(201)  # _ensure_dataset
+    mock_client.put.return_value = _ok_response(200)   # GSP PUT
 
     with patch.object(store, "_http", return_value=mock_client):
         result = await store.load_rdf(schema_file, "auto")
@@ -91,8 +96,12 @@ async def test_load_rdf_raises_for_missing_file(store):
 
 @pytest.mark.asyncio
 async def test_status_connected(store):
-    ping_resp = _ok_response()
+    ping_resp = _ok_response(200)
+
+    ensure_resp = _ok_response(201)  # _ensure_dataset
+
     sparql_resp = MagicMock()
+    sparql_resp.status_code = 200
     sparql_resp.raise_for_status = MagicMock()
     sparql_resp.json.side_effect = [
         {"results": {"bindings": [{"n": {"value": "5"}}]}},   # schema count
@@ -101,7 +110,8 @@ async def test_status_connected(store):
 
     mock_client = AsyncMock()
     mock_client.get.return_value = ping_resp
-    mock_client.post.return_value = sparql_resp
+    # post: first call _ensure_dataset, then two SPARQL COUNT queries
+    mock_client.post.side_effect = [ensure_resp, sparql_resp, sparql_resp]
 
     with patch.object(store, "_http", return_value=mock_client):
         s = await store.status()

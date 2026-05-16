@@ -85,6 +85,22 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
             self._client = httpx.AsyncClient(auth=self._auth, timeout=60.0)
         return self._client
 
+    async def _ensure_dataset(self) -> None:
+        """Create the dataset via the admin API if it does not exist.
+
+        Fuseki 5.x no longer auto-creates datasets from the FUSEKI_DATASET
+        environment variable — explicit creation via POST /$/datasets is required.
+        This is a no-op if the dataset already exists (409 Conflict is silently ignored).
+        """
+        client = await self._http()
+        response = await client.post(
+            f"{self._base}/$/datasets",
+            data={"dbName": self._dataset, "dbType": "mem"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        if response.status_code not in (200, 201, 409):
+            response.raise_for_status()
+
     async def _gsp_put(self, graph: Graph, named_graph: str) -> None:
         """Replace a named graph via GSP PUT (idempotent)."""
         client = await self._http()
@@ -156,8 +172,9 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
             FileNotFoundError: If the file does not exist.
             httpx.HTTPStatusError: If Fuseki returns an error.
         """
-        graph = parse_rdf(path)
+        graph = parse_rdf(path)   # raises FileNotFoundError early if missing
         triple_count = len(graph)
+        await self._ensure_dataset()
 
         # Capture domain-specific namespace prefixes for query_pattern translator
         for prefix, ns in graph.namespaces():
@@ -194,6 +211,7 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
             client = await self._http()
             response = await client.get(f"{self._base}/$/ping")
             response.raise_for_status()
+            await self._ensure_dataset()
         except Exception as exc:
             logger.warning("Fuseki ping failed: %s", exc)
             return StoreStatus(
