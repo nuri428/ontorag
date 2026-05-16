@@ -12,7 +12,7 @@ from ontorag.stores.fuseki import FusekiStore
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM = """\
+_SYSTEM_BASE = """\
 당신은 RDF 온톨로지 전문 에이전트입니다.
 사용자의 질문에 답하기 위해 제공된 툴을 사용해 온톨로지 스키마와 인스턴스 데이터를 조회하세요.
 
@@ -24,19 +24,38 @@ _SYSTEM = """\
 | "X는 어떤 포켓몬이야?" 단일 엔티티 상세 | describe_entity |
 | "모든 불 타입 포켓몬" 클래스 필터 검색 | find_entities (filters 사용) |
 | "A와 B는 어떻게 연결돼?" 두 엔티티 경로 | find_path |
-| 스키마/클래스 구조 파악 | get_schema, get_class_detail |
+| 스키마/클래스 구조 파악 필요 시 | get_schema, get_class_detail |
 
 ## URI 처리 규칙
 
-- 엔티티 URI를 모를 때: 먼저 get_schema로 클래스 URI를 확인하고, find_entities(filters=[{{"property": "rdfs:label", "op": "=", "value": "이름"}}])로 인스턴스 URI를 조회하세요.
-- URI는 반드시 툴이 반환한 값만 사용하세요. URI나 prefix:name을 직접 구성하거나 추측하는 것은 절대 금지입니다.
-- 조회 결과가 없으면 get_schema로 올바른 클래스 URI를 먼저 확인하세요.
+- URI는 반드시 툴이 반환한 값 또는 아래 '현재 스키마'에 나온 URI만 사용하세요. URI나 prefix:name을 직접 구성하거나 추측하는 것은 절대 금지입니다.
+- 인스턴스 URI를 모를 때: find_entities(class_uri=<알고있는클래스URI>, filters=[{{"property": "rdfs:label", "op": "=", "value": "이름"}}])로 조회하세요.
+- 조회 결과가 없으면 아래 스키마에서 정확한 클래스 URI를 확인하세요.
 - 최종 답변에 URI를 절대 노출하지 마세요. 이름(label)만 사용하세요.
 
 ## 답변 스타일
 
 - 사용자 질문에 직접 답하세요. 묻지 않은 추가 정보는 생략하거나 한 줄로만 덧붙이세요.
+- 엔티티 이름이 명확한 짧은 질문은 get_schema 없이 즉시 find_entities → traverse_graph 순으로 진행하세요.
 - 항상 한국어로 답변하세요."""
+
+
+def _format_schema_for_prompt(schema: Any) -> str:
+    """SchemaResult를 시스템 프롬프트용 compact 텍스트로 변환."""
+    lines = ["## 현재 온톨로지 스키마 (세션 고정 — get_schema 재호출 불필요)", ""]
+    lines.append("### 클래스 (URI | label | 속성수 | 인스턴스수)")
+    for cls in schema.classes:
+        label = cls.label or "-"
+        parent = f" ← {cls.parent_uri.split('#')[-1]}" if cls.parent_uri else ""
+        lines.append(f"- {cls.uri} | {label}{parent} | 속성:{cls.property_count} | 인스턴스:{cls.instance_count}")
+
+    ns_relevant = {k: v for k, v in schema.namespaces.items() if k not in ("rdf", "rdfs", "owl", "xsd")}
+    if ns_relevant:
+        lines.append("")
+        lines.append("### 도메인 네임스페이스")
+        for prefix, uri in ns_relevant.items():
+            lines.append(f"- {prefix}: {uri}")
+    return "\n".join(lines)
 
 _TOOLS: list[dict[str, Any]] = [
     {
@@ -211,9 +230,17 @@ class AgentLoop:
 
     MAX_TURNS = 12
 
-    def __init__(self, store: FusekiStore, llm: LLMProvider) -> None:
+    def __init__(
+        self,
+        store: FusekiStore,
+        llm: LLMProvider,
+        schema_context: str | None = None,
+    ) -> None:
         self._store = store
         self._llm = llm
+        self._system = (
+            f"{_SYSTEM_BASE}\n\n{schema_context}" if schema_context else _SYSTEM_BASE
+        )
 
     async def run(self, user_message: str) -> AsyncGenerator[dict[str, Any], None]:
         """Run one user turn and yield SSE event dicts until done."""
@@ -225,7 +252,7 @@ class AgentLoop:
             logger.debug("Agent turn %d", turn + 1)
             yield {"type": "thinking", "content": f"분석 중... (턴 {turn + 1})"}
 
-            response = await self._llm.complete(messages, _TOOLS, _SYSTEM)
+            response = await self._llm.complete(messages, _TOOLS, self._system)
 
             assistant_blocks: list[dict[str, Any]] = []
             tool_results: list[dict[str, Any]] = []

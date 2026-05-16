@@ -34,6 +34,7 @@
 | **SSE 스트리밍** | `thinking / tool_call / tool_result / text / done` 이벤트 |
 | **점진적 공개** | `get_schema` (간략) + `get_class_detail` (드릴다운) |
 | **인젝션 안전 L2 DSL** | `query_pattern`은 JSON 트리플 패턴을 내부적으로 SPARQL로 변환 |
+| **스키마 캐싱** | 세션 시작 시 스키마를 system prompt에 주입 — 매 턴 `get_schema` 호출 불필요 |
 | **Docker 우선** | `docker compose up` → 60초 이내 준비 완료 |
 
 ---
@@ -77,16 +78,7 @@ ontorag chat
 
 실행 예시:
 
-```
-> 데이터베이스에 포켓몬이 몇 마리야?
-  ⟳ 분석 중... (턴 1)
-  → get_schema {}
-  ← get_schema  결과 수신
-  → count_entities {"class_uri": "http://example.org/pokemon#Pokemon"}
-  ← count_entities  결과 수신
-
-데이터베이스에는 12종의 포켓몬이 등록되어 있습니다.
-```
+![포켓몬 채팅 데모](assets/pokemon_chat.png)
 
 ---
 
@@ -274,6 +266,8 @@ examples/pokemon/
 > 물 타입에 약한 포켓몬을 찾아줘
 > 뮤츠의 전체 스탯을 보여줘
 ```
+
+![포켓몬 진화 체인 질의 예시](assets/pokemon_chat.png)
 
 ---
 

@@ -34,6 +34,7 @@ User query → LLM agent → ontology tools (get_schema / find_entities / traver
 | **SSE streaming** | `thinking / tool_call / tool_result / text / done` events |
 | **Progressive disclosure** | `get_schema` (compact) + `get_class_detail` (drill-down) |
 | **Injection-safe L2 DSL** | `query_pattern` translates JSON triple patterns to SPARQL internally |
+| **Schema caching** | Schema injected into system prompt at session start — no `get_schema` call per turn |
 | **Docker first** | `docker compose up` → ready in < 60 s |
 
 ---
@@ -77,16 +78,7 @@ ontorag chat
 
 Example session:
 
-```
-> How many Pokémon are in the database?
-  ⟳ Thinking... (turn 1)
-  → get_schema {}
-  ← get_schema  received
-  → count_entities {"class_uri": "http://example.org/pokemon#Pokemon"}
-  ← count_entities  received
-
-There are 12 Pokémon registered in the database.
-```
+![Pokemon chat demo](assets/pokemon_chat.png)
 
 ---
 
@@ -274,6 +266,8 @@ examples/pokemon/
 > Find all Pokémon weak to Water type
 > What are Mewtwo's stats?
 ```
+
+![Pokemon evolution chain query](assets/pokemon_chat.png)
 
 ---
 

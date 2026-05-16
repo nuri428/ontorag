@@ -294,9 +294,19 @@ def chat(
         # store는 async 컨텍스트 안에서 생성 — httpx 클라이언트가 현재 루프에 바인딩됨
         store = FusekiStore.from_env()
 
+        from ontorag.chat.agent import AgentLoop, _format_schema_for_prompt
+
+        # 세션 시작 시 schema를 한 번만 로드해 system prompt에 주입
+        schema_ctx: str | None = None
+        try:
+            schema = await store.get_schema()
+            schema_ctx = _format_schema_for_prompt(schema)
+            console.print(f"[dim]스키마 로드됨 ({len(schema.classes)}개 클래스)[/]")
+        except Exception as exc:
+            console.print(f"[yellow]경고:[/] 스키마 로드 실패 — {exc}")
+
         async def run_turn(msg: str) -> None:
-            from ontorag.chat.agent import AgentLoop
-            agent = AgentLoop(store, llm)
+            agent = AgentLoop(store, llm, schema_context=schema_ctx)
             async for event in agent.run(msg):
                 _render_event(event)
 
