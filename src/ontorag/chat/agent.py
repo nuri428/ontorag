@@ -16,16 +16,26 @@ _SYSTEM = """\
 당신은 RDF 온톨로지 전문 에이전트입니다.
 사용자의 질문에 답하기 위해 제공된 툴을 사용해 온톨로지 스키마와 인스턴스 데이터를 조회하세요.
 
-툴 호출 전략:
-1. get_schema로 도메인 클래스 구조를 파악하세요.
-2. 엔티티 URI를 모를 때는 find_entities(filters=[{"property": "rdfs:label", "op": "=", "value": "이름"}])로 URI를 먼저 조회하세요. URI를 절대 추측하지 마세요.
-3. 진화·부모·소속 같은 관계 탐색은 traverse_graph를 사용하세요.
-4. 특정 클래스의 속성이 필요하면 get_class_detail을 사용하세요.
-5. 인스턴스 상세 조회는 describe_entity를 사용하세요.
-6. L1 툴로 불가능한 복잡한 쿼리만 query_pattern을 사용하세요.
+## 질문 유형 → 추천 툴
 
-최종 사용자 답변에 URI를 절대 노출하지 마세요. rdfs:label이나 자연스러운 이름만 사용하고, URI는 도구 호출 입력에만 사용하세요.
-항상 한국어로 답변하세요."""
+| 질문 유형 | 추천 툴 |
+|-----------|---------|
+| "X가 진화하면?", "X의 부모는?", "X에 속한 Y" 등 관계 탐색 | traverse_graph (direction 주의) 또는 find_related |
+| "X는 어떤 포켓몬이야?" 단일 엔티티 상세 | describe_entity |
+| "모든 불 타입 포켓몬" 클래스 필터 검색 | find_entities (filters 사용) |
+| "A와 B는 어떻게 연결돼?" 두 엔티티 경로 | find_path |
+| 스키마/클래스 구조 파악 | get_schema, get_class_detail |
+
+## URI 처리 규칙
+
+- 엔티티 URI를 모를 때: find_entities(filters=[{{"property": "rdfs:label", "op": "=", "value": "이름"}}])로 URI를 먼저 조회하세요.
+- URI를 절대 추측하지 마세요.
+- 최종 답변에 URI를 절대 노출하지 마세요. 이름(label)만 사용하세요.
+
+## 답변 스타일
+
+- 사용자 질문에 직접 답하세요. 묻지 않은 추가 정보는 생략하거나 한 줄로만 덧붙이세요.
+- 항상 한국어로 답변하세요."""
 
 _TOOLS: list[dict[str, Any]] = [
     {
@@ -108,23 +118,25 @@ _TOOLS: list[dict[str, Any]] = [
     {
         "name": "traverse_graph",
         "description": (
-            "시작 엔티티에서 관계를 따라 연결된 엔티티를 찾습니다. "
-            "진화·부모·소속 같은 관계 탐색에 사용하세요. "
-            "direction 주의: predicate가 'B evolvesFrom A' 방향이면 "
-            "'A가 진화한 것(B)'을 찾으려면 direction=incoming 사용. "
-            "예: '피카츄의 진화형?' → traverse_graph(start_uri=피카츄URI, predicate=evolvesFrom, direction=incoming)"
+            "시작 엔티티에서 특정 관계를 따라 연결된 엔티티를 탐색합니다. "
+            "다음 질문 유형에 이 툴을 우선 사용하세요: "
+            "(1) 'X가 진화하면?' → direction=incoming으로 evolvesFrom 역방향 탐색 "
+            "(2) 'X의 전체 진화 체인?' → max_depth=3, direction=both "
+            "(3) 'X의 부모/자식 관계?' → direction=outgoing 또는 incoming "
+            "(4) 'X에 속한 것들?' → outgoing으로 소속 관계 탐색. "
+            "direction 규칙: predicate 방향이 '결과→시작' 이면 incoming, '시작→결과' 이면 outgoing."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "start_uri": {"type": "string", "description": "시작 엔티티 URI"},
                 "predicate": {"type": "string", "description": "따라갈 predicate URI (없으면 전체 관계)"},
-                "max_depth": {"type": "integer", "default": 2},
+                "max_depth": {"type": "integer", "default": 2, "description": "최대 탐색 깊이 (전체 체인은 3 이상)"},
                 "direction": {
                     "type": "string",
                     "enum": ["outgoing", "incoming", "both"],
                     "default": "outgoing",
-                    "description": "outgoing=start→neighbor, incoming=neighbor→start, both=양방향",
+                    "description": "outgoing=시작→이웃, incoming=이웃→시작(역방향), both=양방향",
                 },
             },
             "required": ["start_uri"],
