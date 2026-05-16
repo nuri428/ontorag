@@ -1,6 +1,6 @@
 services:
   fuseki:
-    image: stain/jena-fuseki:4.10.0
+    image: stain/jena-fuseki:5.0.0
     environment:
       FUSEKI_DATASET: ${FUSEKI_DATASET:-ontology}
       ADMIN_PASSWORD: ${FUSEKI_PASSWORD:-admin}
