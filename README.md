@@ -78,7 +78,7 @@ ontorag chat
 
 Example session:
 
-![Pokemon chat demo](assets/pokemon_chat.png)
+![Pokemon chat demo](assets/pokemon_chat_en.png)
 
 ---
 
@@ -267,7 +267,7 @@ examples/pokemon/
 > What are Mewtwo's stats?
 ```
 
-![Pokemon evolution chain query](assets/pokemon_chat.png)
+![Pokemon evolution chain query](assets/pokemon_chat_en.png)
 
 ---
 
