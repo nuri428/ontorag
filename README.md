@@ -4,7 +4,6 @@
 
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/ontorag)](https://pypi.org/project/ontorag/)
 
 [한국어 문서](README.ko.md)
 
@@ -43,37 +42,17 @@ User query → LLM agent → ontology tools (get_schema / find_entities / traver
 
 **Prerequisites:** Docker · Docker Compose · Anthropic _or_ OpenAI API key
 
-### Install from PyPI
-
-```bash
-pip install ontorag            # or: uv add ontorag
-
-mkdir my-project && cd my-project
-ontorag init                   # scaffold docker-compose.yml, .env.example, examples/
-
-cp .env.example .env           # set ANTHROPIC_API_KEY (or OPENAI_API_KEY)
-docker compose up -d           # starts Fuseki on port 3030
-
-ontorag load schema examples/pokemon/schema.ttl
-ontorag load data   examples/pokemon/data.ttl
-
-ontorag serve                  # starts the API on port 8000
-ontorag chat
-```
-
-### Clone and run from source
-
 ```bash
 git clone https://github.com/nuri428/ontorag.git
 cd ontorag
 cp .env.example .env           # set ANTHROPIC_API_KEY (or OPENAI_API_KEY)
 
-docker compose up -d           # starts Fuseki + API (built from source)
+docker compose up -d           # starts Fuseki + API
 
-ontorag load schema examples/pokemon/schema.ttl
-ontorag load data   examples/pokemon/data.ttl
+uv run ontorag load schema examples/pokemon/schema.ttl
+uv run ontorag load data   examples/pokemon/data.ttl
 
-ontorag chat
+uv run ontorag chat
 ```
 
 Example session:
@@ -127,16 +106,12 @@ User  (CLI / browser)
 ## Installation
 
 ```bash
-pip install ontorag
-# or
-uv add ontorag
+git clone https://github.com/nuri428/ontorag.git
+cd ontorag
+uv sync          # installs all dependencies
 ```
 
-To use OpenAI or Ollama:
-
-```bash
-pip install ontorag openai
-```
+Requires [uv](https://docs.astral.sh/uv/) and Docker.
 
 ---
 

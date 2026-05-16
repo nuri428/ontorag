@@ -4,7 +4,6 @@
 
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/ontorag)](https://pypi.org/project/ontorag/)
 
 [English](README.md)
 
@@ -43,37 +42,17 @@
 
 **사전 요구 사항:** Docker · Docker Compose · Anthropic _또는_ OpenAI API 키
 
-### PyPI로 설치 (권장)
-
-```bash
-pip install ontorag            # 또는: uv add ontorag
-
-mkdir my-project && cd my-project
-ontorag init                   # docker-compose.yml, .env.example, examples/ 생성
-
-cp .env.example .env           # ANTHROPIC_API_KEY (또는 OPENAI_API_KEY) 설정
-docker compose up -d           # Fuseki 시작 (포트 3030)
-
-ontorag load schema examples/pokemon/schema.ttl
-ontorag load data   examples/pokemon/data.ttl
-
-ontorag serve                  # API 서버 시작 (포트 8000)
-ontorag chat
-```
-
-### 소스에서 클론 후 실행
-
 ```bash
 git clone https://github.com/nuri428/ontorag.git
 cd ontorag
-cp .env.example .env           # API 키 설정
+cp .env.example .env           # ANTHROPIC_API_KEY (또는 OPENAI_API_KEY) 설정
 
-docker compose up -d           # Fuseki + API 빌드 및 시작
+docker compose up -d           # Fuseki + API 시작
 
-ontorag load schema examples/pokemon/schema.ttl
-ontorag load data   examples/pokemon/data.ttl
+uv run ontorag load schema examples/pokemon/schema.ttl
+uv run ontorag load data   examples/pokemon/data.ttl
 
-ontorag chat
+uv run ontorag chat
 ```
 
 실행 예시:
@@ -127,16 +106,12 @@ ontorag chat
 ## 설치
 
 ```bash
-pip install ontorag
-# 또는
-uv add ontorag
+git clone https://github.com/nuri428/ontorag.git
+cd ontorag
+uv sync          # 의존성 설치
 ```
 
-OpenAI / Ollama 사용 시:
-
-```bash
-pip install ontorag openai
-```
+[uv](https://docs.astral.sh/uv/)와 Docker가 필요합니다.
 
 ---
 
