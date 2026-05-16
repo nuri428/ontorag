@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from ontorag.api.deps import get_store
 from ontorag.chat.agent import AgentLoop
-from ontorag.llm.anthropic import AnthropicProvider
+from ontorag.llm.factory import get_llm_provider
 from ontorag.stores.fuseki import FusekiStore
 
 logger = logging.getLogger(__name__)
@@ -24,9 +24,9 @@ class ChatRequest(BaseModel):
     message: str
 
 
-def _get_llm() -> AnthropicProvider:
+def _get_llm():
     try:
-        return AnthropicProvider.from_env()
+        return get_llm_provider()
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 

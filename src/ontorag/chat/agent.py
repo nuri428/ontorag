@@ -6,6 +6,7 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from ontorag.llm.anthropic import AnthropicProvider
+from ontorag.llm.factory import LLMProvider
 from ontorag.stores.base import PatternQuery, PatternTriple
 from ontorag.stores.fuseki import FusekiStore
 
@@ -161,7 +162,7 @@ class AgentLoop:
 
     MAX_TURNS = 12
 
-    def __init__(self, store: FusekiStore, llm: AnthropicProvider) -> None:
+    def __init__(self, store: FusekiStore, llm: LLMProvider) -> None:
         self._store = store
         self._llm = llm
 
