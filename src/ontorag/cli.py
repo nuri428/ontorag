@@ -370,6 +370,12 @@ def init(
     _copy_template(templates_ref, "docker-compose.yml", target / "docker-compose.yml")
     _copy_template(templates_ref, "env.example", target / ".env.example")
 
+    # Fuseki Dockerfile (multi-arch: amd64 + arm64 native)
+    fuseki_dir = target / "docker" / "fuseki"
+    fuseki_dir.mkdir(parents=True, exist_ok=True)
+    fuseki_ref = importlib.resources.files("ontorag._templates") / "docker" / "fuseki"
+    _copy_template(fuseki_ref, "Dockerfile", fuseki_dir / "Dockerfile")
+
     if example:
         ex_dir = target / "examples" / "pokemon"
         ex_dir.mkdir(parents=True, exist_ok=True)

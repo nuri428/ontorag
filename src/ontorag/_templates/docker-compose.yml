@@ -1,10 +1,14 @@
 # ontorag — Fuseki only (pip install users)
 # Run: docker compose up -d
 # Then: ontorag serve   (starts the API locally)
+#
+# Uses a custom multi-arch Fuseki image (amd64 + arm64 native).
+# No Rosetta emulation needed on Apple Silicon.
 services:
   fuseki:
-    image: stain/jena-fuseki:4.8.0
-    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: docker/fuseki/Dockerfile
     environment:
       FUSEKI_DATASET: ${FUSEKI_DATASET:-ontorag}
       ADMIN_PASSWORD: ${FUSEKI_PASSWORD:-admin}
@@ -16,8 +20,8 @@ services:
       test: ["CMD-SHELL", "curl -sf http://localhost:3030/$/ping || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 6
+      start_period: 40s
 
 volumes:
   fuseki_data:
