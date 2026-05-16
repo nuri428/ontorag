@@ -278,7 +278,6 @@ def chat(
     from ontorag.stores.fuseki import FusekiStore
 
     try:
-        store = FusekiStore.from_env()
         llm = get_llm_provider()
     except ValueError as exc:
         console.print(f"[red]Error:[/] {exc}")
@@ -291,36 +290,41 @@ def chat(
         border_style="blue",
     ))
 
-    async def run_turn(msg: str) -> None:
-        from ontorag.chat.agent import AgentLoop
-        agent = AgentLoop(store, llm)
-        async for event in agent.run(msg):
-            _render_event(event)
+    async def _repl(initial: Optional[str]) -> None:
+        # store는 async 컨텍스트 안에서 생성 — httpx 클라이언트가 현재 루프에 바인딩됨
+        store = FusekiStore.from_env()
 
-    # 인자로 첫 메시지가 주어진 경우 바로 처리
-    if message:
-        try:
-            asyncio.run(run_turn(message))
-        except Exception as exc:
-            console.print(f"[red]Error:[/] {escape(str(exc))}")
+        async def run_turn(msg: str) -> None:
+            from ontorag.chat.agent import AgentLoop
+            agent = AgentLoop(store, llm)
+            async for event in agent.run(msg):
+                _render_event(event)
 
-    while True:
-        try:
-            user_input = console.input("[bold blue]>[/] ").strip()
-        except (EOFError, KeyboardInterrupt):
-            console.print("\n[dim]종료합니다.[/]")
-            break
+        if initial:
+            try:
+                await run_turn(initial)
+            except Exception as exc:
+                console.print(f"[red]Error:[/] {escape(str(exc))}")
 
-        if not user_input:
-            continue
-        if user_input.lower() in {"exit", "quit", "종료"}:
-            console.print("[dim]종료합니다.[/]")
-            break
+        while True:
+            try:
+                user_input = console.input("[bold blue]>[/] ").strip()
+            except (EOFError, KeyboardInterrupt):
+                console.print("\n[dim]종료합니다.[/]")
+                break
 
-        try:
-            asyncio.run(run_turn(user_input))
-        except Exception as exc:
-            console.print(f"[red]Error:[/] {escape(str(exc))}")
+            if not user_input:
+                continue
+            if user_input.lower() in {"exit", "quit", "종료"}:
+                console.print("[dim]종료합니다.[/]")
+                break
+
+            try:
+                await run_turn(user_input)
+            except Exception as exc:
+                console.print(f"[red]Error:[/] {escape(str(exc))}")
+
+    asyncio.run(_repl(message))
 
 
 def _render_event(event: dict) -> None:
