@@ -95,6 +95,15 @@ WHERE {{
 
             frontier = new_frontier
 
+        # Batch-fetch labels for all discovered nodes
+        if nodes:
+            uris_block = " ".join(f"<{n['uri']}>" for n in nodes)
+            lbl_q = f"SELECT ?uri ?label WHERE {{ VALUES ?uri {{ {uris_block} }} GRAPH <{_DATA}> {{ ?uri rdfs:label ?label . }} }}"
+            lbl_bindings = (await self._sparql_select(lbl_q)).get("results", {}).get("bindings", [])
+            uri_labels = {b["uri"]["value"]: b["label"]["value"] for b in lbl_bindings}
+            for node in nodes:
+                node["label"] = uri_labels.get(node["uri"])
+
         return TraversalResult(
             start_uri=start_uri,
             nodes=nodes,
@@ -158,6 +167,15 @@ WHERE {{
             if par is not None and pred_uri is not None:
                 path_edges.insert(0, {"from": par, "to": cur, "predicate": pred_uri})
             cur = par
+
+        # Batch-fetch labels for path nodes
+        if path_nodes:
+            uris_block = " ".join(f"<{n['uri']}>" for n in path_nodes)
+            lbl_q = f"SELECT ?uri ?label WHERE {{ VALUES ?uri {{ {uris_block} }} GRAPH <{_DATA}> {{ ?uri rdfs:label ?label . }} }}"
+            lbl_bindings = (await self._sparql_select(lbl_q)).get("results", {}).get("bindings", [])
+            uri_labels = {b["uri"]["value"]: b["label"]["value"] for b in lbl_bindings}
+            for node in path_nodes:
+                node["label"] = uri_labels.get(node["uri"])
 
         return TraversalResult(
             start_uri=uri_a,

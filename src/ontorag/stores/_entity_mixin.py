@@ -64,27 +64,32 @@ LIMIT {limit}"""
 
         uris = [(b["inst"]["value"], b.get("label", {}).get("value")) for b in rows]
 
-        # Batch-fetch all properties for found entities
+        # Batch-fetch all properties for found entities (including obj labels for URI values)
         values_block = " ".join(f"<{u}>" for u, _ in uris)
         prop_query = f"""{pfx}
-SELECT ?inst ?pred ?obj
+SELECT ?inst ?pred ?obj ?objLabel
 WHERE {{
   VALUES ?inst {{ {values_block} }}
   GRAPH <{_DATA}> {{
     ?inst ?pred ?obj .
     FILTER(?pred != rdf:type)
+    OPTIONAL {{ ?obj rdfs:label ?objLabel . }}
   }}
 }}"""
         prop_result = await self._sparql_select(prop_query)
 
-        # Group properties by entity URI
+        # Group properties by entity URI; URI-valued objects include {"uri", "label"}
         props: dict[str, dict[str, Any]] = {u: {} for u, _ in uris}
         for b in prop_result.get("results", {}).get("bindings", []):
             eu = b["inst"]["value"]
             pred = b["pred"]["value"]
-            obj = b["obj"]["value"]
+            obj_term = b["obj"]
             if eu not in props:
                 continue
+            if obj_term.get("type") == "uri":
+                obj: Any = {"uri": obj_term["value"], "label": b.get("objLabel", {}).get("value")}
+            else:
+                obj = obj_term["value"]
             existing = props[eu].get(pred)
             if existing is None:
                 props[eu][pred] = obj
@@ -118,12 +123,13 @@ WHERE {{
         )
 
         query = f"""{pfx}
-SELECT ?pred ?obj ?label
+SELECT ?pred ?obj ?label ?objLabel
 WHERE {{
 {values_clause}
   GRAPH <{_DATA}> {{
     {subj} ?pred ?obj .
     OPTIONAL {{ {subj} rdfs:label ?label . }}
+    OPTIONAL {{ ?obj rdfs:label ?objLabel . }}
   }}
 }}"""
         result = await self._sparql_select(query)
@@ -138,10 +144,15 @@ WHERE {{
 
         for b in bindings:
             pred = b["pred"]["value"]
-            obj = b["obj"]["value"]
+            obj_term = b["obj"]
+            obj_value = obj_term["value"]
             if pred == rdf_type:
-                class_uri = obj
+                class_uri = obj_value
                 continue
+            if obj_term.get("type") == "uri":
+                obj: Any = {"uri": obj_value, "label": b.get("objLabel", {}).get("value")}
+            else:
+                obj = obj_value
             existing = properties.get(pred)
             if existing is None:
                 properties[pred] = obj

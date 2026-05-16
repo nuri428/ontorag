@@ -20,6 +20,7 @@ _SYSTEM = """\
 2. 특정 클래스의 속성이 필요하면 get_class_detail을 사용하세요.
 3. 인스턴스 검색은 find_entities, 상세 조회는 describe_entity를 사용하세요.
 4. L1 툴로 불가능한 복잡한 쿼리만 query_pattern을 사용하세요.
+최종 사용자 답변에 URI를 절대 노출하지 마세요. rdfs:label이나 자연스러운 이름만 사용하고, URI는 도구 호출 입력에만 사용하세요.
 항상 한국어로 답변하세요."""
 
 _TOOLS: list[dict[str, Any]] = [
