@@ -1,0 +1,398 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix pk:   <http://example.org/pokemon#> .
+@prefix d:    <http://example.org/pokemon/data#> .
+
+# ── Region ────────────────────────────────────────────────────────────────────
+
+d:Kanto
+    a pk:Region ;
+    rdfs:label "관동 지방" .
+
+# ── Types ─────────────────────────────────────────────────────────────────────
+
+d:TypeFire
+    a pk:Type ;
+    rdfs:label "불꽃" ;
+    pk:strongAgainst d:TypeGrass, d:TypeIce, d:TypeBug, d:TypeSteel ;
+    pk:weakAgainst d:TypeWater, d:TypeRock, d:TypeFire .
+
+d:TypeWater
+    a pk:Type ;
+    rdfs:label "물" ;
+    pk:strongAgainst d:TypeFire, d:TypeRock, d:TypeGround ;
+    pk:weakAgainst d:TypeGrass, d:TypeElectric, d:TypeWater .
+
+d:TypeGrass
+    a pk:Type ;
+    rdfs:label "풀" ;
+    pk:strongAgainst d:TypeWater, d:TypeRock, d:TypeGround ;
+    pk:weakAgainst d:TypeFire, d:TypeBug, d:TypePoison, d:TypeFlying .
+
+d:TypeElectric
+    a pk:Type ;
+    rdfs:label "전기" ;
+    pk:strongAgainst d:TypeWater, d:TypeFlying ;
+    pk:weakAgainst d:TypeGrass, d:TypeElectric, d:TypeDragon .
+
+d:TypePoison
+    a pk:Type ;
+    rdfs:label "독" ;
+    pk:strongAgainst d:TypeGrass, d:TypeFairy ;
+    pk:weakAgainst d:TypePoison, d:TypeGround, d:TypeRock, d:TypeGhost .
+
+d:TypeFlying
+    a pk:Type ;
+    rdfs:label "비행" ;
+    pk:strongAgainst d:TypeGrass, d:TypeFighting, d:TypeBug ;
+    pk:weakAgainst d:TypeElectric, d:TypeRock, d:TypeIce .
+
+d:TypeNormal
+    a pk:Type ;
+    rdfs:label "노말" .
+
+d:TypePsychic
+    a pk:Type ;
+    rdfs:label "에스퍼" ;
+    pk:strongAgainst d:TypePoison, d:TypeFighting ;
+    pk:weakAgainst d:TypeBug, d:TypeGhost, d:TypeDark .
+
+d:TypeIce     a pk:Type ; rdfs:label "얼음" .
+d:TypeBug     a pk:Type ; rdfs:label "벌레" .
+d:TypeRock    a pk:Type ; rdfs:label "바위" .
+d:TypeGround  a pk:Type ; rdfs:label "땅" .
+d:TypeFighting a pk:Type ; rdfs:label "격투" .
+d:TypeGhost   a pk:Type ; rdfs:label "고스트" .
+d:TypeDragon  a pk:Type ; rdfs:label "드래곤" .
+d:TypeDark    a pk:Type ; rdfs:label "악" .
+d:TypeSteel   a pk:Type ; rdfs:label "강철" .
+d:TypeFairy   a pk:Type ; rdfs:label "페어리" .
+
+# ── Moves ─────────────────────────────────────────────────────────────────────
+
+d:MoveEmber
+    a pk:Move ;
+    rdfs:label "불꽃세례" ;
+    pk:power "40"^^xsd:integer ;
+    pk:accuracy "100"^^xsd:integer ;
+    pk:category "Special" ;
+    pk:moveType d:TypeFire .
+
+d:MoveFlamethrower
+    a pk:Move ;
+    rdfs:label "화염방사" ;
+    pk:power "90"^^xsd:integer ;
+    pk:accuracy "100"^^xsd:integer ;
+    pk:category "Special" ;
+    pk:moveType d:TypeFire .
+
+d:MoveFireBlast
+    a pk:Move ;
+    rdfs:label "불대문자" ;
+    pk:power "110"^^xsd:integer ;
+    pk:accuracy "85"^^xsd:integer ;
+    pk:category "Special" ;
+    pk:moveType d:TypeFire .
+
+d:MoveWaterGun
+    a pk:Move ;
+    rdfs:label "물대포" ;
+    pk:power "40"^^xsd:integer ;
+    pk:accuracy "100"^^xsd:integer ;
+    pk:category "Special" ;
+    pk:moveType d:TypeWater .
+
+d:MoveHydroCanon
+    a pk:Move ;
+    rdfs:label "하이드로캐논" ;
+    pk:power "150"^^xsd:integer ;
+    pk:accuracy "90"^^xsd:integer ;
+    pk:category "Special" ;
+    pk:moveType d:TypeWater .
+
+d:MoveSurfing
+    a pk:Move ;
+    rdfs:label "파도타기" ;
+    pk:power "90"^^xsd:integer ;
+    pk:accuracy "100"^^xsd:integer ;
+    pk:category "Special" ;
+    pk:moveType d:TypeWater .
+
+d:MoveVineWhip
+    a pk:Move ;
+    rdfs:label "넝쿨채찍" ;
+    pk:power "45"^^xsd:integer ;
+    pk:accuracy "100"^^xsd:integer ;
+    pk:category "Physical" ;
+    pk:moveType d:TypeGrass .
+
+d:MoveSolarBeam
+    a pk:Move ;
+    rdfs:label "솔라빔" ;
+    pk:power "120"^^xsd:integer ;
+    pk:accuracy "100"^^xsd:integer ;
+    pk:category "Special" ;
+    pk:moveType d:TypeGrass .
+
+d:MoveThunderbolt
+    a pk:Move ;
+    rdfs:label "10만볼트" ;
+    pk:power "90"^^xsd:integer ;
+    pk:accuracy "100"^^xsd:integer ;
+    pk:category "Special" ;
+    pk:moveType d:TypeElectric .
+
+d:MoveThunder
+    a pk:Move ;
+    rdfs:label "천둥" ;
+    pk:power "110"^^xsd:integer ;
+    pk:accuracy "70"^^xsd:integer ;
+    pk:category "Special" ;
+    pk:moveType d:TypeElectric .
+
+d:MoveScratch
+    a pk:Move ;
+    rdfs:label "할퀴기" ;
+    pk:power "40"^^xsd:integer ;
+    pk:accuracy "100"^^xsd:integer ;
+    pk:category "Physical" ;
+    pk:moveType d:TypeNormal .
+
+d:MoveTackle
+    a pk:Move ;
+    rdfs:label "몸통박기" ;
+    pk:power "40"^^xsd:integer ;
+    pk:accuracy "100"^^xsd:integer ;
+    pk:category "Physical" ;
+    pk:moveType d:TypeNormal .
+
+d:MovePsychic
+    a pk:Move ;
+    rdfs:label "사이코키네시스" ;
+    pk:power "90"^^xsd:integer ;
+    pk:accuracy "100"^^xsd:integer ;
+    pk:category "Special" ;
+    pk:moveType d:TypePsychic .
+
+# ── Trainers ──────────────────────────────────────────────────────────────────
+
+d:TrainerAsh
+    a pk:Trainer ;
+    rdfs:label "지우" ;
+    pk:hometown "태초마을" ;
+    pk:fromRegion d:Kanto .
+
+d:TrainerMisty
+    a pk:Trainer ;
+    rdfs:label "이슬" ;
+    pk:hometown "무지개시티" ;
+    pk:fromRegion d:Kanto .
+
+d:TrainerBrock
+    a pk:Trainer ;
+    rdfs:label "웅" ;
+    pk:hometown "회색시티" ;
+    pk:fromRegion d:Kanto .
+
+# ── Pokemon — 이상해씨 계열 (Grass / Poison) ──────────────────────────────────
+
+d:Bulbasaur
+    a pk:Pokemon ;
+    rdfs:label "이상해씨" ;
+    pk:nationalDex "1"^^xsd:integer ;
+    pk:hp "45"^^xsd:integer ;
+    pk:attack "49"^^xsd:integer ;
+    pk:defense "49"^^xsd:integer ;
+    pk:spAttack "65"^^xsd:integer ;
+    pk:spDefense "65"^^xsd:integer ;
+    pk:speed "45"^^xsd:integer ;
+    pk:evolutionLevel "16"^^xsd:integer ;
+    pk:hasType d:TypeGrass, d:TypePoison ;
+    pk:hasMove d:MoveVineWhip, d:MoveTackle, d:MoveSolarBeam ;
+    pk:trainedBy d:TrainerAsh .
+
+d:Ivysaur
+    a pk:Pokemon ;
+    rdfs:label "이상해풀" ;
+    pk:nationalDex "2"^^xsd:integer ;
+    pk:hp "60"^^xsd:integer ;
+    pk:attack "62"^^xsd:integer ;
+    pk:defense "63"^^xsd:integer ;
+    pk:spAttack "80"^^xsd:integer ;
+    pk:spDefense "80"^^xsd:integer ;
+    pk:speed "60"^^xsd:integer ;
+    pk:evolutionLevel "32"^^xsd:integer ;
+    pk:hasType d:TypeGrass, d:TypePoison ;
+    pk:hasMove d:MoveVineWhip, d:MoveSolarBeam ;
+    pk:evolvesFrom d:Bulbasaur .
+
+d:Venusaur
+    a pk:Pokemon ;
+    rdfs:label "이상해꽃" ;
+    pk:nationalDex "3"^^xsd:integer ;
+    pk:hp "80"^^xsd:integer ;
+    pk:attack "82"^^xsd:integer ;
+    pk:defense "83"^^xsd:integer ;
+    pk:spAttack "100"^^xsd:integer ;
+    pk:spDefense "100"^^xsd:integer ;
+    pk:speed "80"^^xsd:integer ;
+    pk:hasType d:TypeGrass, d:TypePoison ;
+    pk:hasMove d:MoveSolarBeam, d:MoveVineWhip ;
+    pk:evolvesFrom d:Ivysaur .
+
+# ── Pokemon — 파이리 계열 (Fire) ──────────────────────────────────────────────
+
+d:Charmander
+    a pk:Pokemon ;
+    rdfs:label "파이리" ;
+    pk:nationalDex "4"^^xsd:integer ;
+    pk:hp "39"^^xsd:integer ;
+    pk:attack "52"^^xsd:integer ;
+    pk:defense "43"^^xsd:integer ;
+    pk:spAttack "60"^^xsd:integer ;
+    pk:spDefense "50"^^xsd:integer ;
+    pk:speed "65"^^xsd:integer ;
+    pk:evolutionLevel "16"^^xsd:integer ;
+    pk:hasType d:TypeFire ;
+    pk:hasMove d:MoveEmber, d:MoveScratch ;
+    pk:trainedBy d:TrainerAsh .
+
+d:Charmeleon
+    a pk:Pokemon ;
+    rdfs:label "리자드" ;
+    pk:nationalDex "5"^^xsd:integer ;
+    pk:hp "58"^^xsd:integer ;
+    pk:attack "64"^^xsd:integer ;
+    pk:defense "58"^^xsd:integer ;
+    pk:spAttack "80"^^xsd:integer ;
+    pk:spDefense "65"^^xsd:integer ;
+    pk:speed "80"^^xsd:integer ;
+    pk:evolutionLevel "36"^^xsd:integer ;
+    pk:hasType d:TypeFire ;
+    pk:hasMove d:MoveEmber, d:MoveFlamethrower ;
+    pk:evolvesFrom d:Charmander .
+
+d:Charizard
+    a pk:Pokemon ;
+    rdfs:label "리자몽" ;
+    pk:nationalDex "6"^^xsd:integer ;
+    pk:hp "78"^^xsd:integer ;
+    pk:attack "84"^^xsd:integer ;
+    pk:defense "78"^^xsd:integer ;
+    pk:spAttack "109"^^xsd:integer ;
+    pk:spDefense "85"^^xsd:integer ;
+    pk:speed "100"^^xsd:integer ;
+    pk:hasType d:TypeFire, d:TypeFlying ;
+    pk:hasMove d:MoveFlamethrower, d:MoveFireBlast, d:MoveSolarBeam ;
+    pk:evolvesFrom d:Charmeleon ;
+    pk:trainedBy d:TrainerAsh .
+
+# ── Pokemon — 꼬부기 계열 (Water) ────────────────────────────────────────────
+
+d:Squirtle
+    a pk:Pokemon ;
+    rdfs:label "꼬부기" ;
+    pk:nationalDex "7"^^xsd:integer ;
+    pk:hp "44"^^xsd:integer ;
+    pk:attack "48"^^xsd:integer ;
+    pk:defense "65"^^xsd:integer ;
+    pk:spAttack "50"^^xsd:integer ;
+    pk:spDefense "64"^^xsd:integer ;
+    pk:speed "43"^^xsd:integer ;
+    pk:evolutionLevel "16"^^xsd:integer ;
+    pk:hasType d:TypeWater ;
+    pk:hasMove d:MoveWaterGun, d:MoveTackle ;
+    pk:trainedBy d:TrainerMisty .
+
+d:Wartortle
+    a pk:Pokemon ;
+    rdfs:label "어니부기" ;
+    pk:nationalDex "8"^^xsd:integer ;
+    pk:hp "59"^^xsd:integer ;
+    pk:attack "63"^^xsd:integer ;
+    pk:defense "80"^^xsd:integer ;
+    pk:spAttack "65"^^xsd:integer ;
+    pk:spDefense "80"^^xsd:integer ;
+    pk:speed "58"^^xsd:integer ;
+    pk:evolutionLevel "36"^^xsd:integer ;
+    pk:hasType d:TypeWater ;
+    pk:hasMove d:MoveWaterGun, d:MoveSurfing ;
+    pk:evolvesFrom d:Squirtle .
+
+d:Blastoise
+    a pk:Pokemon ;
+    rdfs:label "거북왕" ;
+    pk:nationalDex "9"^^xsd:integer ;
+    pk:hp "79"^^xsd:integer ;
+    pk:attack "83"^^xsd:integer ;
+    pk:defense "100"^^xsd:integer ;
+    pk:spAttack "85"^^xsd:integer ;
+    pk:spDefense "105"^^xsd:integer ;
+    pk:speed "78"^^xsd:integer ;
+    pk:hasType d:TypeWater ;
+    pk:hasMove d:MoveSurfing, d:MoveHydroCanon ;
+    pk:evolvesFrom d:Wartortle ;
+    pk:trainedBy d:TrainerMisty .
+
+# ── Pokemon — 피카츄 (Electric) ───────────────────────────────────────────────
+
+d:Pikachu
+    a pk:Pokemon ;
+    rdfs:label "피카츄" ;
+    pk:nationalDex "25"^^xsd:integer ;
+    pk:hp "35"^^xsd:integer ;
+    pk:attack "55"^^xsd:integer ;
+    pk:defense "40"^^xsd:integer ;
+    pk:spAttack "50"^^xsd:integer ;
+    pk:spDefense "50"^^xsd:integer ;
+    pk:speed "90"^^xsd:integer ;
+    pk:hasType d:TypeElectric ;
+    pk:hasMove d:MoveThunderbolt, d:MoveTackle, d:MoveThunder ;
+    pk:trainedBy d:TrainerAsh .
+
+# ── Pokemon — 잠만보 (Normal) ─────────────────────────────────────────────────
+
+d:Snorlax
+    a pk:Pokemon ;
+    rdfs:label "잠만보" ;
+    pk:nationalDex "143"^^xsd:integer ;
+    pk:hp "160"^^xsd:integer ;
+    pk:attack "110"^^xsd:integer ;
+    pk:defense "65"^^xsd:integer ;
+    pk:spAttack "65"^^xsd:integer ;
+    pk:spDefense "110"^^xsd:integer ;
+    pk:speed "30"^^xsd:integer ;
+    pk:hasType d:TypeNormal ;
+    pk:hasMove d:MoveTackle .
+
+# ── Pokemon — 뮤츠 (Legendary, Psychic) ──────────────────────────────────────
+
+d:Mewtwo
+    a pk:LegendaryPokemon ;
+    rdfs:label "뮤츠" ;
+    pk:nationalDex "150"^^xsd:integer ;
+    pk:hp "106"^^xsd:integer ;
+    pk:attack "110"^^xsd:integer ;
+    pk:defense "90"^^xsd:integer ;
+    pk:spAttack "154"^^xsd:integer ;
+    pk:spDefense "90"^^xsd:integer ;
+    pk:speed "130"^^xsd:integer ;
+    pk:hasType d:TypePsychic ;
+    pk:hasMove d:MovePsychic, d:MoveFlamethrower, d:MoveThunderbolt .
+
+# ── Pokemon — 피죤투 (Normal / Flying) ───────────────────────────────────────
+
+d:Pidgeot
+    a pk:Pokemon ;
+    rdfs:label "피죤투" ;
+    pk:nationalDex "18"^^xsd:integer ;
+    pk:hp "83"^^xsd:integer ;
+    pk:attack "80"^^xsd:integer ;
+    pk:defense "75"^^xsd:integer ;
+    pk:spAttack "70"^^xsd:integer ;
+    pk:spDefense "70"^^xsd:integer ;
+    pk:speed "101"^^xsd:integer ;
+    pk:hasType d:TypeNormal, d:TypeFlying ;
+    pk:hasMove d:MoveTackle ;
+    pk:trainedBy d:TrainerAsh .

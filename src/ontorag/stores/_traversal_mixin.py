@@ -1,0 +1,219 @@
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from ontorag.core.sparql import (
+    STANDARD_PREFIXES,
+    build_filter_sparql,
+    build_prefix_block,
+    uri_ref,
+)
+from ontorag.stores.base import EntityFilter, TraversalDirection, TraversalResult
+
+logger = logging.getLogger(__name__)
+
+_DATA = "urn:ontorag:data"
+_MAX_DEPTH_HARD = 6
+
+
+class _TraversalMixin:
+    """L1 traversal tool implementations mixed into FusekiStore."""
+
+    _namespaces: dict[str, str]
+
+    async def _sparql_select(self, sparql: str) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def _pfx(self) -> str:
+        return build_prefix_block({**STANDARD_PREFIXES, **self._namespaces})
+
+    async def traverse(
+        self,
+        start_uri: str,
+        predicate: str | None = None,
+        max_depth: int = 2,
+        direction: TraversalDirection = TraversalDirection.outgoing,
+    ) -> TraversalResult:
+        """BFS traversal from a starting node up to max_depth hops."""
+        max_depth = min(max_depth, _MAX_DEPTH_HARD)
+        pfx = self._pfx()
+        pred_filter = (
+            f"    FILTER(?pred = {uri_ref(predicate)})" if predicate else ""
+        )
+
+        visited: set[str] = {start_uri}
+        frontier: list[str] = [start_uri]
+        nodes: list[dict[str, Any]] = [{"uri": start_uri, "depth": 0}]
+        edges: list[dict[str, Any]] = []
+        depth_reached = 0
+
+        for depth in range(1, max_depth + 1):
+            if not frontier:
+                break
+            depth_reached = depth
+            values_block = " ".join(f"<{u}>" for u in frontier)
+            new_frontier: list[str] = []
+
+            if direction in (TraversalDirection.outgoing, TraversalDirection.both):
+                out_q = f"""{pfx}
+SELECT DISTINCT ?src ?pred ?tgt
+WHERE {{
+  VALUES ?src {{ {values_block} }}
+  GRAPH <{_DATA}> {{
+    ?src ?pred ?tgt .
+    FILTER(isIRI(?tgt))
+{pred_filter}
+  }}
+}}"""
+                for b in (await self._sparql_select(out_q)).get("results", {}).get("bindings", []):
+                    src, pred_uri, tgt = b["src"]["value"], b["pred"]["value"], b["tgt"]["value"]
+                    edges.append({"from": src, "to": tgt, "predicate": pred_uri})
+                    if tgt not in visited:
+                        visited.add(tgt)
+                        new_frontier.append(tgt)
+                        nodes.append({"uri": tgt, "depth": depth})
+
+            if direction in (TraversalDirection.incoming, TraversalDirection.both):
+                in_q = f"""{pfx}
+SELECT DISTINCT ?src ?pred ?tgt
+WHERE {{
+  VALUES ?tgt {{ {values_block} }}
+  GRAPH <{_DATA}> {{
+    ?src ?pred ?tgt .
+    FILTER(isIRI(?src))
+{pred_filter}
+  }}
+}}"""
+                for b in (await self._sparql_select(in_q)).get("results", {}).get("bindings", []):
+                    src, pred_uri, tgt = b["src"]["value"], b["pred"]["value"], b["tgt"]["value"]
+                    edges.append({"from": src, "to": tgt, "predicate": pred_uri})
+                    if src not in visited:
+                        visited.add(src)
+                        new_frontier.append(src)
+                        nodes.append({"uri": src, "depth": depth})
+
+            frontier = new_frontier
+
+        return TraversalResult(
+            start_uri=start_uri,
+            nodes=nodes,
+            edges=edges,
+            depth_reached=depth_reached,
+        )
+
+    async def find_path(
+        self,
+        uri_a: str,
+        uri_b: str,
+        max_depth: int = 4,
+    ) -> TraversalResult:
+        """BFS shortest-path search between two entities."""
+        max_depth = min(max_depth, _MAX_DEPTH_HARD)
+        pfx = self._pfx()
+
+        visited: set[str] = {uri_a}
+        frontier: list[str] = [uri_a]
+        # parent[node] = (parent_uri, predicate_uri)
+        parent: dict[str, tuple[str | None, str | None]] = {uri_a: (None, None)}
+
+        for _ in range(max_depth):
+            if not frontier:
+                break
+            values_block = " ".join(f"<{u}>" for u in frontier)
+            query = f"""{pfx}
+SELECT DISTINCT ?src ?pred ?tgt
+WHERE {{
+  VALUES ?src {{ {values_block} }}
+  GRAPH <{_DATA}> {{
+    ?src ?pred ?tgt .
+    FILTER(isIRI(?tgt))
+  }}
+}}"""
+            new_frontier: list[str] = []
+            found = False
+            for b in (await self._sparql_select(query)).get("results", {}).get("bindings", []):
+                src, pred_uri, tgt = b["src"]["value"], b["pred"]["value"], b["tgt"]["value"]
+                if tgt not in visited:
+                    visited.add(tgt)
+                    parent[tgt] = (src, pred_uri)
+                    if tgt == uri_b:
+                        found = True
+                        break
+                    new_frontier.append(tgt)
+            if found:
+                break
+            frontier = new_frontier
+
+        if uri_b not in parent:
+            return TraversalResult(start_uri=uri_a, end_uri=uri_b, nodes=[], edges=[], depth_reached=0)
+
+        # Reconstruct path
+        path_nodes: list[dict[str, Any]] = []
+        path_edges: list[dict[str, Any]] = []
+        cur: str | None = uri_b
+        while cur is not None:
+            path_nodes.insert(0, {"uri": cur})
+            par, pred_uri = parent[cur]
+            if par is not None and pred_uri is not None:
+                path_edges.insert(0, {"from": par, "to": cur, "predicate": pred_uri})
+            cur = par
+
+        return TraversalResult(
+            start_uri=uri_a,
+            end_uri=uri_b,
+            nodes=path_nodes,
+            edges=path_edges,
+            depth_reached=len(path_edges),
+        )
+
+    async def find_related(
+        self,
+        class_uri_a: str,
+        predicate: str,
+        class_uri_b: str,
+        filters_a: list[EntityFilter] | None = None,
+        filters_b: list[EntityFilter] | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Find pairs of entities from two classes connected by a predicate."""
+        pfx = self._pfx()
+        cls_a = uri_ref(class_uri_a)
+        cls_b = uri_ref(class_uri_b)
+        pred = uri_ref(predicate)
+
+        ft_a, fl_a = build_filter_sparql(filters_a or [], subject_var="?a", var_prefix="fa")
+        ft_b, fl_b = build_filter_sparql(filters_b or [], subject_var="?b", var_prefix="fb")
+
+        query = f"""{pfx}
+SELECT DISTINCT ?a ?aLabel ?b ?bLabel
+WHERE {{
+  GRAPH <{_DATA}> {{
+    ?a a {cls_a} .
+    ?a {pred} ?b .
+    ?b a {cls_b} .
+    OPTIONAL {{ ?a rdfs:label ?aLabel . }}
+    OPTIONAL {{ ?b rdfs:label ?bLabel . }}
+{ft_a}
+{ft_b}
+  }}
+{fl_a}
+{fl_b}
+}}
+LIMIT {limit}"""
+        result = await self._sparql_select(query)
+        out: list[dict[str, Any]] = []
+        for b in result.get("results", {}).get("bindings", []):
+            out.append({
+                "entity_a": {
+                    "uri": b["a"]["value"],
+                    "label": b.get("aLabel", {}).get("value"),
+                    "class_uri": class_uri_a,
+                },
+                "entity_b": {
+                    "uri": b["b"]["value"],
+                    "label": b.get("bLabel", {}).get("value"),
+                    "class_uri": class_uri_b,
+                },
+            })
+        return out

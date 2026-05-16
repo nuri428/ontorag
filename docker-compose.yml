@@ -1,0 +1,44 @@
+services:
+  fuseki:
+    image: stain/jena-fuseki:4.10.0
+    environment:
+      FUSEKI_DATASET: ${FUSEKI_DATASET:-ontology}
+      ADMIN_PASSWORD: ${FUSEKI_PASSWORD:-admin}
+    ports:
+      - "3030:3030"
+    volumes:
+      - fuseki_data:/fuseki/databases
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3030/$/ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      GRAPH_STORE: fuseki
+      FUSEKI_URL: http://fuseki:3030
+      FUSEKI_DATASET: ${FUSEKI_DATASET:-ontology}
+      FUSEKI_USER: admin
+      FUSEKI_PASSWORD: ${FUSEKI_PASSWORD:-admin}
+      LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      fuseki:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  fuseki_data:

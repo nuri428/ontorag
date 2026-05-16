@@ -1,0 +1,8 @@
+services:
+  fuseki:
+    restart: always
+
+  api:
+    restart: always
+    environment:
+      LOG_LEVEL: warning
