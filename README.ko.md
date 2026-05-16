@@ -42,18 +42,36 @@
 
 **사전 요구 사항:** Docker · Docker Compose · Anthropic _또는_ OpenAI API 키
 
+### PyPI로 설치 (권장)
+
 ```bash
-git clone https://github.com/nuri428/ontorag.git
-cd ontorag
-cp .env.example .env          # ANTHROPIC_API_KEY (또는 OPENAI_API_KEY) 설정
+pip install ontorag            # 또는: uv add ontorag
 
-docker compose up -d          # Fuseki + API 서버 시작 (포트 8000)
+mkdir my-project && cd my-project
+ontorag init                   # docker-compose.yml, .env.example, examples/ 생성
 
-# 번들 포켓몬 온톨로지 로드
+cp .env.example .env           # ANTHROPIC_API_KEY (또는 OPENAI_API_KEY) 설정
+docker compose up -d           # Fuseki 시작 (포트 3030)
+
 ontorag load schema examples/pokemon/schema.ttl
 ontorag load data   examples/pokemon/data.ttl
 
-# 대화 시작
+ontorag serve                  # API 서버 시작 (포트 8000)
+ontorag chat
+```
+
+### 소스에서 클론 후 실행
+
+```bash
+git clone https://github.com/nuri428/ontorag.git
+cd ontorag
+cp .env.example .env           # API 키 설정
+
+docker compose up -d           # Fuseki + API 빌드 및 시작
+
+ontorag load schema examples/pokemon/schema.ttl
+ontorag load data   examples/pokemon/data.ttl
+
 ontorag chat
 ```
 
@@ -172,6 +190,8 @@ ontorag config show
 ## CLI 레퍼런스
 
 ```bash
+ontorag init [DIR]              # 프로젝트 파일 생성 (docker-compose, .env.example, examples)
+
 ontorag load schema <FILE>      # TBox 로드 (클래스/속성 정의)
 ontorag load data   <FILE>      # ABox 로드 (인스턴스 데이터)
 ontorag load        <FILE>      # TBox/ABox 자동 감지

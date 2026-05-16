@@ -331,5 +331,75 @@ def _render_event(event: dict) -> None:
         console.print(f"[red]Error:[/] {escape(str(event.get('content', '')))}")
 
 
+# ── init command ─────────────────────────────────────────────────────────────
+
+@app.command()
+def init(
+    directory: Path = typer.Argument(
+        Path("."),
+        help="초기화할 디렉터리 (기본값: 현재 디렉터리).",
+    ),
+    example: bool = typer.Option(True, help="포켓몬 예제 온톨로지를 포함할지 여부."),
+) -> None:
+    """새 ontorag 프로젝트를 초기화합니다.
+
+    docker-compose.yml, .env.example 등 필요한 파일을 현재 디렉터리에 생성합니다.
+    설치 후 다음 순서로 시작하세요:
+
+    \b
+    1. ontorag init
+    2. cp .env.example .env  (API 키 설정)
+    3. docker compose up -d  (Fuseki 시작)
+    4. ontorag load schema examples/pokemon/schema.ttl
+    5. ontorag load data   examples/pokemon/data.ttl
+    6. ontorag serve        (API 서버 시작)
+    7. ontorag chat
+    """
+    import importlib.resources
+    import shutil
+
+    target = directory.resolve()
+    target.mkdir(parents=True, exist_ok=True)
+
+    try:
+        templates_ref = importlib.resources.files("ontorag._templates")
+    except Exception as exc:
+        console.print(f"[red]Error:[/] 템플릿 파일을 찾을 수 없습니다 — {exc}")
+        raise typer.Exit(1)
+
+    _copy_template(templates_ref, "docker-compose.yml", target / "docker-compose.yml")
+    _copy_template(templates_ref, "env.example", target / ".env.example")
+
+    if example:
+        ex_dir = target / "examples" / "pokemon"
+        ex_dir.mkdir(parents=True, exist_ok=True)
+        ex_ref = importlib.resources.files("ontorag._templates") / "examples" / "pokemon"
+        _copy_template(ex_ref, "schema.ttl", ex_dir / "schema.ttl")
+        _copy_template(ex_ref, "data.ttl", ex_dir / "data.ttl")
+
+    console.print(f"\n[green]✓[/] ontorag 프로젝트를 초기화했습니다: [bold]{target}[/]\n")
+    console.print("다음 단계:")
+    console.print("  1. [cyan]cp .env.example .env[/]        ← API 키 설정")
+    console.print("  2. [cyan]docker compose up -d[/]        ← Fuseki 시작 (포트 3030)")
+    if example:
+        console.print("  3. [cyan]ontorag load schema examples/pokemon/schema.ttl[/]")
+        console.print("     [cyan]ontorag load data   examples/pokemon/data.ttl[/]")
+    console.print("  4. [cyan]ontorag serve[/]               ← API 서버 시작 (포트 8000)")
+    console.print("  5. [cyan]ontorag chat[/]                ← 대화 시작\n")
+
+
+def _copy_template(ref, filename: str, dest: Path) -> None:
+    """importlib.resources 레퍼런스에서 파일을 복사합니다."""
+    if dest.exists():
+        console.print(f"  [dim]skip[/] {dest.name} (이미 존재)")
+        return
+    try:
+        src = ref / filename
+        dest.write_bytes(src.read_bytes())
+        console.print(f"  [green]create[/] {dest.relative_to(dest.parent.parent)}")
+    except Exception as exc:
+        console.print(f"  [yellow]warn[/] {filename} 복사 실패: {exc}")
+
+
 if __name__ == "__main__":
     app()

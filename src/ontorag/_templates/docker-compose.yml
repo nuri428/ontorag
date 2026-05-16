@@ -1,0 +1,22 @@
+# ontorag — Fuseki only (pip install users)
+# Run: docker compose up -d
+# Then: ontorag serve   (starts the API locally)
+services:
+  fuseki:
+    image: stain/jena-fuseki:4.10.0
+    environment:
+      FUSEKI_DATASET: ${FUSEKI_DATASET:-ontorag}
+      ADMIN_PASSWORD: ${FUSEKI_PASSWORD:-admin}
+    ports:
+      - "3030:3030"
+    volumes:
+      - fuseki_data:/fuseki/databases
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3030/$/ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  fuseki_data:

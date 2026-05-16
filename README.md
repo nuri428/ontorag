@@ -42,18 +42,36 @@ User query → LLM agent → ontology tools (get_schema / find_entities / traver
 
 **Prerequisites:** Docker · Docker Compose · Anthropic _or_ OpenAI API key
 
+### Install from PyPI
+
 ```bash
-git clone https://github.com/nuri428/ontorag.git
-cd ontorag
-cp .env.example .env          # set ANTHROPIC_API_KEY (or OPENAI_API_KEY)
+pip install ontorag            # or: uv add ontorag
 
-docker compose up -d          # starts Fuseki + API on port 8000
+mkdir my-project && cd my-project
+ontorag init                   # scaffold docker-compose.yml, .env.example, examples/
 
-# Load the bundled Pokémon ontology
+cp .env.example .env           # set ANTHROPIC_API_KEY (or OPENAI_API_KEY)
+docker compose up -d           # starts Fuseki on port 3030
+
 ontorag load schema examples/pokemon/schema.ttl
 ontorag load data   examples/pokemon/data.ttl
 
-# Start chatting
+ontorag serve                  # starts the API on port 8000
+ontorag chat
+```
+
+### Clone and run from source
+
+```bash
+git clone https://github.com/nuri428/ontorag.git
+cd ontorag
+cp .env.example .env           # set ANTHROPIC_API_KEY (or OPENAI_API_KEY)
+
+docker compose up -d           # starts Fuseki + API (built from source)
+
+ontorag load schema examples/pokemon/schema.ttl
+ontorag load data   examples/pokemon/data.ttl
+
 ontorag chat
 ```
 
@@ -172,6 +190,8 @@ Settings are written to `.env` in the current directory.
 ## CLI reference
 
 ```bash
+ontorag init [DIR]              # Scaffold project files (docker-compose, .env.example, examples)
+
 ontorag load schema <FILE>      # Load TBox (class / property definitions)
 ontorag load data   <FILE>      # Load ABox (instance data)
 ontorag load        <FILE>      # Auto-detect TBox vs ABox
