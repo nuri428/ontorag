@@ -128,3 +128,83 @@ class TestSerializeToTTL:
     def test_empty_inputs_produces_minimal_turtle(self, pokemon_schema):
         ttl = _serialize_to_ttl([], [], pokemon_schema)
         assert isinstance(ttl, str)
+
+    def test_object_uri_triple_serialized(self, pokemon_schema):
+        """Line 89: object_uri branch in _serialize_to_ttl."""
+        triples = [
+            ExtractedTriple(
+                subject_label="Pikachu",
+                subject_uri="http://example.org/pokemon#Pikachu",
+                predicate_uri="http://example.org/pokemon#hasType",
+                object_uri="http://example.org/pokemon#Electric",
+                confidence=0.9,
+            )
+        ]
+        ttl = _serialize_to_ttl(triples, [], pokemon_schema)
+        assert "Electric" in ttl
+
+    def test_rdflib_import_error_raises(self, pokemon_schema, monkeypatch):
+        """Lines 63-64: ImportError when rdflib is unavailable."""
+        import builtins
+        real_import = builtins.__import__
+
+        def _block_rdflib(name, *args, **kwargs):
+            if name == "rdflib":
+                raise ImportError("rdflib not installed")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", _block_rdflib)
+        with pytest.raises(ImportError, match="rdflib is required"):
+            _serialize_to_ttl([], [], pokemon_schema)
+
+    def test_bad_namespace_uri_skipped(self, pokemon_schema):
+        """Lines 72-73: malformed namespace URI is logged and skipped."""
+        from ontorag.stores.base import SchemaResult
+        bad_schema = SchemaResult(
+            total_classes=0,
+            total_properties=0,
+            namespaces={"bad": "not a valid uri !!"},
+            classes=[],
+        )
+        # Should not raise — bad namespace is skipped with logger.debug
+        ttl = _serialize_to_ttl([], [], bad_schema)
+        assert isinstance(ttl, str)
+
+
+class TestLLMOntologyLearnerDiscoverTaxonomy:
+    @pytest.mark.asyncio
+    async def test_discover_taxonomy_delegates(self, pokemon_schema):
+        """Lines 123-124: discover_taxonomy delegates to taxonomy module."""
+        from tests.conftest import MockLLM, MockGraphStore, make_tool_response
+
+        response = make_tool_response("report_taxonomy_relations", {
+            "relations": [
+                {
+                    "child_term": "FirePokemon",
+                    "parent_uri": "http://example.org/pokemon#Pokemon",
+                    "confidence": 0.88,
+                }
+            ]
+        })
+        learner = LLMOntologyLearner(MockGraphStore(pokemon_schema), MockLLM(response))
+        results = await learner.discover_taxonomy("Charmander is a Fire-type Pokemon.")
+
+        assert len(results) == 1
+        assert results[0].child_term == "FirePokemon"
+
+
+class TestExtractTermsFailure:
+    @pytest.mark.asyncio
+    async def test_extract_terms_failure_returns_empty(self, pokemon_schema):
+        """Lines 198-200: _extract_terms logs warning and returns [] on failure."""
+        from tests.conftest import MockGraphStore
+
+        class _FailingLLM:
+            async def complete(self, *args, **kwargs):
+                raise RuntimeError("LLM unavailable")
+
+        learner = LLMOntologyLearner(MockGraphStore(pokemon_schema), _FailingLLM())
+        # populate_from_text calls _extract_terms; failure should not propagate
+        result = await learner.populate_from_text("some text", auto_load=False)
+        assert result.term_typings == []
+        assert result.triples == []

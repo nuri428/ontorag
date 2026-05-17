@@ -136,6 +136,25 @@ class TestTypeTermRoute:
         assert "internal secret message" not in r.json()["detail"]
         assert "logs" in r.json()["detail"].lower()
 
+    def test_503_when_schema_load_fails(self):
+        """Lines 71-72: 503 when store.get_schema() raises."""
+        class _BrokenStore:
+            async def get_schema(self):
+                raise ConnectionError("Fuseki unreachable")
+
+        from fastapi import FastAPI
+        from ontorag.api import deps
+        app = FastAPI()
+        app.include_router(learning_mod.router)
+        app.dependency_overrides[deps.get_store] = lambda: _BrokenStore()
+
+        with mock.patch("ontorag.api.routes.tools.learning.get_llm_provider", return_value=_MockLLM()):
+            client = TestClient(app, raise_server_exceptions=False)
+            r = client.post("/tools/learn/type-term", json={"term": "Pikachu"})
+
+        assert r.status_code == 503
+        assert "Could not load schema" in r.json()["detail"]
+
 
 # ── extract-triples endpoint ──────────────────────────────────────────────────
 
@@ -220,3 +239,22 @@ class TestExtractTriplesRoute:
 
         assert r.status_code == 500
         assert "db password in trace" not in r.json()["detail"]
+
+    def test_503_when_schema_load_fails(self):
+        """Lines 110-111: 503 when store.get_schema() raises in extract_triples."""
+        class _BrokenStore:
+            async def get_schema(self):
+                raise ConnectionError("Fuseki unreachable")
+
+        from fastapi import FastAPI
+        from ontorag.api import deps
+        app = FastAPI()
+        app.include_router(learning_mod.router)
+        app.dependency_overrides[deps.get_store] = lambda: _BrokenStore()
+
+        with mock.patch("ontorag.api.routes.tools.learning.get_llm_provider", return_value=_MockLLM()):
+            client = TestClient(app, raise_server_exceptions=False)
+            r = client.post("/tools/learn/extract-triples", json={"text": "some text"})
+
+        assert r.status_code == 503
+        assert "Could not load schema" in r.json()["detail"]

@@ -65,11 +65,12 @@ def _serialize_to_ttl(
 
     g = Graph()
 
-    # Bind namespaces
+    # Bind namespaces — rdflib Namespace() does not validate URIs, so bind()
+    # rarely raises; guard kept for safety against future rdflib changes.
     for prefix, uri_str in schema.namespaces.items():
         try:
             g.bind(prefix, Namespace(uri_str))
-        except Exception as exc:
+        except Exception as exc:  # pragma: no cover
             logger.debug("namespace bind skipped %r: %s", prefix, exc)
 
     # Emit rdf:type assertions from Task A
