@@ -257,6 +257,7 @@ document.getElementById('llm-config-panel').addEventListener('toggle', function 
 // ── State ──────────────────────────────────────────────────────────────────────
 let _streaming = false;
 let _pendingGraphData = null;
+let _startTime = 0;
 let currentSessionId = null;
 
 // ── Session management ─────────────────────────────────────────────────────────
@@ -427,6 +428,7 @@ async function sendChat() {
 
     _appendUserBubble(message);
     addThinking(t('playground.thinking')); // show immediately — don't wait for SSE
+    _startTime = Date.now();
     document.getElementById('chat-messages').scrollTop = 9999;
 
     let aiBubble = null;
@@ -511,6 +513,14 @@ function handleSseEvent(event, onText, appendText) {
         onText();
     } else if (event.type === 'done') {
         removeThinking();
+        if (_startTime) {
+            const secs = ((Date.now() - _startTime) / 1000).toFixed(1);
+            const d = document.createElement('div');
+            d.className = 'flex justify-start pl-1';
+            d.innerHTML = `<span class="text-gray-700 text-xs font-mono">${t('playground.elapsed', { n: secs })}</span>`;
+            msgs.appendChild(d);
+            _startTime = 0;
+        }
         if (_pendingGraphData && _pendingGraphData.nodes.length > 0) {
             renderResultGraph(_pendingGraphData);
         }
