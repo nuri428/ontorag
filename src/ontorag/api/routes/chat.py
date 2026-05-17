@@ -69,13 +69,20 @@ async def chat(
     # If the store is unavailable or has no schema yet, proceed without context
     # — the LLM will call get_schema on its first turn instead.
     schema_context: str | None = None
+    has_ontology_data = False
     try:
         schema = await store.get_schema()
         schema_context = _format_schema_for_prompt(schema)
+        has_ontology_data = any(cls.instance_count > 0 for cls in schema.classes)
     except Exception:
         logger.warning("Schema load failed for chat request — proceeding without schema context")
 
-    agent = AgentLoop(store, llm, schema_context=schema_context, initial_history=initial_history)
+    agent = AgentLoop(
+        store, llm,
+        schema_context=schema_context,
+        initial_history=initial_history,
+        has_ontology_data=has_ontology_data,
+    )
     is_first_message = len(initial_history) == 0
 
     async def event_stream() -> AsyncGenerator[str, None]:

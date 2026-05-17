@@ -273,9 +273,11 @@ class AgentLoop:
         llm: LLMProvider,
         schema_context: str | None = None,
         initial_history: list[dict[str, Any]] | None = None,
+        has_ontology_data: bool = False,
     ) -> None:
         self._store = store
         self._llm = llm
+        self._has_ontology_data = has_ontology_data
         self._system = (
             f"{_SYSTEM_BASE}\n\n{schema_context}" if schema_context else _SYSTEM_BASE
         )
@@ -294,10 +296,15 @@ class AgentLoop:
             logger.debug("Agent turn %d", turn + 1)
             yield {"type": "thinking", "content": f"분석 중... (턴 {turn + 1})"}
 
+            # Force a tool call on the first LLM call when ontology has data.
+            # This prevents the LLM from answering from training knowledge instead
+            # of querying the actual ontology graph.
+            force_tool = self._has_ontology_data and turn == 0
+
             response = None
             for _attempt in range(4):  # up to 3 retries on rate limit
                 try:
-                    response = await self._llm.complete(messages, _TOOLS, self._system)
+                    response = await self._llm.complete(messages, _TOOLS, self._system, force_tool_use=force_tool)
                     break
                 except Exception as exc:
                     wait = _parse_rate_limit_retry(exc)

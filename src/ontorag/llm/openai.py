@@ -124,16 +124,21 @@ class OpenAIProvider:
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
         system: str | None = None,
+        force_tool_use: bool = False,
     ) -> _CompletionMessage:
         """Call OpenAI API and return Anthropic-compatible _CompletionMessage."""
         openai_messages = _anthropic_messages_to_openai(messages, system)
         openai_tools = _anthropic_tools_to_openai(tools)
 
-        logger.debug("OpenAI request: model=%s turns=%d", self._model, len(openai_messages))
-        response = await self._client.chat.completions.create(
+        kwargs: dict[str, Any] = dict(
             model=self._model,
             max_tokens=self._max_tokens,
-            messages=openai_messages,  # type: ignore[arg-type]
-            tools=openai_tools,  # type: ignore[arg-type]
+            messages=openai_messages,
+            tools=openai_tools,
         )
+        if force_tool_use and openai_tools:
+            kwargs["tool_choice"] = "required"
+
+        logger.debug("OpenAI request: model=%s turns=%d", self._model, len(openai_messages))
+        response = await self._client.chat.completions.create(**kwargs)  # type: ignore[arg-type]
         return openai_response_to_message(response)

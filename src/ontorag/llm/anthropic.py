@@ -44,6 +44,7 @@ class AnthropicProvider:
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
         system: str | None = None,
+        force_tool_use: bool = False,
     ) -> _CompletionMessage:
         """Send one API request and return a normalized _CompletionMessage.
 
@@ -51,6 +52,7 @@ class AnthropicProvider:
             messages: Conversation history in Anthropic format.
             tools: Tool definitions in Anthropic format.
             system: System prompt (optional).
+            force_tool_use: If True, pass tool_choice=any so the LLM must call a tool.
 
         Returns:
             Provider-agnostic _CompletionMessage (text and/or tool_use blocks).
@@ -63,6 +65,8 @@ class AnthropicProvider:
         )
         if system:
             kwargs["system"] = system
+        if force_tool_use and tools:
+            kwargs["tool_choice"] = {"type": "any"}
         logger.debug("LLM request: model=%s turns=%d", self._model, len(messages))
         raw = await self._client.messages.create(**kwargs)
 
