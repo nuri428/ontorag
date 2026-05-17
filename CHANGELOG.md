@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.3.1 — 2026-05-18
+
+### Added — Structured ABox Population
+
+- **`ontorag learn populate-structured`** — reads CSV/JSON/JSONL, maps columns to TBox property URIs via LLM, converts each row to RDF triples, loads to Fuseki
+  - Column mapping cached in `<file>.mapping.json` — second run reuses it with zero LLM calls
+  - `--class-uri` — TBox class URI for each row (e.g. `pk:Pokemon`)
+  - `--id-column` — column to use as subject URI slug; deterministic uuid5 if omitted (idempotent across re-runs)
+  - `--batch-size` (default 50) — rows per LLM mapping call
+  - `--min-confidence` (default 0.7) — column mapping confidence threshold
+  - `--yes` — skip Fuseki load confirmation prompt
+  - Nested JSON keys flattened with dotted notation: `{"stats":{"hp":35}}` → `stats.hp`
+
+### Fixed
+
+- `propose_mapping` swallowed all exceptions with a bare `except Exception: return []` — network/auth errors are now re-raised so the CLI shows the real cause; JSON parse errors (recoverable) still return `[]`
+- `mint_subject_uri` only replaced spaces with underscores — special characters (apostrophes, colons, hashes) in id-column values produced invalid URI path segments; fixed with `urllib.parse.quote(safe="-._~")`
+- `populate_from_structured` ran the full LLM pipeline before detecting an empty TBox, giving a misleading "no triples generated" message; now raises `ValueError` early with actionable guidance
+
 ## v0.3.0 — 2026-05-18
 
 ### Added — LLMs4OL Ontology Learning pipeline
