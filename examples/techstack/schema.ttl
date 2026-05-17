@@ -1,0 +1,104 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix ts:   <http://example.org/techstack#> .
+
+# ─── Ontology declaration ────────────────────────────────────────────────────
+
+<http://example.org/techstack> a owl:Ontology ;
+    rdfs:label "Tech Stack Ontology"@en ;
+    rdfs:comment "Models software technologies, their types, and dependency relationships."@en .
+
+# ─── Classes ─────────────────────────────────────────────────────────────────
+
+ts:Technology a owl:Class ;
+    rdfs:label "Technology"@en ;
+    rdfs:comment "Any software technology: language, framework, library, or runtime."@en .
+
+ts:ProgrammingLanguage a owl:Class ;
+    rdfs:subClassOf ts:Technology ;
+    rdfs:label "Programming Language"@en .
+
+ts:Framework a owl:Class ;
+    rdfs:subClassOf ts:Technology ;
+    rdfs:label "Framework"@en .
+
+ts:FrontendFramework a owl:Class ;
+    rdfs:subClassOf ts:Framework ;
+    rdfs:label "Frontend Framework"@en .
+
+ts:BackendFramework a owl:Class ;
+    rdfs:subClassOf ts:Framework ;
+    rdfs:label "Backend Framework"@en .
+
+ts:FullstackFramework a owl:Class ;
+    rdfs:subClassOf ts:Framework ;
+    rdfs:label "Fullstack Framework"@en .
+
+ts:Library a owl:Class ;
+    rdfs:subClassOf ts:Technology ;
+    rdfs:label "Library"@en .
+
+ts:RuntimeEnvironment a owl:Class ;
+    rdfs:subClassOf ts:Technology ;
+    rdfs:label "Runtime Environment"@en ;
+    rdfs:comment "Executes code: Node.js, Deno, Bun, JVM, CPython."@en .
+
+ts:PackageManager a owl:Class ;
+    rdfs:subClassOf ts:Technology ;
+    rdfs:label "Package Manager"@en .
+
+ts:BuildTool a owl:Class ;
+    rdfs:subClassOf ts:Technology ;
+    rdfs:label "Build Tool"@en .
+
+ts:Organization a owl:Class ;
+    rdfs:label "Organization"@en ;
+    rdfs:comment "Company or open-source foundation that maintains a technology."@en .
+
+# ─── Object properties ───────────────────────────────────────────────────────
+
+ts:dependsOn a owl:ObjectProperty ,
+               owl:TransitiveProperty ;
+    rdfs:domain ts:Technology ;
+    rdfs:range  ts:Technology ;
+    rdfs:label "depends on"@en ;
+    rdfs:comment "Direct or transitive runtime dependency. Transitivity lets Fuseki infer full chains."@en .
+
+ts:builtWith a owl:ObjectProperty ;
+    rdfs:domain ts:Technology ;
+    rdfs:range  ts:ProgrammingLanguage ;
+    rdfs:label "built with"@en .
+
+ts:maintainedBy a owl:ObjectProperty ;
+    rdfs:domain ts:Technology ;
+    rdfs:range  ts:Organization ;
+    rdfs:label "maintained by"@en .
+
+ts:supersedes a owl:ObjectProperty ;
+    rdfs:domain ts:Technology ;
+    rdfs:range  ts:Technology ;
+    rdfs:label "supersedes"@en .
+
+# ─── Data properties ─────────────────────────────────────────────────────────
+
+ts:version a owl:DatatypeProperty ;
+    rdfs:domain ts:Technology ;
+    rdfs:range  xsd:string ;
+    rdfs:label "current stable version"@en .
+
+ts:license a owl:DatatypeProperty ;
+    rdfs:domain ts:Technology ;
+    rdfs:range  xsd:string ;
+    rdfs:label "license"@en .
+
+ts:homepage a owl:DatatypeProperty ;
+    rdfs:domain ts:Technology ;
+    rdfs:range  xsd:anyURI ;
+    rdfs:label "homepage URL"@en .
+
+ts:firstReleased a owl:DatatypeProperty ;
+    rdfs:domain ts:Technology ;
+    rdfs:range  xsd:gYear ;
+    rdfs:label "year of first release"@en .

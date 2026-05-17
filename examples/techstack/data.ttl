@@ -1,0 +1,127 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix ts:   <http://example.org/techstack#> .
+
+# ─── Organizations ───────────────────────────────────────────────────────────
+
+ts:Meta a ts:Organization ;
+    rdfs:label "Meta" .
+
+ts:Google a ts:Organization ;
+    rdfs:label "Google" .
+
+ts:Microsoft a ts:Organization ;
+    rdfs:label "Microsoft" .
+
+ts:Vercel a ts:Organization ;
+    rdfs:label "Vercel" .
+
+ts:OpenJS a ts:Organization ;
+    rdfs:label "OpenJS Foundation" .
+
+# ─── Programming Languages ───────────────────────────────────────────────────
+
+ts:JavaScript a ts:ProgrammingLanguage ;
+    rdfs:label "JavaScript" ;
+    ts:firstReleased "1995"^^xsd:gYear ;
+    ts:license "MIT" ;
+    ts:homepage "https://developer.mozilla.org/en-US/docs/Web/JavaScript"^^xsd:anyURI .
+
+ts:TypeScript a ts:ProgrammingLanguage ;
+    rdfs:label "TypeScript" ;
+    ts:builtWith ts:JavaScript ;
+    ts:maintainedBy ts:Microsoft ;
+    ts:firstReleased "2012"^^xsd:gYear ;
+    ts:license "Apache-2.0" ;
+    ts:homepage "https://www.typescriptlang.org"^^xsd:anyURI .
+
+# ─── Runtime Environments ────────────────────────────────────────────────────
+
+ts:NodeJS a ts:RuntimeEnvironment ;
+    rdfs:label "Node.js" ;
+    ts:builtWith ts:JavaScript ;
+    ts:maintainedBy ts:OpenJS ;
+    ts:firstReleased "2009"^^xsd:gYear ;
+    ts:license "MIT" .
+
+ts:Bun a ts:RuntimeEnvironment ;
+    rdfs:label "Bun" ;
+    ts:builtWith ts:TypeScript ;
+    ts:supersedes ts:NodeJS ;
+    ts:firstReleased "2022"^^xsd:gYear ;
+    ts:license "MIT" .
+
+# ─── Frontend Frameworks ─────────────────────────────────────────────────────
+
+ts:React a ts:FrontendFramework ;
+    rdfs:label "React" ;
+    ts:builtWith ts:JavaScript ;
+    ts:maintainedBy ts:Meta ;
+    ts:dependsOn ts:NodeJS ;
+    ts:firstReleased "2013"^^xsd:gYear ;
+    ts:version "19.0" ;
+    ts:license "MIT" .
+
+ts:Angular a ts:FrontendFramework ;
+    rdfs:label "Angular" ;
+    ts:builtWith ts:TypeScript ;
+    ts:maintainedBy ts:Google ;
+    ts:dependsOn ts:NodeJS ;
+    ts:firstReleased "2016"^^xsd:gYear ;
+    ts:version "19.0" ;
+    ts:license "MIT" .
+
+# ─── Fullstack Frameworks (depend on React → transitively depend on Node.js) ─
+
+ts:NextJS a ts:FullstackFramework ;
+    rdfs:label "Next.js" ;
+    ts:builtWith ts:TypeScript ;
+    ts:maintainedBy ts:Vercel ;
+    ts:dependsOn ts:React ;        # React dependsOn NodeJS → Next.js dependsOn NodeJS (inferred)
+    ts:firstReleased "2016"^^xsd:gYear ;
+    ts:version "15.0" ;
+    ts:license "MIT" .
+
+ts:Remix a ts:FullstackFramework ;
+    rdfs:label "Remix" ;
+    ts:builtWith ts:TypeScript ;
+    ts:dependsOn ts:React ;
+    ts:firstReleased "2021"^^xsd:gYear ;
+    ts:license "MIT" .
+
+# ─── Package Managers ────────────────────────────────────────────────────────
+
+ts:npm a ts:PackageManager ;
+    rdfs:label "npm" ;
+    ts:builtWith ts:JavaScript ;
+    ts:maintainedBy ts:OpenJS ;
+    ts:dependsOn ts:NodeJS ;
+    ts:firstReleased "2010"^^xsd:gYear ;
+    ts:license "Artistic-2.0" .
+
+ts:pnpm a ts:PackageManager ;
+    rdfs:label "pnpm" ;
+    ts:builtWith ts:TypeScript ;
+    ts:dependsOn ts:NodeJS ;
+    ts:supersedes ts:npm ;
+    ts:firstReleased "2017"^^xsd:gYear ;
+    ts:license "MIT" .
+
+# ─── Build Tools ─────────────────────────────────────────────────────────────
+
+ts:Vite a ts:BuildTool ;
+    rdfs:label "Vite" ;
+    ts:builtWith ts:TypeScript ;
+    ts:dependsOn ts:NodeJS ;
+    ts:firstReleased "2020"^^xsd:gYear ;
+    ts:version "6.0" ;
+    ts:license "MIT" .
+
+ts:Webpack a ts:BuildTool ;
+    rdfs:label "webpack" ;
+    ts:builtWith ts:JavaScript ;
+    ts:dependsOn ts:NodeJS ;
+    ts:firstReleased "2012"^^xsd:gYear ;
+    ts:license "MIT" .
