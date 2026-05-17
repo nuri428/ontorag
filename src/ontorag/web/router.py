@@ -3,13 +3,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import tempfile
 from pathlib import Path
 from typing import Annotated
 
 import html as _html
 
 from dotenv import dotenv_values, set_key
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from rdflib import Graph
@@ -220,6 +221,74 @@ async def entity_detail(
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+def _web_suffix(filename: str | None) -> str:
+    if filename and "." in filename:
+        return f".{filename.rsplit('.', 1)[-1]}"
+    return ".ttl"
+
+
+@router.post("/schema/upload", response_class=HTMLResponse)
+async def schema_upload(
+    request: Request,
+    file: Annotated[UploadFile, File()],
+    store: FusekiStore = Depends(get_store),
+) -> HTMLResponse:
+    """Upload a TBox (schema) RDF file — always replaces the existing schema."""
+    content = await file.read()
+    tmp_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=_web_suffix(file.filename), delete=False) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+        result = await store.load_rdf(tmp_path, mode="schema")
+        return templates.TemplateResponse(
+            request,
+            "partials/upload_result.html",
+            {"ok": True, "triples": result.triples_loaded, "mode": "schema", "replaced": True},
+        )
+    except Exception as exc:
+        return templates.TemplateResponse(
+            request,
+            "partials/upload_result.html",
+            {"ok": False, "error": str(exc), "mode": "schema"},
+        )
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+
+@router.post("/data/upload", response_class=HTMLResponse)
+async def data_upload(
+    request: Request,
+    file: Annotated[UploadFile, File()],
+    replace: Annotated[str, Form()] = "false",
+    store: FusekiStore = Depends(get_store),
+) -> HTMLResponse:
+    """Upload an ABox (data) RDF file — append by default, replace when replace=true."""
+    should_replace = replace.lower() == "true"
+    content = await file.read()
+    tmp_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=_web_suffix(file.filename), delete=False) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+        result = await store.load_rdf(tmp_path, mode="data", replace=should_replace)
+        return templates.TemplateResponse(
+            request,
+            "partials/upload_result.html",
+            {"ok": True, "triples": result.triples_loaded, "mode": "data", "replaced": should_replace},
+        )
+    except Exception as exc:
+        return templates.TemplateResponse(
+            request,
+            "partials/upload_result.html",
+            {"ok": False, "error": str(exc), "mode": "data"},
+        )
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
 
 
 # ── Playground tab ─────────────────────────────────────────────────────────────

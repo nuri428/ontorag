@@ -1,0 +1,26 @@
+{% if ok %}
+<div class="flex items-center gap-3 text-xs">
+    <span class="flex items-center gap-1.5 text-green-400 bg-green-950 border border-green-800 rounded-lg px-3 py-2">
+        ✓
+        {% if mode == 'schema' %}
+        {{ triples }}개 트리플 로드 완료 — TBox 교체됨
+        {% elif replaced %}
+        {{ triples }}개 트리플 로드 완료 — 기존 ABox 교체됨
+        {% else %}
+        {{ triples }}개 트리플 로드 완료 — ABox에 추가됨
+        {% endif %}
+    </span>
+    {% if mode == 'schema' %}
+    <button onclick="initSchemaGraph()"
+        class="text-indigo-400 hover:text-indigo-300 transition-colors">↻ 그래프 새로고침</button>
+    {% else %}
+    <a href="/ui/data"
+        class="text-indigo-400 hover:text-indigo-300 transition-colors">↻ 클래스 목록 새로고침</a>
+    {% endif %}
+</div>
+{% else %}
+<div class="bg-red-950 border border-red-800 rounded-lg px-3 py-2">
+    <p class="text-red-300 text-xs font-medium mb-1">업로드 오류</p>
+    <p class="text-red-500 text-xs font-mono break-all">{{ error }}</p>
+</div>
+{% endif %}
