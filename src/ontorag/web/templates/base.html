@@ -47,8 +47,11 @@
             <span class="htmx-indicator text-xs text-gray-500" data-i18n="nav.loading">로딩...</span>
             <button id="lang-toggle" onclick="toggleLang()"
                 class="text-xs px-2 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700
-                       text-gray-400 hover:text-gray-200 rounded transition-colors font-mono">
-                EN
+                       rounded transition-colors font-mono flex items-center gap-1"
+                title="언어 전환 / Switch language">
+                <span id="lang-ko" class="text-white">KO</span>
+                <span class="text-gray-600">·</span>
+                <span id="lang-en" class="text-gray-500">EN</span>
             </button>
             <span class="text-xs text-gray-700 font-mono">v0.1.0</span>
         </div>
@@ -206,8 +209,10 @@
             el.textContent = t(el.dataset.i18nN, { n: el.dataset.count });
         });
 
-        const langBtn = document.getElementById('lang-toggle');
-        if (langBtn) langBtn.textContent = lang === 'ko' ? 'EN' : 'KO';
+        const koSpan = document.getElementById('lang-ko');
+        const enSpan = document.getElementById('lang-en');
+        if (koSpan) koSpan.className = lang === 'ko' ? 'text-white' : 'text-gray-500';
+        if (enSpan) enSpan.className = lang === 'en' ? 'text-white' : 'text-gray-500';
     }
 
     function toggleLang() {
