@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from collections.abc import AsyncGenerator
@@ -232,6 +233,24 @@ _TOOLS: list[dict[str, Any]] = [
 ]
 
 
+def _parse_rate_limit_retry(exc: Exception) -> int | None:
+    """Return retry delay in seconds if exc is a 429 rate-limit error, else None."""
+    if "RateLimit" in type(exc).__name__:
+        resp = getattr(exc, "response", None)
+        headers = dict(getattr(resp, "headers", {}) or {}) if resp else {}
+        for key in ("retry-after", "x-ratelimit-reset-requests"):
+            val = headers.get(key)
+            if val:
+                try:
+                    return max(5, int(float(val)))
+                except (ValueError, TypeError):
+                    pass
+        return 30
+    if getattr(exc, "status_code", None) == 429:
+        return 30
+    return None
+
+
 class AgentLoop:
     """Agentic MCP loop: LLM ↔ ontology tools ↔ SSE stream.
 
@@ -269,7 +288,19 @@ class AgentLoop:
             logger.debug("Agent turn %d", turn + 1)
             yield {"type": "thinking", "content": f"분석 중... (턴 {turn + 1})"}
 
-            response = await self._llm.complete(messages, _TOOLS, self._system)
+            response = None
+            for _attempt in range(4):  # up to 3 retries on rate limit
+                try:
+                    response = await self._llm.complete(messages, _TOOLS, self._system)
+                    break
+                except Exception as exc:
+                    wait = _parse_rate_limit_retry(exc)
+                    if wait is None or _attempt >= 3:
+                        raise
+                    logger.warning("Rate limit hit (attempt %d), retrying in %ds", _attempt + 1, wait)
+                    yield {"type": "rate_limit", "retry_after": wait}
+                    await asyncio.sleep(wait)
+            assert response is not None
 
             assistant_blocks: list[dict[str, Any]] = []
             tool_results: list[dict[str, Any]] = []

@@ -27,7 +27,7 @@ class AnthropicProvider:
         key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
         if not key:
             raise ValueError("ANTHROPIC_API_KEY is required")
-        self._client = anthropic.AsyncAnthropic(api_key=key)
+        self._client = anthropic.AsyncAnthropic(api_key=key, max_retries=0)
         self._model = model
         self._max_tokens = max_tokens
 

@@ -296,7 +296,7 @@ async function loadSession(id) {
 
     const msgs = document.getElementById('chat-messages');
     msgs.innerHTML = '';
-    document.getElementById('result-graph-panel').classList.add('hidden');
+    closeResultGraph();
     _pendingGraphData = null;
 
     if (!data.messages || data.messages.length === 0) {
@@ -497,7 +497,18 @@ function handleSseEvent(event, onText, appendText) {
 
     if (event.type === 'thinking') {
         removeThinking();
+        document.getElementById('rate-limit-indicator')?.remove();
         addThinking(event.content);
+    } else if (event.type === 'rate_limit') {
+        removeThinking();
+        document.getElementById('rate-limit-indicator')?.remove();
+        const d = document.createElement('div');
+        d.id = 'rate-limit-indicator';
+        d.className = 'flex justify-center';
+        d.innerHTML = `<span class="text-yellow-400 text-xs bg-yellow-950 border border-yellow-800 px-3 py-1.5 rounded-lg animate-pulse">⏳ ${escHtml(t('playground.rateLimit', { n: event.retry_after }))}</span>`;
+        msgs.appendChild(d);
+        msgs.scrollTop = msgs.scrollHeight;
+        return;
     } else if (event.type === 'tool_call') {
         removeThinking();
         addToolEvent('tool_call', event);
@@ -514,10 +525,12 @@ function handleSseEvent(event, onText, appendText) {
         }
     } else if (event.type === 'text') {
         removeThinking();
+        document.getElementById('rate-limit-indicator')?.remove();
         appendText(event.content || '');
         onText();
     } else if (event.type === 'done') {
         removeThinking();
+        document.getElementById('rate-limit-indicator')?.remove();
         if (_startTime) {
             const secs = ((Date.now() - _startTime) / 1000).toFixed(1);
             const d = document.createElement('div');

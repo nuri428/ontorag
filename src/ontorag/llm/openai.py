@@ -104,7 +104,7 @@ class OpenAIProvider:
         if not key and not base_url:
             raise ValueError("OPENAI_API_KEY 또는 base_url이 필요합니다")
 
-        kwargs: dict[str, Any] = {"api_key": key or "ollama"}
+        kwargs: dict[str, Any] = {"api_key": key or "ollama", "max_retries": 0}
         if base_url:
             kwargs["base_url"] = base_url
 
