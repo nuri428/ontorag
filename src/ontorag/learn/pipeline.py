@@ -8,7 +8,7 @@ from typing import Any
 from ontorag.learn import taxonomy as _taxonomy_mod
 from ontorag.learn import term_typing as _term_typing_mod
 from ontorag.learn import relation as _relation_mod
-from ontorag.learn._utils import mint_uri
+from ontorag.learn._utils import mint_uri, structured_call
 from ontorag.learn.base import (
     ExtractedTriple,
     PopulationResult,
@@ -176,22 +176,19 @@ class LLMOntologyLearner:
             self._llm, schema, text, entities=entity_labels or None, min_confidence=min_confidence
         )
 
-        result = PopulationResult(
+        loaded: int | None = None
+        if auto_load and (triples or typings):
+            loaded = await self._load_triples(triples, typings, schema)
+
+        return PopulationResult(
             term_typings=typings,
             taxonomy_proposals=taxonomy,
             triples=triples,
+            triples_loaded=loaded,
         )
-
-        if auto_load and (triples or typings):
-            loaded = await self._load_triples(triples, typings, schema)
-            result.triples_loaded = loaded
-
-        return result
 
     async def _extract_terms(self, text: str, schema: SchemaResult) -> list[str]:
         """Extract entity labels from text using a structured LLM call."""
-        from ontorag.learn._utils import structured_call
-
         messages = [{"role": "user", "content": f"Text:\n{text[:2000]}"}]
         try:
             raw = await structured_call(

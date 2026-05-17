@@ -106,6 +106,11 @@ async def extract_relations(
         List of ExtractedTriple with valid predicate URIs.
     """
     prop_uris = _collect_property_uris(schema)
+    if not prop_uris:
+        logger.warning(
+            "extract_relations: schema.properties is empty — predicate URIs will not be validated. "
+            "Call get_schema() on a store that populates SchemaResult.properties."
+        )
 
     prompt_parts = [
         f"Schema:\n{_schema_summary(schema)}",

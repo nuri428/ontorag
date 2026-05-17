@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from ontorag.api.deps import get_store
+
+logger = logging.getLogger(__name__)
 from ontorag.learn.base import ExtractedTriple, TermTypingResult
 from ontorag.learn import term_typing as _term_typing_mod
 from ontorag.learn import relation as _relation_mod
@@ -27,7 +31,7 @@ class TypeTermRequest(BaseModel):
 class ExtractTriplesRequest(BaseModel):
     """Request body for Task C: text → RDF triples."""
 
-    text: str = Field(min_length=1, description="Source text to extract triples from.")
+    text: str = Field(min_length=1, max_length=10_000, description="Source text to extract triples from (max 10 000 chars).")
     entities: list[str] | None = Field(
         default=None,
         description="Optional entity label whitelist to focus extraction.",
@@ -72,7 +76,8 @@ async def type_term(
             llm, schema, body.term, body.context, body.top_k
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("type_term failed for term=%r", body.term)
+        raise HTTPException(status_code=500, detail="Term typing failed. Check server logs.")
 
 
 @router.post(
@@ -110,4 +115,5 @@ async def extract_triples(
             llm, schema, body.text, body.entities, body.min_confidence
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("extract_triples failed for text len=%d", len(body.text))
+        raise HTTPException(status_code=500, detail="Triple extraction failed. Check server logs.")
