@@ -111,7 +111,7 @@ User  (CLI / browser)
 └──────────────────┼─────────────────────┘
                    │ SPARQL (HTTP)
                    ▼
-        Apache Jena Fuseki   ← v0.1–v0.3.1
+        Apache Jena Fuseki   ← v0.1–v0.3.2
         Neo4j + n10s         ← v0.5
 ```
 
@@ -429,7 +429,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 - **v0.1** — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE streaming ✅
 - **v0.2** — Web UI (Schema/Data/Playground) · RDF upload from browser · Rate-limit UX · Forced tool-use when ontology has data ✅
 - **v0.3** — LLMs4OL: `ontorag learn` CLI (Term Typing · Taxonomy Discovery · Relation Extraction) · `type_term` + `extract_triples` MCP tools · Tech Stack example ✅
-- **v0.3.1** (current) — Structured ABox population: `populate-structured` reads CSV/JSON/JSONL → maps columns to TBox via LLM → RDF triples → Fuseki; mapping cache, uuid5 idempotent URIs, batch checkpointing ✅
+- **v0.3.1** — Structured ABox population: `populate-structured` reads CSV/JSON/JSONL → maps columns to TBox via LLM → RDF triples → Fuseki; mapping cache, uuid5 idempotent URIs, batch checkpointing ✅
+- **v0.3.2** (current) — TBox/ABox dump: `ontorag dump schema|data|all` · `GET /dump` REST endpoint · Web UI download buttons · TTL / JSON / JSONL / XLSX formats ✅
 - **v0.5** — Neo4j + n10s adapter · `GRAPH_STORE` env var · Vector similarity tool (`find_similar`) · Multi-ontology support
 
 ---
