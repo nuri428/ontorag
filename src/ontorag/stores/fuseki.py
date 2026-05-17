@@ -197,6 +197,11 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
             target: "schema" (TBox), "data" (ABox), or "all" (both).
             fmt: "ttl" | "json" (triple array) | "jsonl" | "xlsx".
 
+        Note — all + xlsx vs. all + ttl/json/jsonl:
+            XLSX exports TBox and ABox as **separate sheets** (more useful in a
+            spreadsheet tool).  TTL/JSON/JSONL merge both graphs into a single
+            stream so the output is a valid, self-contained RDF/triple document.
+
         Returns:
             Serialised bytes.
         """
@@ -215,13 +220,13 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
             )
             graphs = {"TBox": schema_g, "ABox": data_g}
 
-        if len(graphs) == 1:
-            merged = next(iter(graphs.values()))
-        else:
-            merged = Graph()
-            for g in graphs.values():
-                for triple in g:
-                    merged.add(triple)
+        # XLSX uses per-sheet split; other formats need a single merged graph.
+        if fmt == "xlsx":
+            return _graphs_to_xlsx(graphs)
+
+        merged = Graph()
+        for g in graphs.values():
+            merged |= g  # union including namespace bindings (rdflib 6+)
 
         if fmt == "ttl":
             return merged.serialize(format="turtle").encode()
@@ -230,15 +235,12 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
             rows = [{"s": str(s), "p": str(p), "o": str(o)} for s, p, o in merged]
             return _json.dumps(rows, ensure_ascii=False, indent=2).encode()
 
-        if fmt == "jsonl":
-            lines = [
-                _json.dumps({"s": str(s), "p": str(p), "o": str(o)}, ensure_ascii=False)
-                for s, p, o in merged
-            ]
-            return "\n".join(lines).encode()
-
-        # xlsx
-        return _graphs_to_xlsx(graphs)
+        # jsonl — trailing newline required by NDJSON spec
+        lines = [
+            _json.dumps({"s": str(s), "p": str(p), "o": str(o)}, ensure_ascii=False)
+            for s, p, o in merged
+        ]
+        return ("\n".join(lines) + "\n").encode() if lines else b""
 
     async def _sparql_select(self, sparql: str) -> dict[str, Any]:
         """Execute a SPARQL SELECT query (internal use only — not MCP-exposed).
@@ -683,14 +685,9 @@ def _graphs_to_xlsx(graphs: dict[str, Graph]) -> bytes:
         ) from exc
 
     wb = openpyxl.Workbook()
-    first = True
+    wb.remove(wb.active)  # remove the default blank sheet
     for sheet_name, graph in graphs.items():
-        if first:
-            ws = wb.active
-            ws.title = sheet_name
-            first = False
-        else:
-            ws = wb.create_sheet(title=sheet_name)
+        ws = wb.create_sheet(title=sheet_name)
         ws.append(["Subject", "Predicate", "Object"])
         for s, p, o in graph:
             ws.append([str(s), str(p), str(o)])

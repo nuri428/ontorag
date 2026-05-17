@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 
 from ontorag.api.deps import get_store
-from ontorag.stores.fuseki import FusekiStore
+from ontorag.stores.base import GraphStore
 
 router = APIRouter(tags=["dump"])
 
@@ -52,7 +52,7 @@ async def dump_graph(
         "ttl",
         description="출력 포맷: ttl | json | jsonl | xlsx",
     ),
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> Response:
     """Export one or both named graphs as a downloadable file.
 

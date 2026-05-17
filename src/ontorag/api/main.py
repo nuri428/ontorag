@@ -75,5 +75,6 @@ app.include_router(web_router)
 
 # MCP server — mount after all routes are registered
 # query_sparql_raw is excluded: internal/debug use only, never LLM-callable
-mcp = FastApiMCP(app, exclude_operations=["query_sparql_raw"])
+# dump_graph excluded: file download endpoint, not an LLM-callable tool
+mcp = FastApiMCP(app, exclude_operations=["query_sparql_raw", "dump_graph"])
 mcp.mount_http()

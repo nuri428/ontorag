@@ -95,6 +95,16 @@ class TestDumpGraphJSONL:
             obj = json.loads(line)
             assert "s" in obj and "p" in obj and "o" in obj
 
+    async def test_jsonl_ends_with_newline(self):
+        store = _make_store()
+        result = await store.dump_graph("schema", "jsonl")
+        assert result.endswith(b"\n")
+
+    async def test_jsonl_empty_graph_returns_empty_bytes(self):
+        store = _make_store(schema_graph=Graph())
+        result = await store.dump_graph("schema", "jsonl")
+        assert result == b""
+
     async def test_jsonl_line_count_matches_graph(self):
         g = _make_tiny_graph()
         store = _make_store(schema_graph=g)
