@@ -85,7 +85,10 @@ WHERE {{
             if eu not in props:
                 continue
             if obj_term.get("type") == "uri":
-                obj: Any = {"uri": obj_term["value"], "label": b.get("objLabel", {}).get("value")}
+                obj: Any = {
+                    "uri": obj_term["value"],
+                    "label": b.get("objLabel", {}).get("value"),
+                }
             else:
                 obj = obj_term["value"]
             existing = props[eu].get(pred)
@@ -148,7 +151,10 @@ WHERE {{
                 class_uri = obj_value
                 continue
             if obj_term.get("type") == "uri":
-                obj: Any = {"uri": obj_value, "label": b.get("objLabel", {}).get("value")}
+                obj: Any = {
+                    "uri": obj_value,
+                    "label": b.get("objLabel", {}).get("value"),
+                }
             else:
                 obj = obj_value
             existing = properties.get(pred)
@@ -159,7 +165,9 @@ WHERE {{
             else:
                 properties[pred] = [existing, obj]
 
-        return EntityResult(uri=uri, label=label, class_uri=class_uri, properties=properties)
+        return EntityResult(
+            uri=uri, label=label, class_uri=class_uri, properties=properties
+        )
 
     async def count_entities(
         self,

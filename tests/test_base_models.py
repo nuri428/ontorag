@@ -14,13 +14,16 @@ from ontorag.stores.base import (
 
 # ── PatternTriple validation ──────────────────────────────────────────────────
 
+
 def test_pattern_triple_valid_variable():
     t = PatternTriple(s="?person", p="rdf:type", o="foaf:Person")
     assert t.s == "?person"
 
 
 def test_pattern_triple_valid_uri():
-    t = PatternTriple(s="<http://ex.org/a>", p="<http://ex.org/p>", o="<http://ex.org/b>")
+    t = PatternTriple(
+        s="<http://ex.org/a>", p="<http://ex.org/p>", o="<http://ex.org/b>"
+    )
     assert t.s == "<http://ex.org/a>"
 
 
@@ -41,6 +44,7 @@ def test_pattern_triple_rejects_invalid_variable():
 
 # ── PatternFilter validation ──────────────────────────────────────────────────
 
+
 def test_pattern_filter_valid():
     f = PatternFilter(var="?year", op=">=", value=2020)
     assert f.var == "?year"
@@ -53,6 +57,7 @@ def test_pattern_filter_rejects_bad_var():
 
 
 # ── PatternQuery validation ───────────────────────────────────────────────────
+
 
 def test_pattern_query_valid():
     q = PatternQuery(
@@ -90,6 +95,7 @@ def test_pattern_query_rejects_bad_select_var():
 
 
 # ── EntityFilter ──────────────────────────────────────────────────────────────
+
 
 def test_entity_filter_defaults_to_eq():
     f = EntityFilter(property="foaf:age", value=30)

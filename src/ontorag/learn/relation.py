@@ -44,7 +44,11 @@ _TOOL_DEF: dict[str, Any] = {
                             "type": ["string", "null"],
                             "description": "Literal value (for data properties).",
                         },
-                        "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                        "confidence": {
+                            "type": "number",
+                            "minimum": 0.0,
+                            "maximum": 1.0,
+                        },
                     },
                     "required": ["subject_label", "predicate_uri", "confidence"],
                 },
@@ -70,7 +74,9 @@ def _schema_summary(schema: SchemaResult) -> str:
         ptype = f" [{prop.prop_type}]"
         lines.append(f"  {prop.uri}{label}{ptype}")
     if not schema.properties:
-        lines.append("  (no properties in schema — use any property URI from domain knowledge)")
+        lines.append(
+            "  (no properties in schema — use any property URI from domain knowledge)"
+        )
 
     lines.append("\nClasses (for context):")
     for cls in schema.classes:
@@ -117,9 +123,7 @@ async def extract_relations(
         f"\nText:\n{text[:2000]}",
     ]
     if entities:
-        prompt_parts.append(
-            "\nFocus on these entities: " + ", ".join(entities)
-        )
+        prompt_parts.append("\nFocus on these entities: " + ", ".join(entities))
     prompt_parts.append(
         "\nExtract RDF triples. Use only predicate URIs listed in the schema above."
     )
@@ -145,13 +149,15 @@ async def extract_relations(
 
         obj_uri = item.get("object_uri") or None
 
-        results.append(ExtractedTriple(
-            subject_label=item.get("subject_label", ""),
-            subject_uri=item.get("subject_uri") or None,
-            predicate_uri=pred,
-            object_uri=obj_uri,
-            object_value=item.get("object_value") or None,
-            confidence=confidence,
-        ))
+        results.append(
+            ExtractedTriple(
+                subject_label=item.get("subject_label", ""),
+                subject_uri=item.get("subject_uri") or None,
+                predicate_uri=pred,
+                object_uri=obj_uri,
+                object_value=item.get("object_value") or None,
+                confidence=confidence,
+            )
+        )
 
     return results

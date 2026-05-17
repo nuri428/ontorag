@@ -9,6 +9,7 @@ from ontorag.stores.fuseki import FusekiStore
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def store() -> FusekiStore:
     return FusekiStore("http://localhost:3030", "test", "admin", "admin")
@@ -40,16 +41,19 @@ _EMPTY = {"results": {"bindings": []}}
 
 # ── find_entities ──────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_find_entities_returns_results(store):
     uri = "http://example.org/alice"
     with patch.object(
         store,
         "_sparql_select",
-        new=AsyncMock(side_effect=[
-            _uris_result(uri),
-            _props_result(uri, {"http://xmlns.com/foaf/0.1/name": "Alice"}),
-        ]),
+        new=AsyncMock(
+            side_effect=[
+                _uris_result(uri),
+                _props_result(uri, {"http://xmlns.com/foaf/0.1/name": "Alice"}),
+            ]
+        ),
     ):
         results = await store.find_entities("http://xmlns.com/foaf/0.1/Person")
 
@@ -86,6 +90,7 @@ async def test_find_entities_with_filter_includes_filter_triple(store):
 
 # ── describe_entity ────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_describe_entity_returns_properties(store):
     result_data = {
@@ -97,7 +102,9 @@ async def test_describe_entity_returns_properties(store):
                     "label": {"value": "Alice"},
                 },
                 {
-                    "pred": {"value": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"},
+                    "pred": {
+                        "value": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+                    },
                     "obj": {"value": "http://xmlns.com/foaf/0.1/Person"},
                 },
             ]
@@ -121,10 +128,13 @@ async def test_describe_entity_raises_key_error_when_not_found(store):
 
 # ── count_entities ────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_count_entities_returns_integer(store):
     count_result = {"results": {"bindings": [{"n": {"value": "7"}}]}}
-    with patch.object(store, "_sparql_select", new=AsyncMock(return_value=count_result)):
+    with patch.object(
+        store, "_sparql_select", new=AsyncMock(return_value=count_result)
+    ):
         count = await store.count_entities("http://xmlns.com/foaf/0.1/Person")
     assert count == 7
 
@@ -137,6 +147,7 @@ async def test_count_entities_returns_zero_when_empty(store):
 
 
 # ── aggregate ─────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_aggregate_count_returns_group_results(store):

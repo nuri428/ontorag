@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from ontorag.stores.base import TraversalDirection
 from ontorag.stores.fuseki import FusekiStore
 
 
@@ -28,6 +27,7 @@ def _edges_result(*triples: tuple[str, str, str]) -> dict:
 
 
 # ── traverse ──────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_traverse_returns_start_node(store):
@@ -80,10 +80,13 @@ async def test_traverse_depth_limit_respected(store):
 
 # ── find_path ────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_find_path_returns_empty_when_no_path(store):
     with patch.object(store, "_sparql_select", new=AsyncMock(return_value=_EMPTY)):
-        result = await store.find_path("http://example.org/alice", "http://example.org/ghost")
+        result = await store.find_path(
+            "http://example.org/alice", "http://example.org/ghost"
+        )
 
     assert result.nodes == []
     assert result.edges == []
@@ -111,6 +114,7 @@ async def test_find_path_finds_direct_connection(store):
 
 # ── find_related ──────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_find_related_returns_pairs(store):
     related_result = {
@@ -125,7 +129,9 @@ async def test_find_related_returns_pairs(store):
             ]
         }
     }
-    with patch.object(store, "_sparql_select", new=AsyncMock(return_value=related_result)):
+    with patch.object(
+        store, "_sparql_select", new=AsyncMock(return_value=related_result)
+    ):
         results = await store.find_related(
             class_uri_a="http://xmlns.com/foaf/0.1/Person",
             predicate="http://xmlns.com/foaf/0.1/knows",

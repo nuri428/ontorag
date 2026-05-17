@@ -25,6 +25,7 @@ class SSEEvent:
 
 # ── Internal duck-typed response types (provider-agnostic) ────────────────────
 
+
 @dataclass
 class _TextBlock:
     type: str = "text"
@@ -67,11 +68,13 @@ def openai_response_to_message(response: Any) -> _CompletionMessage:
             args = json.loads(tc.function.arguments)
         except (json.JSONDecodeError, AttributeError):
             args = {}
-        content.append(_ToolUseBlock(
-            id=tc.id,
-            name=tc.function.name,
-            input=args,
-        ))
+        content.append(
+            _ToolUseBlock(
+                id=tc.id,
+                name=tc.function.name,
+                input=args,
+            )
+        )
 
     stop_reason = "tool_use" if finish_reason == "tool_calls" else "end_turn"
     return _CompletionMessage(content=content, stop_reason=stop_reason)

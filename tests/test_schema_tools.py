@@ -87,12 +87,11 @@ SAMPLE_INST_RESULT = {
     }
 }
 
-CLASS_INST_COUNT_RESULT = {
-    "results": {"bindings": [{"n": {"value": "2"}}]}
-}
+CLASS_INST_COUNT_RESULT = {"results": {"bindings": [{"n": {"value": "2"}}]}}
 
 
 # ─── get_schema ───────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def store():
@@ -144,19 +143,27 @@ async def test_get_schema_no_duplicate_classes(store):
     duplicate_classes = {
         "results": {
             "bindings": [
-                {"class": {"value": "http://ex.org/A"}, "parent": {"value": "http://ex.org/B"}},
-                {"class": {"value": "http://ex.org/A"}, "parent": {"value": "http://ex.org/C"}},
+                {
+                    "class": {"value": "http://ex.org/A"},
+                    "parent": {"value": "http://ex.org/B"},
+                },
+                {
+                    "class": {"value": "http://ex.org/A"},
+                    "parent": {"value": "http://ex.org/C"},
+                },
             ]
         }
     }
     with patch.object(
         store,
         "_sparql_select",
-        new=AsyncMock(side_effect=[
-            duplicate_classes,
-            {"results": {"bindings": []}},
-            {"results": {"bindings": []}},
-        ]),
+        new=AsyncMock(
+            side_effect=[
+                duplicate_classes,
+                {"results": {"bindings": []}},
+                {"results": {"bindings": []}},
+            ]
+        ),
     ):
         result = await store.get_schema()
 
@@ -165,18 +172,21 @@ async def test_get_schema_no_duplicate_classes(store):
 
 # ─── get_class_detail ─────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_get_class_detail_returns_detail(store):
     with patch.object(
         store,
         "_sparql_select",
-        new=AsyncMock(side_effect=[
-            META_RESULT,
-            CLASS_PROPS_RESULT,
-            CHILDREN_RESULT,
-            SAMPLE_INST_RESULT,
-            CLASS_INST_COUNT_RESULT,
-        ]),
+        new=AsyncMock(
+            side_effect=[
+                META_RESULT,
+                CLASS_PROPS_RESULT,
+                CHILDREN_RESULT,
+                SAMPLE_INST_RESULT,
+                CLASS_INST_COUNT_RESULT,
+            ]
+        ),
     ):
         detail = await store.get_class_detail("http://xmlns.com/foaf/0.1/Person")
 
@@ -190,13 +200,15 @@ async def test_get_class_detail_properties(store):
     with patch.object(
         store,
         "_sparql_select",
-        new=AsyncMock(side_effect=[
-            META_RESULT,
-            CLASS_PROPS_RESULT,
-            CHILDREN_RESULT,
-            SAMPLE_INST_RESULT,
-            CLASS_INST_COUNT_RESULT,
-        ]),
+        new=AsyncMock(
+            side_effect=[
+                META_RESULT,
+                CLASS_PROPS_RESULT,
+                CHILDREN_RESULT,
+                SAMPLE_INST_RESULT,
+                CLASS_INST_COUNT_RESULT,
+            ]
+        ),
     ):
         detail = await store.get_class_detail("http://xmlns.com/foaf/0.1/Person")
 
@@ -210,13 +222,15 @@ async def test_get_class_detail_instance_count_and_samples(store):
     with patch.object(
         store,
         "_sparql_select",
-        new=AsyncMock(side_effect=[
-            META_RESULT,
-            CLASS_PROPS_RESULT,
-            CHILDREN_RESULT,
-            SAMPLE_INST_RESULT,
-            CLASS_INST_COUNT_RESULT,
-        ]),
+        new=AsyncMock(
+            side_effect=[
+                META_RESULT,
+                CLASS_PROPS_RESULT,
+                CHILDREN_RESULT,
+                SAMPLE_INST_RESULT,
+                CLASS_INST_COUNT_RESULT,
+            ]
+        ),
     ):
         detail = await store.get_class_detail("http://xmlns.com/foaf/0.1/Person")
 
@@ -225,6 +239,7 @@ async def test_get_class_detail_instance_count_and_samples(store):
 
 
 # ─── query_pattern ────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_query_pattern_translates_and_returns_rows(store):
@@ -244,7 +259,9 @@ async def test_query_pattern_translates_and_returns_rows(store):
         },
     }
 
-    with patch.object(store, "_sparql_select", new=AsyncMock(return_value=raw_response)):
+    with patch.object(
+        store, "_sparql_select", new=AsyncMock(return_value=raw_response)
+    ):
         result = await store.query_pattern(query)
 
     assert result.columns == ["person"]

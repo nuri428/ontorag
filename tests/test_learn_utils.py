@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import pytest
 
 from ontorag.learn._utils import mint_uri, primary_namespace
-from ontorag.stores.base import ClassSummary, SchemaResult
+from ontorag.stores.base import SchemaResult
 
 
 def _schema(namespaces: dict) -> SchemaResult:
@@ -17,11 +16,21 @@ def _schema(namespaces: dict) -> SchemaResult:
 
 class TestPrimaryNamespace:
     def test_returns_first_custom_namespace(self):
-        schema = _schema({"rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "pk": "http://example.org/pokemon#"})
+        schema = _schema(
+            {
+                "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                "pk": "http://example.org/pokemon#",
+            }
+        )
         assert primary_namespace(schema) == "http://example.org/pokemon#"
 
     def test_falls_back_to_urn_when_all_standard(self):
-        schema = _schema({"rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdfs": "http://www.w3.org/2000/01/rdf-schema#"})
+        schema = _schema(
+            {
+                "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+            }
+        )
         assert primary_namespace(schema) == "urn:ontorag:learned:"
 
     def test_empty_namespaces_returns_fallback(self):

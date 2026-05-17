@@ -46,9 +46,7 @@ def pattern_to_sparql(
     distinct = "DISTINCT " if query.distinct else ""
     select_clause = f"SELECT {distinct}{' '.join(query.select)}"
 
-    triple_lines = "\n".join(
-        f"  {t.s} {t.p} {t.o} ." for t in query.where
-    )
+    triple_lines = "\n".join(f"  {t.s} {t.p} {t.o} ." for t in query.where)
     filter_lines = "\n".join(
         f"  FILTER ({f.var} {f.op} {_sparql_value(f)})" for f in query.filters
     )
@@ -106,6 +104,7 @@ def _sparql_value(f: PatternFilter) -> str:
 
 
 # ── Shared helpers used by FusekiStore mixins ─────────────────────────────────
+
 
 def build_prefix_block(all_prefixes: dict[str, str]) -> str:
     """Build a SPARQL PREFIX block string from a namespace dict."""
@@ -178,5 +177,7 @@ def build_filter_sparql(
             filter_parts.append(f"{fvar} {f.op.value} {val}")
 
     triple_lines = "\n".join(triples)
-    filter_line = ("    FILTER(" + " && ".join(filter_parts) + ")") if filter_parts else ""
+    filter_line = (
+        ("    FILTER(" + " && ".join(filter_parts) + ")") if filter_parts else ""
+    )
     return triple_lines, filter_line

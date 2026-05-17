@@ -31,7 +31,11 @@ _TOOL_DEF: dict[str, Any] = {
                             "type": "string",
                             "description": "Exact URI of the existing TBox superclass.",
                         },
-                        "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                        "confidence": {
+                            "type": "number",
+                            "minimum": 0.0,
+                            "maximum": 1.0,
+                        },
                     },
                     "required": ["child_term", "parent_uri", "confidence"],
                 },
@@ -105,10 +109,12 @@ async def discover_taxonomy(
         if parent not in valid_uris:
             logger.debug("discover_taxonomy: skipping unknown parent URI %r", parent)
             continue
-        results.append(TaxonomyRelation(
-            child_term=item.get("child_term", ""),
-            parent_uri=parent,
-            confidence=float(item.get("confidence", 0.0)),
-        ))
+        results.append(
+            TaxonomyRelation(
+                child_term=item.get("child_term", ""),
+                parent_uri=parent,
+                confidence=float(item.get("confidence", 0.0)),
+            )
+        )
 
     return results

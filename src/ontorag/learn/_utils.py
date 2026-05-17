@@ -6,9 +6,19 @@ from typing import Any
 from ontorag.llm.base import _CompletionMessage, _ToolUseBlock
 from ontorag.stores.base import SchemaResult
 
-_STANDARD_PREFIXES = frozenset({
-    "rdf", "rdfs", "owl", "xsd", "skos", "dc", "dcterms", "foaf", "schema",
-})
+_STANDARD_PREFIXES = frozenset(
+    {
+        "rdf",
+        "rdfs",
+        "owl",
+        "xsd",
+        "skos",
+        "dc",
+        "dcterms",
+        "foaf",
+        "schema",
+    }
+)
 
 
 def primary_namespace(schema: SchemaResult) -> str:
@@ -41,7 +51,6 @@ def mint_uri(term: str, schema: SchemaResult) -> str:
 def class_uris(schema: SchemaResult) -> frozenset[str]:
     """Return the set of all TBox class URIs."""
     return frozenset(c.uri for c in schema.classes)
-
 
 
 async def structured_call(

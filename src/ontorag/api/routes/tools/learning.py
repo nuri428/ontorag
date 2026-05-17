@@ -20,7 +20,9 @@ router = APIRouter(prefix="/tools/learn", tags=["learning"])
 class TypeTermRequest(BaseModel):
     """Request body for Task A: term → TBox class."""
 
-    term: str = Field(min_length=1, description="Text mention to classify against the TBox.")
+    term: str = Field(
+        min_length=1, description="Text mention to classify against the TBox."
+    )
     context: str | None = Field(
         default=None,
         description="Optional surrounding text for disambiguation (max 500 chars used).",
@@ -31,7 +33,11 @@ class TypeTermRequest(BaseModel):
 class ExtractTriplesRequest(BaseModel):
     """Request body for Task C: text → RDF triples."""
 
-    text: str = Field(min_length=1, max_length=10_000, description="Source text to extract triples from (max 10 000 chars).")
+    text: str = Field(
+        min_length=1,
+        max_length=10_000,
+        description="Source text to extract triples from (max 10 000 chars).",
+    )
     entities: list[str] | None = Field(
         default=None,
         description="Optional entity label whitelist to focus extraction.",
@@ -64,7 +70,9 @@ async def type_term(
     try:
         llm = get_llm_provider()
     except ValueError as exc:
-        raise HTTPException(status_code=503, detail=f"LLM provider not configured: {exc}")
+        raise HTTPException(
+            status_code=503, detail=f"LLM provider not configured: {exc}"
+        )
 
     try:
         schema = await store.get_schema()
@@ -77,7 +85,9 @@ async def type_term(
         )
     except Exception:
         logger.exception("type_term failed for term=%r", body.term)
-        raise HTTPException(status_code=500, detail="Term typing failed. Check server logs.")
+        raise HTTPException(
+            status_code=500, detail="Term typing failed. Check server logs."
+        )
 
 
 @router.post(
@@ -103,7 +113,9 @@ async def extract_triples(
     try:
         llm = get_llm_provider()
     except ValueError as exc:
-        raise HTTPException(status_code=503, detail=f"LLM provider not configured: {exc}")
+        raise HTTPException(
+            status_code=503, detail=f"LLM provider not configured: {exc}"
+        )
 
     try:
         schema = await store.get_schema()
@@ -116,4 +128,6 @@ async def extract_triples(
         )
     except Exception:
         logger.exception("extract_triples failed for text len=%d", len(body.text))
-        raise HTTPException(status_code=500, detail="Triple extraction failed. Check server logs.")
+        raise HTTPException(
+            status_code=500, detail="Triple extraction failed. Check server logs."
+        )

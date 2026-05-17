@@ -52,7 +52,9 @@ _SYSTEM = (
 
 
 def _schema_summary(schema: SchemaResult) -> str:
-    lines = [f"Namespace: {list(schema.namespaces.values())[0] if schema.namespaces else '(unknown)'}"]
+    lines = [
+        f"Namespace: {list(schema.namespaces.values())[0] if schema.namespaces else '(unknown)'}"
+    ]
     lines.append(f"Classes ({schema.total_classes}):")
     for cls in schema.classes:
         label = f" ({cls.label})" if cls.label else ""
@@ -88,7 +90,9 @@ async def type_term(
     ]
     if context:
         prompt_parts.append(f"Context: {context[:500]}")
-    prompt_parts.append(f"\nReturn the top {top_k} TBox classes that best match this term.")
+    prompt_parts.append(
+        f"\nReturn the top {top_k} TBox classes that best match this term."
+    )
 
     messages = [{"role": "user", "content": "\n".join(prompt_parts)}]
 
@@ -105,14 +109,18 @@ async def type_term(
             logger.debug("type_term: skipping unknown URI %r", uri)
             continue
         cls_match = next((c for c in schema.classes if c.uri == uri), None)
-        label = cls_match.label or uri.split("#")[-1].split("/")[-1] if cls_match else ""
-        results.append(TermTypingResult(
-            term=term,
-            class_uri=uri,
-            label=label,
-            confidence=float(item.get("confidence", 0.0)),
-            reasoning=item.get("reasoning"),
-        ))
+        label = (
+            cls_match.label or uri.split("#")[-1].split("/")[-1] if cls_match else ""
+        )
+        results.append(
+            TermTypingResult(
+                term=term,
+                class_uri=uri,
+                label=label,
+                confidence=float(item.get("confidence", 0.0)),
+                reasoning=item.get("reasoning"),
+            )
+        )
 
     results.sort(key=lambda r: r.confidence, reverse=True)
     return results[:top_k]

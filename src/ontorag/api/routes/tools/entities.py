@@ -96,7 +96,9 @@ async def describe_entity(
     try:
         return await store.describe_entity(uri, predicates)
     except NotImplementedError:
-        raise HTTPException(status_code=501, detail="describe_entity: Day 5에 구현 예정")
+        raise HTTPException(
+            status_code=501, detail="describe_entity: Day 5에 구현 예정"
+        )
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Entity not found: {uri}")
 

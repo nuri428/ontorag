@@ -79,11 +79,13 @@ class AnthropicProvider:
             if block.type == "text":
                 content.append(_TextBlock(text=block.text))
             elif block.type == "tool_use":
-                content.append(_ToolUseBlock(
-                    id=block.id,
-                    name=block.name,
-                    input=dict(block.input) if block.input else {},
-                ))
+                content.append(
+                    _ToolUseBlock(
+                        id=block.id,
+                        name=block.name,
+                        input=dict(block.input) if block.input else {},
+                    )
+                )
         return _CompletionMessage(
             content=content,
             stop_reason=raw.stop_reason or "end_turn",

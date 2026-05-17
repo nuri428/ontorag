@@ -7,6 +7,7 @@ No external dependencies — uses Python stdlib sqlite3 via asyncio.to_thread.
 Each connection lazily creates the table (CREATE TABLE IF NOT EXISTS), so
 explicit init_db() is optional (but provided for explicit startup calls).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -54,6 +55,7 @@ def _open() -> Generator[sqlite3.Connection, None, None]:
 
 
 # ── sync helpers (run inside asyncio.to_thread) ────────────────────────────────
+
 
 def _init() -> None:
     with _open():
@@ -113,6 +115,7 @@ def _delete_session(session_id: str) -> None:
 
 
 # ── async public API ──────────────────────────────────────────────────────────
+
 
 async def init_db() -> None:
     """Ensure the sessions table exists. Idempotent — safe to call repeatedly."""

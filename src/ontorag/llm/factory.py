@@ -29,6 +29,5 @@ def get_llm_provider() -> LLMProvider:
         return OllamaProvider.from_env()
 
     raise ValueError(
-        f"Unknown LLM_PROVIDER: {provider!r}. "
-        "Valid values: anthropic, openai, ollama"
+        f"Unknown LLM_PROVIDER: {provider!r}. Valid values: anthropic, openai, ollama"
     )

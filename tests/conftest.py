@@ -8,6 +8,7 @@ from ontorag.stores.base import ClassSummary, LoadResult, SchemaResult
 
 # ── Shared fixtures ────────────────────────────────────────────────────────────
 
+
 @pytest.fixture()
 def pokemon_schema() -> SchemaResult:
     """Minimal Pokémon TBox for testing (no Fuseki required)."""
@@ -69,8 +70,12 @@ class MockLLM:
         self._response = response
         self.calls: list[dict] = []
 
-    async def complete(self, messages, tools, system=None, force_tool_use=False, force_tool_name=None):
-        self.calls.append({"messages": messages, "tools": tools, "force_tool_name": force_tool_name})
+    async def complete(
+        self, messages, tools, system=None, force_tool_use=False, force_tool_name=None
+    ):
+        self.calls.append(
+            {"messages": messages, "tools": tools, "force_tool_name": force_tool_name}
+        )
         return self._response
 
 

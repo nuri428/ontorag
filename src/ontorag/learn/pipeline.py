@@ -94,7 +94,6 @@ def _serialize_to_ttl(
     return g.serialize(format="turtle")
 
 
-
 class LLMOntologyLearner:
     """Concrete OntologyLearner backed by an LLM provider and a GraphStore.
 
@@ -122,7 +121,9 @@ class LLMOntologyLearner:
     ) -> list[TaxonomyRelation]:
         """Task B: propose rdfs:subClassOf from text evidence."""
         schema = await self._store.get_schema()
-        return await _taxonomy_mod.discover_taxonomy(self._llm, schema, text, candidate_classes)
+        return await _taxonomy_mod.discover_taxonomy(
+            self._llm, schema, text, candidate_classes
+        )
 
     async def extract_relations(
         self,
@@ -168,13 +169,19 @@ class LLMOntologyLearner:
                     typings.append(r)
 
         # 3. Task B — taxonomy discovery
-        taxonomy = await _taxonomy_mod.discover_taxonomy(self._llm, schema, text, candidate_classes=None)
+        taxonomy = await _taxonomy_mod.discover_taxonomy(
+            self._llm, schema, text, candidate_classes=None
+        )
         taxonomy = [t for t in taxonomy if t.confidence >= min_confidence]
 
         # 4. Task C — relation extraction
         entity_labels = [t.term for t in typings]
         triples = await _relation_mod.extract_relations(
-            self._llm, schema, text, entities=entity_labels or None, min_confidence=min_confidence
+            self._llm,
+            schema,
+            text,
+            entities=entity_labels or None,
+            min_confidence=min_confidence,
         )
 
         loaded: int | None = None

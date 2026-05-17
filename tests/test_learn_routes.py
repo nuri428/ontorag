@@ -1,9 +1,9 @@
 """Tests for FastAPI route handlers in api/routes/tools/learning.py."""
+
 from __future__ import annotations
 
 import unittest.mock as mock
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -15,6 +15,7 @@ from ontorag.stores.base import ClassSummary, PropertySummary, SchemaResult
 
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
+
 
 def _make_schema() -> SchemaResult:
     return SchemaResult(
@@ -49,7 +50,9 @@ class _MockStore:
 
 
 class _MockLLM:
-    async def complete(self, messages, tools, system=None, force_tool_use=False, force_tool_name=None):
+    async def complete(
+        self, messages, tools, system=None, force_tool_use=False, force_tool_name=None
+    ):
         return _CompletionMessage(content=[], stop_reason="end_turn")
 
 
@@ -62,20 +65,30 @@ def _make_app() -> FastAPI:
 
 # ── type-term endpoint ────────────────────────────────────────────────────────
 
-class TestTypeTermRoute:
 
+class TestTypeTermRoute:
     def test_returns_200_with_mocked_result(self):
         async def _fake_type_term(llm, schema, term, context, top_k):
-            return [TermTypingResult(
-                term=term,
-                class_uri="http://example.org/pokemon#Pokemon",
-                label="Pokemon",
-                confidence=0.95,
-            )]
+            return [
+                TermTypingResult(
+                    term=term,
+                    class_uri="http://example.org/pokemon#Pokemon",
+                    label="Pokemon",
+                    confidence=0.95,
+                )
+            ]
 
         app = _make_app()
-        with mock.patch("ontorag.api.routes.tools.learning.get_llm_provider", return_value=_MockLLM()), \
-             mock.patch("ontorag.api.routes.tools.learning._term_typing_mod.type_term", side_effect=_fake_type_term):
+        with (
+            mock.patch(
+                "ontorag.api.routes.tools.learning.get_llm_provider",
+                return_value=_MockLLM(),
+            ),
+            mock.patch(
+                "ontorag.api.routes.tools.learning._term_typing_mod.type_term",
+                side_effect=_fake_type_term,
+            ),
+        ):
             client = TestClient(app)
             r = client.post("/tools/learn/type-term", json={"term": "Pikachu"})
 
@@ -88,7 +101,10 @@ class TestTypeTermRoute:
 
     def test_rejects_empty_term(self):
         app = _make_app()
-        with mock.patch("ontorag.api.routes.tools.learning.get_llm_provider", return_value=_MockLLM()):
+        with mock.patch(
+            "ontorag.api.routes.tools.learning.get_llm_provider",
+            return_value=_MockLLM(),
+        ):
             client = TestClient(app)
             r = client.post("/tools/learn/type-term", json={"term": ""})
 
@@ -96,17 +112,27 @@ class TestTypeTermRoute:
 
     def test_rejects_top_k_zero(self):
         app = _make_app()
-        with mock.patch("ontorag.api.routes.tools.learning.get_llm_provider", return_value=_MockLLM()):
+        with mock.patch(
+            "ontorag.api.routes.tools.learning.get_llm_provider",
+            return_value=_MockLLM(),
+        ):
             client = TestClient(app)
-            r = client.post("/tools/learn/type-term", json={"term": "Pikachu", "top_k": 0})
+            r = client.post(
+                "/tools/learn/type-term", json={"term": "Pikachu", "top_k": 0}
+            )
 
         assert r.status_code == 422
 
     def test_rejects_top_k_over_max(self):
         app = _make_app()
-        with mock.patch("ontorag.api.routes.tools.learning.get_llm_provider", return_value=_MockLLM()):
+        with mock.patch(
+            "ontorag.api.routes.tools.learning.get_llm_provider",
+            return_value=_MockLLM(),
+        ):
             client = TestClient(app)
-            r = client.post("/tools/learn/type-term", json={"term": "Pikachu", "top_k": 11})
+            r = client.post(
+                "/tools/learn/type-term", json={"term": "Pikachu", "top_k": 11}
+            )
 
         assert r.status_code == 422
 
@@ -127,8 +153,16 @@ class TestTypeTermRoute:
             raise RuntimeError("internal secret message")
 
         app = _make_app()
-        with mock.patch("ontorag.api.routes.tools.learning.get_llm_provider", return_value=_MockLLM()), \
-             mock.patch("ontorag.api.routes.tools.learning._term_typing_mod.type_term", side_effect=_broken_type_term):
+        with (
+            mock.patch(
+                "ontorag.api.routes.tools.learning.get_llm_provider",
+                return_value=_MockLLM(),
+            ),
+            mock.patch(
+                "ontorag.api.routes.tools.learning._term_typing_mod.type_term",
+                side_effect=_broken_type_term,
+            ),
+        ):
             client = TestClient(app, raise_server_exceptions=False)
             r = client.post("/tools/learn/type-term", json={"term": "Pikachu"})
 
@@ -138,17 +172,22 @@ class TestTypeTermRoute:
 
     def test_503_when_schema_load_fails(self):
         """Lines 71-72: 503 when store.get_schema() raises."""
+
         class _BrokenStore:
             async def get_schema(self):
                 raise ConnectionError("Fuseki unreachable")
 
         from fastapi import FastAPI
         from ontorag.api import deps
+
         app = FastAPI()
         app.include_router(learning_mod.router)
         app.dependency_overrides[deps.get_store] = lambda: _BrokenStore()
 
-        with mock.patch("ontorag.api.routes.tools.learning.get_llm_provider", return_value=_MockLLM()):
+        with mock.patch(
+            "ontorag.api.routes.tools.learning.get_llm_provider",
+            return_value=_MockLLM(),
+        ):
             client = TestClient(app, raise_server_exceptions=False)
             r = client.post("/tools/learn/type-term", json={"term": "Pikachu"})
 
@@ -158,22 +197,35 @@ class TestTypeTermRoute:
 
 # ── extract-triples endpoint ──────────────────────────────────────────────────
 
-class TestExtractTriplesRoute:
 
+class TestExtractTriplesRoute:
     def test_returns_200_with_mocked_result(self):
         async def _fake_extract(llm, schema, text, entities, min_confidence):
-            return [ExtractedTriple(
-                subject_label="Pikachu",
-                predicate_uri="http://example.org/pokemon#hasType",
-                confidence=0.9,
-                object_uri="http://example.org/pokemon#Electric",
-            )]
+            return [
+                ExtractedTriple(
+                    subject_label="Pikachu",
+                    predicate_uri="http://example.org/pokemon#hasType",
+                    confidence=0.9,
+                    object_uri="http://example.org/pokemon#Electric",
+                )
+            ]
 
         app = _make_app()
-        with mock.patch("ontorag.api.routes.tools.learning.get_llm_provider", return_value=_MockLLM()), \
-             mock.patch("ontorag.api.routes.tools.learning._relation_mod.extract_relations", side_effect=_fake_extract):
+        with (
+            mock.patch(
+                "ontorag.api.routes.tools.learning.get_llm_provider",
+                return_value=_MockLLM(),
+            ),
+            mock.patch(
+                "ontorag.api.routes.tools.learning._relation_mod.extract_relations",
+                side_effect=_fake_extract,
+            ),
+        ):
             client = TestClient(app)
-            r = client.post("/tools/learn/extract-triples", json={"text": "Pikachu is Electric type."})
+            r = client.post(
+                "/tools/learn/extract-triples",
+                json={"text": "Pikachu is Electric type."},
+            )
 
         assert r.status_code == 200
         body = r.json()
@@ -182,7 +234,10 @@ class TestExtractTriplesRoute:
 
     def test_rejects_empty_text(self):
         app = _make_app()
-        with mock.patch("ontorag.api.routes.tools.learning.get_llm_provider", return_value=_MockLLM()):
+        with mock.patch(
+            "ontorag.api.routes.tools.learning.get_llm_provider",
+            return_value=_MockLLM(),
+        ):
             client = TestClient(app)
             r = client.post("/tools/learn/extract-triples", json={"text": ""})
 
@@ -190,7 +245,10 @@ class TestExtractTriplesRoute:
 
     def test_rejects_text_over_max_length(self):
         app = _make_app()
-        with mock.patch("ontorag.api.routes.tools.learning.get_llm_provider", return_value=_MockLLM()):
+        with mock.patch(
+            "ontorag.api.routes.tools.learning.get_llm_provider",
+            return_value=_MockLLM(),
+        ):
             client = TestClient(app)
             r = client.post("/tools/learn/extract-triples", json={"text": "x" * 10_001})
 
@@ -201,8 +259,16 @@ class TestExtractTriplesRoute:
             return []
 
         app = _make_app()
-        with mock.patch("ontorag.api.routes.tools.learning.get_llm_provider", return_value=_MockLLM()), \
-             mock.patch("ontorag.api.routes.tools.learning._relation_mod.extract_relations", side_effect=_fake_extract):
+        with (
+            mock.patch(
+                "ontorag.api.routes.tools.learning.get_llm_provider",
+                return_value=_MockLLM(),
+            ),
+            mock.patch(
+                "ontorag.api.routes.tools.learning._relation_mod.extract_relations",
+                side_effect=_fake_extract,
+            ),
+        ):
             client = TestClient(app)
             r = client.post("/tools/learn/extract-triples", json={"text": "x" * 10_000})
 
@@ -210,9 +276,15 @@ class TestExtractTriplesRoute:
 
     def test_rejects_min_confidence_above_one(self):
         app = _make_app()
-        with mock.patch("ontorag.api.routes.tools.learning.get_llm_provider", return_value=_MockLLM()):
+        with mock.patch(
+            "ontorag.api.routes.tools.learning.get_llm_provider",
+            return_value=_MockLLM(),
+        ):
             client = TestClient(app)
-            r = client.post("/tools/learn/extract-triples", json={"text": "some text", "min_confidence": 1.5})
+            r = client.post(
+                "/tools/learn/extract-triples",
+                json={"text": "some text", "min_confidence": 1.5},
+            )
 
         assert r.status_code == 422
 
@@ -232,8 +304,16 @@ class TestExtractTriplesRoute:
             raise RuntimeError("db password in trace")
 
         app = _make_app()
-        with mock.patch("ontorag.api.routes.tools.learning.get_llm_provider", return_value=_MockLLM()), \
-             mock.patch("ontorag.api.routes.tools.learning._relation_mod.extract_relations", side_effect=_broken_extract):
+        with (
+            mock.patch(
+                "ontorag.api.routes.tools.learning.get_llm_provider",
+                return_value=_MockLLM(),
+            ),
+            mock.patch(
+                "ontorag.api.routes.tools.learning._relation_mod.extract_relations",
+                side_effect=_broken_extract,
+            ),
+        ):
             client = TestClient(app, raise_server_exceptions=False)
             r = client.post("/tools/learn/extract-triples", json={"text": "some text"})
 
@@ -242,17 +322,22 @@ class TestExtractTriplesRoute:
 
     def test_503_when_schema_load_fails(self):
         """Lines 110-111: 503 when store.get_schema() raises in extract_triples."""
+
         class _BrokenStore:
             async def get_schema(self):
                 raise ConnectionError("Fuseki unreachable")
 
         from fastapi import FastAPI
         from ontorag.api import deps
+
         app = FastAPI()
         app.include_router(learning_mod.router)
         app.dependency_overrides[deps.get_store] = lambda: _BrokenStore()
 
-        with mock.patch("ontorag.api.routes.tools.learning.get_llm_provider", return_value=_MockLLM()):
+        with mock.patch(
+            "ontorag.api.routes.tools.learning.get_llm_provider",
+            return_value=_MockLLM(),
+        ):
             client = TestClient(app, raise_server_exceptions=False)
             r = client.post("/tools/learn/extract-triples", json={"text": "some text"})
 

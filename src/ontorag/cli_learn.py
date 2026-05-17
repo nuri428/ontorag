@@ -24,7 +24,9 @@ def _get_learner():
         llm = get_llm_provider()
     except ValueError as exc:
         console.print(f"[red]Error:[/] {exc}")
-        console.print("[dim]ontorag config set --provider anthropic --api-key sk-... 로 설정하세요.[/]")
+        console.print(
+            "[dim]ontorag config set --provider anthropic --api-key sk-... 로 설정하세요.[/]"
+        )
         raise typer.Exit(1)
 
     store = FusekiStore.from_env()
@@ -54,7 +56,9 @@ def _print_triples_table(triples) -> None:
 @learn_app.command("type-term")
 def learn_type_term(
     term: str = typer.Argument(..., help="분류할 텍스트 언급 (예: React)."),
-    context: Optional[str] = typer.Option(None, "--context", "-c", help="문맥 텍스트 (최대 500자)."),
+    context: Optional[str] = typer.Option(
+        None, "--context", "-c", help="문맥 텍스트 (최대 500자)."
+    ),
     top_k: int = typer.Option(3, "--top-k", "-k", help="반환할 최대 결과 수."),
 ) -> None:
     """Task A: 텍스트 언급을 TBox 클래스에 매핑합니다.
@@ -102,7 +106,9 @@ def learn_type_term(
 @learn_app.command("taxonomy")
 def learn_taxonomy(
     text_file: Path = typer.Argument(..., help="분석할 텍스트 파일."),
-    min_confidence: float = typer.Option(0.7, "--min-confidence", help="최소 신뢰도 임계값."),
+    min_confidence: float = typer.Option(
+        0.7, "--min-confidence", help="최소 신뢰도 임계값."
+    ),
 ) -> None:
     """Task B: 텍스트에서 rdfs:subClassOf 관계를 제안합니다.
 
@@ -147,7 +153,9 @@ def learn_taxonomy(
 @learn_app.command("extract")
 def learn_extract(
     text_file: Path = typer.Argument(..., help="트리플을 추출할 텍스트 파일."),
-    min_confidence: float = typer.Option(0.7, "--min-confidence", help="최소 신뢰도 임계값."),
+    min_confidence: float = typer.Option(
+        0.7, "--min-confidence", help="최소 신뢰도 임계값."
+    ),
 ) -> None:
     """Task C: 텍스트에서 RDF 트리플을 추출합니다.
 
@@ -179,9 +187,15 @@ def learn_extract(
 
 @learn_app.command("populate")
 def learn_populate(
-    text_file: Path = typer.Argument(..., help="A+B+C 파이프라인에 사용할 텍스트 파일."),
-    min_confidence: float = typer.Option(0.7, "--min-confidence", help="최소 신뢰도 임계값."),
-    yes: bool = typer.Option(False, "--yes", "-y", help="확인 없이 즉시 Fuseki에 로드합니다."),
+    text_file: Path = typer.Argument(
+        ..., help="A+B+C 파이프라인에 사용할 텍스트 파일."
+    ),
+    min_confidence: float = typer.Option(
+        0.7, "--min-confidence", help="최소 신뢰도 임계값."
+    ),
+    yes: bool = typer.Option(
+        False, "--yes", "-y", help="확인 없이 즉시 Fuseki에 로드합니다."
+    ),
 ) -> None:
     """A+B+C 파이프라인: 텍스트에서 ABox 트리플을 추출하고 Fuseki에 로드합니다.
 
@@ -210,9 +224,13 @@ def learn_populate(
     with console.status("[bold]A+B+C 파이프라인 실행 중..."):
         result = asyncio.run(_run_pipeline())
 
-    total = len(result.term_typings) + len(result.taxonomy_proposals) + len(result.triples)
+    total = (
+        len(result.term_typings) + len(result.taxonomy_proposals) + len(result.triples)
+    )
     if total == 0:
-        console.print("[yellow]추출된 항목 없음[/] — 텍스트나 min_confidence를 조정하세요.")
+        console.print(
+            "[yellow]추출된 항목 없음[/] — 텍스트나 min_confidence를 조정하세요."
+        )
         return
 
     if result.term_typings:
@@ -226,7 +244,9 @@ def learn_populate(
         console.print(t)
 
     if result.taxonomy_proposals:
-        console.print(f"\n[bold]Task B — 분류 계층 ({len(result.taxonomy_proposals)}건)[/]")
+        console.print(
+            f"\n[bold]Task B — 분류 계층 ({len(result.taxonomy_proposals)}건)[/]"
+        )
         t = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
         t.add_column("하위 개념", style="cyan")
         t.add_column("상위 클래스")
@@ -254,7 +274,9 @@ def learn_populate(
     async def _load() -> int:
         try:
             schema = await learner._store.get_schema()
-            return await learner._load_triples(result.triples, result.term_typings, schema)
+            return await learner._load_triples(
+                result.triples, result.term_typings, schema
+            )
         finally:
             await learner._store.aclose()
 

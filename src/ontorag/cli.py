@@ -38,6 +38,7 @@ app.add_typer(learn_app, name="learn")
 
 # ── load subcommands ─────────────────────────────────────────────────────────
 
+
 def _run_load(
     file: Path,
     mode: Literal["schema", "data", "auto"],
@@ -67,7 +68,9 @@ def _run_load(
             raise typer.Exit(1)
         except Exception as exc:
             console.print(f"[red]Error:[/] Fuseki 연결 실패 — {exc}")
-            console.print("[dim]Fuseki가 실행 중인지 확인하세요: docker compose up fuseki[/]")
+            console.print(
+                "[dim]Fuseki가 실행 중인지 확인하세요: docker compose up fuseki[/]"
+            )
             raise typer.Exit(1)
 
     mode_label = {"schema": "스키마(TBox)", "data": "데이터(ABox)"}.get(
@@ -124,11 +127,16 @@ def load_data(
 
 # ── clear subcommands ────────────────────────────────────────────────────────
 
+
 def _run_clear(target: str) -> None:
     """Drop named graph(s) from the store with confirmation prompt."""
     from ontorag.stores.fuseki import FusekiStore
 
-    label = {"schema": "스키마(TBox)", "data": "데이터(ABox)", "all": "전체(TBox + ABox)"}[target]
+    label = {
+        "schema": "스키마(TBox)",
+        "data": "데이터(ABox)",
+        "all": "전체(TBox + ABox)",
+    }[target]
     confirmed = typer.confirm(f"[경고] {label}을 삭제합니다. 계속하시겠습니까?")
     if not confirmed:
         console.print("[dim]취소했습니다.[/]")
@@ -166,6 +174,7 @@ def clear_all() -> None:
 
 # ── status command ───────────────────────────────────────────────────────────
 
+
 @app.command()
 def status() -> None:
     """그래프 스토어 연결 및 데이터 로드 상태를 표시합니다."""
@@ -194,10 +203,13 @@ def status() -> None:
 
     console.print(table)
     if s.connected and not s.schema_loaded:
-        console.print("\n[dim]힌트: ontorag load schema <FILE> 로 스키마를 먼저 로드하세요.[/]")
+        console.print(
+            "\n[dim]힌트: ontorag load schema <FILE> 로 스키마를 먼저 로드하세요.[/]"
+        )
 
 
 # ── serve command ────────────────────────────────────────────────────────────
+
 
 @app.command()
 def serve(
@@ -218,16 +230,21 @@ def serve(
 
 # ── config subcommands ───────────────────────────────────────────────────────
 
+
 def _env_path() -> Path:
     return Path(".env")
 
 
 @config_app.command("set")
 def config_set(
-    provider: Optional[str] = typer.Option(None, help="LLM 제공자 (anthropic | openai | ollama)."),
+    provider: Optional[str] = typer.Option(
+        None, help="LLM 제공자 (anthropic | openai | ollama)."
+    ),
     api_key: Optional[str] = typer.Option(None, help="LLM API 키."),
     model: Optional[str] = typer.Option(None, help="사용할 모델 이름."),
-    fuseki_url: Optional[str] = typer.Option(None, help="Fuseki SPARQL 엔드포인트 URL."),
+    fuseki_url: Optional[str] = typer.Option(
+        None, help="Fuseki SPARQL 엔드포인트 URL."
+    ),
     ollama_url: Optional[str] = typer.Option(None, help="Ollama base URL."),
 ) -> None:
     """LLM 및 스토어 설정을 .env 파일에 저장합니다."""
@@ -249,8 +266,15 @@ def config_set(
 
     if api_key is not None:
         from dotenv import dotenv_values
-        effective_provider = provider or dotenv_values(str(env_file)).get("LLM_PROVIDER", "anthropic")
-        key_name = "ANTHROPIC_API_KEY" if effective_provider == "anthropic" else "OPENAI_API_KEY"
+
+        effective_provider = provider or dotenv_values(str(env_file)).get(
+            "LLM_PROVIDER", "anthropic"
+        )
+        key_name = (
+            "ANTHROPIC_API_KEY"
+            if effective_provider == "anthropic"
+            else "OPENAI_API_KEY"
+        )
         set_key(str(env_file), key_name, api_key)
         changes.append(f"{key_name}=***")
 
@@ -267,7 +291,9 @@ def config_set(
         changes.append(f"OLLAMA_BASE_URL={ollama_url}")
 
     if not changes:
-        console.print("[yellow]변경 사항 없음.[/] 옵션을 지정하세요. (예: --provider anthropic)")
+        console.print(
+            "[yellow]변경 사항 없음.[/] 옵션을 지정하세요. (예: --provider anthropic)"
+        )
         return
 
     for change in changes:
@@ -284,6 +310,7 @@ def config_show() -> None:
     vals = dotenv_values(str(env_file)) if env_file.exists() else {}
 
     import os
+
     effective = {**vals, **{k: v for k, v in os.environ.items() if v}}
 
     table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
@@ -307,21 +334,30 @@ def config_show() -> None:
         if not value:
             table.add_row(label, "[dim](미설정)[/]", "")
             continue
-        display = f"{value[:8]}..." if env_key in sensitive and len(value) > 8 else value
+        display = (
+            f"{value[:8]}..." if env_key in sensitive and len(value) > 8 else value
+        )
         source = ".env" if env_key in vals else "환경변수"
         table.add_row(label, display, source)
 
     console.print(table)
     if not env_file.exists():
-        console.print("\n[dim].env 파일 없음. ontorag config set --provider anthropic 으로 생성하세요.[/]")
+        console.print(
+            "\n[dim].env 파일 없음. ontorag config set --provider anthropic 으로 생성하세요.[/]"
+        )
 
 
 # ── chat command ─────────────────────────────────────────────────────────────
 
+
 @app.command()
 def chat(
-    message: Optional[str] = typer.Argument(None, help="첫 메시지 (생략 시 REPL 프롬프트로 진입)"),
-    resume: Optional[str] = typer.Option(None, "--resume", "-r", help="이전 대화 ID로 이어서 시작."),
+    message: Optional[str] = typer.Argument(
+        None, help="첫 메시지 (생략 시 REPL 프롬프트로 진입)"
+    ),
+    resume: Optional[str] = typer.Option(
+        None, "--resume", "-r", help="이전 대화 ID로 이어서 시작."
+    ),
 ) -> None:
     """온톨로지 Q&A 대화 세션을 시작합니다 (REPL).
 
@@ -342,11 +378,13 @@ def chat(
         console.print("[dim]ontorag config set 으로 설정하세요.[/]")
         raise typer.Exit(1)
 
-    console.print(Panel(
-        "[bold]ontorag chat[/]\n"
-        "[dim]종료: Ctrl+C 또는 'exit'  |  대화 기록: ontorag history list[/]",
-        border_style="blue",
-    ))
+    console.print(
+        Panel(
+            "[bold]ontorag chat[/]\n"
+            "[dim]종료: Ctrl+C 또는 'exit'  |  대화 기록: ontorag history list[/]",
+            border_style="blue",
+        )
+    )
 
     async def _repl(initial: Optional[str]) -> None:
         # store는 async 컨텍스트 안에서 생성 — httpx 클라이언트가 현재 루프에 바인딩됨
@@ -365,12 +403,18 @@ def chat(
                 console.print(f"[dim]이전 대화 복원 — {len(display)}개 메시지[/]")
                 # 마지막 3개 교환을 요약해 컨텍스트 제공
                 for m in display[-3:]:
-                    prefix = "[bold blue]>[/]" if m["role"] == "user" else "[bold green]AI[/]"
+                    prefix = (
+                        "[bold blue]>[/]"
+                        if m["role"] == "user"
+                        else "[bold green]AI[/]"
+                    )
                     text = m["text"][:120] + ("…" if len(m["text"]) > 120 else "")
                     console.print(f"  {prefix} {escape(text)}")
                 console.print("[dim]  ──────────────────────────────[/]")
             else:
-                console.print(f"[yellow]경고:[/] 대화 ID '{resume}'를 찾을 수 없습니다. 새 대화를 시작합니다.")
+                console.print(
+                    f"[yellow]경고:[/] 대화 ID '{resume}'를 찾을 수 없습니다. 새 대화를 시작합니다."
+                )
                 session_id = await chat_store.create_session()
         else:
             session_id = await chat_store.create_session()
@@ -386,8 +430,12 @@ def chat(
         except Exception as exc:
             console.print(f"[yellow]경고:[/] 스키마 로드 실패 — {exc}")
 
-        agent = AgentLoop(store, llm, schema_context=schema_ctx, initial_history=initial_history)
-        is_first = [len(initial_history) == 0]  # 리스트로 감싸 클로저 내부에서 변경 가능
+        agent = AgentLoop(
+            store, llm, schema_context=schema_ctx, initial_history=initial_history
+        )
+        is_first = [
+            len(initial_history) == 0
+        ]  # 리스트로 감싸 클로저 내부에서 변경 가능
 
         async def run_turn(msg: str) -> None:
             async for event in agent.run(msg):
@@ -469,7 +517,9 @@ def history_list() -> None:
         table.add_row(s["id"], s["title"], updated)
 
     console.print(table)
-    console.print(f"\n[dim]{len(sessions)}개 대화 | ontorag chat --resume <ID> 로 이어서 시작[/]")
+    console.print(
+        f"\n[dim]{len(sessions)}개 대화 | ontorag chat --resume <ID> 로 이어서 시작[/]"
+    )
 
 
 @history_app.command("show")
@@ -535,6 +585,7 @@ def history_clear() -> None:
 
     async def _delete_all() -> None:
         import asyncio as _asyncio
+
         await _asyncio.gather(*[chat_store.delete_session(s["id"]) for s in sessions])
 
     asyncio.run(_delete_all())
@@ -542,6 +593,7 @@ def history_clear() -> None:
 
 
 # ── init command ─────────────────────────────────────────────────────────────
+
 
 @app.command()
 def init(
@@ -588,18 +640,24 @@ def init(
     if example:
         ex_dir = target / "examples" / "pokemon"
         ex_dir.mkdir(parents=True, exist_ok=True)
-        ex_ref = importlib.resources.files("ontorag._templates") / "examples" / "pokemon"
+        ex_ref = (
+            importlib.resources.files("ontorag._templates") / "examples" / "pokemon"
+        )
         _copy_template(ex_ref, "schema.ttl", ex_dir / "schema.ttl")
         _copy_template(ex_ref, "data.ttl", ex_dir / "data.ttl")
 
-    console.print(f"\n[green]✓[/] ontorag 프로젝트를 초기화했습니다: [bold]{target}[/]\n")
+    console.print(
+        f"\n[green]✓[/] ontorag 프로젝트를 초기화했습니다: [bold]{target}[/]\n"
+    )
     console.print("다음 단계:")
     console.print("  1. [cyan]cp .env.example .env[/]        ← API 키 설정")
     console.print("  2. [cyan]docker compose up -d[/]        ← Fuseki 시작 (포트 3030)")
     if example:
         console.print("  3. [cyan]ontorag load schema examples/pokemon/schema.ttl[/]")
         console.print("     [cyan]ontorag load data   examples/pokemon/data.ttl[/]")
-    console.print("  4. [cyan]ontorag serve[/]               ← API 서버 시작 (포트 8000)")
+    console.print(
+        "  4. [cyan]ontorag serve[/]               ← API 서버 시작 (포트 8000)"
+    )
     console.print("  5. [cyan]ontorag chat[/]                ← 대화 시작\n")
 
 

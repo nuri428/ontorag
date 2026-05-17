@@ -18,7 +18,9 @@ def _anthropic_tools_to_openai(tools: list[dict[str, Any]]) -> list[dict[str, An
             "function": {
                 "name": t["name"],
                 "description": t.get("description", ""),
-                "parameters": t.get("input_schema", {"type": "object", "properties": {}}),
+                "parameters": t.get(
+                    "input_schema", {"type": "object", "properties": {}}
+                ),
             },
         }
         for t in tools
@@ -50,14 +52,16 @@ def _anthropic_messages_to_openai(
                 if block.get("type") == "text":
                     text_parts.append(block["text"])
                 elif block.get("type") == "tool_use":
-                    tool_calls.append({
-                        "id": block["id"],
-                        "type": "function",
-                        "function": {
-                            "name": block["name"],
-                            "arguments": json.dumps(block.get("input", {})),
-                        },
-                    })
+                    tool_calls.append(
+                        {
+                            "id": block["id"],
+                            "type": "function",
+                            "function": {
+                                "name": block["name"],
+                                "arguments": json.dumps(block.get("input", {})),
+                            },
+                        }
+                    )
             msg: dict[str, Any] = {
                 "role": "assistant",
                 "content": " ".join(text_parts) or None,
@@ -69,11 +73,13 @@ def _anthropic_messages_to_openai(
         elif role == "user":
             for block in content:
                 if block.get("type") == "tool_result":
-                    out.append({
-                        "role": "tool",
-                        "tool_call_id": block["tool_use_id"],
-                        "content": block.get("content", ""),
-                    })
+                    out.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": block["tool_use_id"],
+                            "content": block.get("content", ""),
+                        }
+                    )
                 else:
                     out.append({"role": "user", "content": block.get("text", "")})
 
@@ -138,10 +144,15 @@ class OpenAIProvider:
             tools=openai_tools,
         )
         if force_tool_name and openai_tools:
-            kwargs["tool_choice"] = {"type": "function", "function": {"name": force_tool_name}}
+            kwargs["tool_choice"] = {
+                "type": "function",
+                "function": {"name": force_tool_name},
+            }
         elif force_tool_use and openai_tools:
             kwargs["tool_choice"] = "required"
 
-        logger.debug("OpenAI request: model=%s turns=%d", self._model, len(openai_messages))
+        logger.debug(
+            "OpenAI request: model=%s turns=%d", self._model, len(openai_messages)
+        )
         response = await self._client.chat.completions.create(**kwargs)  # type: ignore[arg-type]
         return openai_response_to_message(response)

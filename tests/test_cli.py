@@ -1,10 +1,9 @@
 """Tests for CLI commands: config set/show, status."""
+
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from ontorag.cli import app
@@ -13,6 +12,7 @@ runner = CliRunner()
 
 
 # ── config set ───────────────────────────────────────────────────────────────
+
 
 def test_config_set_provider(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
@@ -52,12 +52,15 @@ def test_config_set_no_options(tmp_path, monkeypatch):
 
 def test_config_set_ollama_url(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    result = runner.invoke(app, ["config", "set", "--ollama-url", "http://localhost:11434"])
+    result = runner.invoke(
+        app, ["config", "set", "--ollama-url", "http://localhost:11434"]
+    )
     assert result.exit_code == 0
     assert "OLLAMA_BASE_URL" in result.output
 
 
 # ── config show ──────────────────────────────────────────────────────────────
+
 
 def test_config_show_no_env_file(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
@@ -87,6 +90,7 @@ def test_config_show_masks_api_key(tmp_path, monkeypatch):
 
 
 # ── status ───────────────────────────────────────────────────────────────────
+
 
 def test_status_connected(monkeypatch):
     mock_status = MagicMock(

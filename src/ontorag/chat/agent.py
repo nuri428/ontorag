@@ -65,15 +65,22 @@ def _format_schema_for_prompt(schema: Any) -> str:
     for cls in schema.classes:
         label = cls.label or "-"
         parent = f" ← {_local_name(cls.parent_uri)}" if cls.parent_uri else ""
-        lines.append(f"- {cls.uri} | {label}{parent} | 속성:{cls.property_count} | 인스턴스:{cls.instance_count}")
+        lines.append(
+            f"- {cls.uri} | {label}{parent} | 속성:{cls.property_count} | 인스턴스:{cls.instance_count}"
+        )
 
-    ns_relevant = {k: v for k, v in schema.namespaces.items() if k not in ("rdf", "rdfs", "owl", "xsd")}
+    ns_relevant = {
+        k: v
+        for k, v in schema.namespaces.items()
+        if k not in ("rdf", "rdfs", "owl", "xsd")
+    }
     if ns_relevant:
         lines.append("")
         lines.append("### 도메인 네임스페이스")
         for prefix, uri in ns_relevant.items():
             lines.append(f"- {prefix}: {uri}")
     return "\n".join(lines)
+
 
 _TOOLS: list[dict[str, Any]] = [
     {
@@ -118,7 +125,16 @@ _TOOLS: list[dict[str, Any]] = [
                             },
                             "op": {
                                 "type": "string",
-                                "enum": ["=", "!=", ">", ">=", "<", "<=", "contains", "starts_with"],
+                                "enum": [
+                                    "=",
+                                    "!=",
+                                    ">",
+                                    ">=",
+                                    "<",
+                                    "<=",
+                                    "contains",
+                                    "starts_with",
+                                ],
                                 "default": "=",
                             },
                             "value": {"type": "string", "description": "비교할 값"},
@@ -126,7 +142,11 @@ _TOOLS: list[dict[str, Any]] = [
                         "required": ["property", "value"],
                     },
                 },
-                "limit": {"type": "integer", "default": 20, "description": "최대 결과 수"},
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "description": "최대 결과 수",
+                },
             },
             "required": ["class_uri"],
         },
@@ -136,9 +156,7 @@ _TOOLS: list[dict[str, Any]] = [
         "description": "특정 엔티티의 모든 속성과 관계를 반환합니다.",
         "input_schema": {
             "type": "object",
-            "properties": {
-                "uri": {"type": "string", "description": "엔티티 URI"}
-            },
+            "properties": {"uri": {"type": "string", "description": "엔티티 URI"}},
             "required": ["uri"],
         },
     },
@@ -168,8 +186,15 @@ _TOOLS: list[dict[str, Any]] = [
             "type": "object",
             "properties": {
                 "start_uri": {"type": "string", "description": "시작 엔티티 URI"},
-                "predicate": {"type": "string", "description": "따라갈 predicate URI (없으면 전체 관계)"},
-                "max_depth": {"type": "integer", "default": 2, "description": "최대 탐색 깊이 (전체 체인은 3 이상)"},
+                "predicate": {
+                    "type": "string",
+                    "description": "따라갈 predicate URI (없으면 전체 관계)",
+                },
+                "max_depth": {
+                    "type": "integer",
+                    "default": 2,
+                    "description": "최대 탐색 깊이 (전체 체인은 3 이상)",
+                },
                 "direction": {
                     "type": "string",
                     "enum": ["outgoing", "incoming", "both"],
@@ -281,7 +306,9 @@ class AgentLoop:
         self._system = (
             f"{_SYSTEM_BASE}\n\n{schema_context}" if schema_context else _SYSTEM_BASE
         )
-        self._history: list[dict[str, Any]] = list(initial_history) if initial_history else []
+        self._history: list[dict[str, Any]] = (
+            list(initial_history) if initial_history else []
+        )
 
     async def run(self, user_message: str) -> AsyncGenerator[dict[str, Any], None]:
         """Run one user turn and yield SSE event dicts until done.
@@ -304,13 +331,19 @@ class AgentLoop:
             response = None
             for _attempt in range(4):  # up to 3 retries on rate limit
                 try:
-                    response = await self._llm.complete(messages, _TOOLS, self._system, force_tool_use=force_tool)
+                    response = await self._llm.complete(
+                        messages, _TOOLS, self._system, force_tool_use=force_tool
+                    )
                     break
                 except Exception as exc:
                     wait = _parse_rate_limit_retry(exc)
                     if wait is None or _attempt >= 3:
                         raise
-                    logger.warning("Rate limit hit (attempt %d), retrying in %ds", _attempt + 1, wait)
+                    logger.warning(
+                        "Rate limit hit (attempt %d), retrying in %ds",
+                        _attempt + 1,
+                        wait,
+                    )
                     yield {"type": "rate_limit", "retry_after": wait}
                     await asyncio.sleep(wait)
             assert response is not None
@@ -324,13 +357,19 @@ class AgentLoop:
                     assistant_blocks.append({"type": "text", "text": block.text})
 
                 elif block.type == "tool_use":
-                    yield {"type": "tool_call", "tool": block.name, "content": block.input}
-                    assistant_blocks.append({
-                        "type": "tool_use",
-                        "id": block.id,
-                        "name": block.name,
-                        "input": block.input,
-                    })
+                    yield {
+                        "type": "tool_call",
+                        "tool": block.name,
+                        "content": block.input,
+                    }
+                    assistant_blocks.append(
+                        {
+                            "type": "tool_use",
+                            "id": block.id,
+                            "name": block.name,
+                            "input": block.input,
+                        }
+                    )
 
                     try:
                         result = await self._call_tool(block.name, block.input)
@@ -339,11 +378,13 @@ class AgentLoop:
                         result = {"error": str(exc)}
 
                     yield {"type": "tool_result", "tool": block.name, "content": result}
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": json.dumps(result, default=str),
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": json.dumps(result, default=str),
+                        }
+                    )
 
             messages.append({"role": "assistant", "content": assistant_blocks})
 
@@ -376,6 +417,7 @@ class AgentLoop:
 
         if name == "find_entities":
             from ontorag.stores.base import EntityFilter, FilterOp
+
             raw_filters = args.get("filters") or []
             filters = [
                 EntityFilter(
@@ -400,6 +442,7 @@ class AgentLoop:
 
         if name == "traverse_graph":
             from ontorag.stores.base import TraversalDirection
+
             direction = TraversalDirection(args.get("direction", "outgoing"))
             result = await store.traverse(
                 start_uri=args["start_uri"],

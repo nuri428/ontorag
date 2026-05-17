@@ -32,11 +32,13 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown."""
     from ontorag.chat import store as chat_store
+
     await chat_store.init_db()
     logger.info("ontorag API starting")
     yield
     # Close the HTTP client held by the singleton store
     from ontorag.api.deps import get_store
+
     store = get_store()
     await store.aclose()
     logger.info("ontorag API stopped")
