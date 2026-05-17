@@ -12,6 +12,7 @@ from ontorag.api.routes import chat, health, load, status
 from ontorag.api.routes.tools import (
     _sparql,
     entities,
+    learning,
     pattern,
     schema,
     traversal,
@@ -59,6 +60,9 @@ app.include_router(schema.router)
 app.include_router(entities.router)
 app.include_router(traversal.router)
 app.include_router(pattern.router)
+
+# v0.3 LLMs4OL learning tools (exposed via MCP)
+app.include_router(learning.router)
 
 # Debug route — Layer 3 (NOT exposed via MCP)
 app.include_router(_sparql.router)

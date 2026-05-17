@@ -72,6 +72,10 @@ class SchemaResult(BaseModel):
     total_properties: int
     namespaces: dict[str, str]
     classes: list[ClassSummary]
+    properties: list[PropertySummary] = Field(
+        default_factory=list,
+        description="All TBox properties. Populated when the store supports it.",
+    )
 
 
 class QueryResult(BaseModel):

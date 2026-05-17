@@ -125,6 +125,7 @@ class OpenAIProvider:
         tools: list[dict[str, Any]],
         system: str | None = None,
         force_tool_use: bool = False,
+        force_tool_name: str | None = None,
     ) -> _CompletionMessage:
         """Call OpenAI API and return Anthropic-compatible _CompletionMessage."""
         openai_messages = _anthropic_messages_to_openai(messages, system)
@@ -136,7 +137,9 @@ class OpenAIProvider:
             messages=openai_messages,
             tools=openai_tools,
         )
-        if force_tool_use and openai_tools:
+        if force_tool_name and openai_tools:
+            kwargs["tool_choice"] = {"type": "function", "function": {"name": force_tool_name}}
+        elif force_tool_use and openai_tools:
             kwargs["tool_choice"] = "required"
 
         logger.debug("OpenAI request: model=%s turns=%d", self._model, len(openai_messages))

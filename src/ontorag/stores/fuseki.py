@@ -347,12 +347,30 @@ GROUP BY ?class
             self._sparql_select(inst_query),
         )
 
-        # Build lookup maps
+        # Build lookup maps + collect all PropertySummary objects
         prop_count: dict[str, int] = {}
+        all_properties: list[PropertySummary] = []
+        seen_prop_uris: set[str] = set()
+        _OWL_TYPE_MAP = {
+            "http://www.w3.org/2002/07/owl#ObjectProperty": "object",
+            "http://www.w3.org/2002/07/owl#DatatypeProperty": "datatype",
+            "http://www.w3.org/2002/07/owl#AnnotationProperty": "annotation",
+        }
         for b in prop_result.get("results", {}).get("bindings", []):
             domain = b.get("domain", {}).get("value")
             if domain:
                 prop_count[domain] = prop_count.get(domain, 0) + 1
+            prop_uri = b.get("prop", {}).get("value")
+            if prop_uri and prop_uri not in seen_prop_uris:
+                seen_prop_uris.add(prop_uri)
+                raw_type = b.get("propType", {}).get("value", "")
+                all_properties.append(PropertySummary(
+                    uri=prop_uri,
+                    label=b.get("label", {}).get("value"),
+                    prop_type=_OWL_TYPE_MAP.get(raw_type, "annotation"),
+                    domain_uri=domain,
+                    range_uri=b.get("range", {}).get("value"),
+                ))
 
         inst_count: dict[str, int] = {
             b["class"]["value"]: int(b["count"]["value"])
@@ -390,6 +408,7 @@ GROUP BY ?class
             total_properties=total_props,
             namespaces={**STANDARD_PREFIXES, **self._namespaces},
             classes=unique_classes,
+            properties=all_properties,
         )
 
     async def get_class_detail(self, class_uri: str) -> ClassDetail:
