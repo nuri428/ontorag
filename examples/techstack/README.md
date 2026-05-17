@@ -147,6 +147,6 @@ uv run ontorag learn populate examples/techstack/corpus.txt --yes
 
 | File | Description |
 |---|---|
-| `schema.ttl` | TBox — 9 classes, 7 object properties, 4 data properties |
-| `data.ttl` | ABox seed — 15 technologies, 5 organizations |
+| `schema.ttl` | TBox — 11 classes, 4 object properties (1 transitive), 4 data properties |
+| `data.ttl` | ABox seed — 12 technologies, 5 organizations |
 | `corpus.txt` | Plain-text description of 10 additional technologies for LLMs4OL |
