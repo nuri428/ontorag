@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from pathlib import Path
@@ -89,48 +90,6 @@ async def schema_graph_data(store: FusekiStore = Depends(get_store)) -> JSONResp
                     }
                 }
             )
-
-    # Object properties with domain/range — draws cross-class edges
-    try:
-        prop_q = """
-PREFIX owl: <http://www.w3.org/2002/07/owl#>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-SELECT ?prop ?propLabel ?domain ?range
-FROM <urn:ontorag:schema>
-WHERE {
-    ?prop a owl:ObjectProperty .
-    OPTIONAL { ?prop rdfs:label ?propLabel }
-    OPTIONAL { ?prop rdfs:domain ?domain }
-    OPTIONAL { ?prop rdfs:range ?range }
-    FILTER(BOUND(?domain) && BOUND(?range))
-}
-"""
-        prop_result = await store._sparql_select(prop_q)
-        seen: set[str] = set()
-        for row in prop_result.get("results", {}).get("bindings", []):
-            prop_uri = row.get("prop", {}).get("value", "")
-            domain = row.get("domain", {}).get("value", "")
-            range_ = row.get("range", {}).get("value", "")
-            prop_label = row.get("propLabel", {}).get("value") or (
-                prop_uri.split("#")[-1].split("/")[-1]
-            )
-            key = f"{domain}|{prop_uri}|{range_}"
-            if key not in seen and domain and range_:
-                seen.add(key)
-                edges.append(
-                    {
-                        "data": {
-                            "id": f"p_{abs(hash(key))}",
-                            "source": domain,
-                            "target": range_,
-                            "label": prop_label,
-                            "uri": prop_uri,
-                            "edge_type": "property",
-                        }
-                    }
-                )
-    except Exception:
-        pass
 
     return JSONResponse({"nodes": nodes, "edges": edges, "namespaces": schema.namespaces})
 
@@ -223,14 +182,24 @@ async def data_instances(
     )
 
 
-@router.get("/data/entity-graph")
-async def entity_graph(
+@router.get("/data/entity-detail")
+async def entity_detail(
     uri: str, store: FusekiStore = Depends(get_store)
 ) -> JSONResponse:
-    """Traversal graph data (nodes/edges) for a single entity."""
+    """Entity properties (describe_entity) + depth-2 graph (traverse) in one response."""
     try:
-        result = await store.traverse(uri, max_depth=2, direction=TraversalDirection.both)
-        return JSONResponse({"nodes": result.nodes, "edges": result.edges})
+        entity, traversal = await asyncio.gather(
+            store.describe_entity(uri),
+            store.traverse(uri, max_depth=2, direction=TraversalDirection.both),
+        )
+        return JSONResponse(
+            {
+                "label": entity.label,
+                "class_uri": entity.class_uri,
+                "properties": entity.properties,
+                "graph": {"nodes": traversal.nodes, "edges": traversal.edges},
+            }
+        )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

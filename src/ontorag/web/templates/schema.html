@@ -7,38 +7,19 @@
     <span id="schema-summary" class="text-gray-600 text-sm"></span>
 </div>
 
-<!-- Top: class list + graph -->
-<div class="flex gap-4 mb-5" style="height: 540px;">
-
-    <!-- Class list sidebar -->
-    <div class="w-64 shrink-0 bg-gray-900 rounded-xl border border-gray-800 flex flex-col overflow-hidden">
-        <div class="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-            <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">Classes</span>
-            <button onclick="resetGraphHighlight()"
-                class="text-xs text-gray-600 hover:text-gray-400 transition-colors">reset</button>
-        </div>
-        <div id="class-list" class="flex-1 overflow-y-auto p-2 space-y-0.5 text-sm">
-            <p class="text-gray-700 text-xs px-2 py-4 text-center">그래프 로드 중...</p>
+<!-- Graph -->
+<div class="bg-gray-900 rounded-xl border border-gray-800 flex flex-col overflow-hidden mb-5" style="height: 540px;">
+    <div class="px-4 py-2 border-b border-gray-800 flex items-center justify-between shrink-0">
+        <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">Class Hierarchy</span>
+        <div class="flex items-center gap-4 text-xs text-gray-600">
+            <span class="flex items-center gap-1.5">
+                <span class="inline-block w-6 h-0.5 bg-blue-400"></span> subClassOf
+            </span>
+            <span class="text-gray-700">노드 클릭: 하이라이트 / 더블클릭: 초기화</span>
         </div>
     </div>
-
-    <!-- Cytoscape graph -->
-    <div class="flex-1 bg-gray-900 rounded-xl border border-gray-800 flex flex-col overflow-hidden">
-        <div class="px-4 py-2 border-b border-gray-800 flex items-center justify-between shrink-0">
-            <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">Class Hierarchy</span>
-            <div class="flex items-center gap-4 text-xs text-gray-600">
-                <span class="flex items-center gap-1.5">
-                    <span class="inline-block w-6 h-0.5 bg-blue-400"></span> subClassOf
-                </span>
-                <span class="flex items-center gap-1.5">
-                    <span class="inline-block w-6 h-0.5 bg-orange-400" style="border-top: 2px dashed #f97316; height:0;"></span> ObjectProperty
-                </span>
-                <span class="text-gray-700">더블클릭으로 초기화</span>
-            </div>
-        </div>
-        <div id="cy-schema" class="cy-container flex-1"></div>
-        <div id="schema-error" class="hidden text-red-400 text-sm p-4"></div>
-    </div>
+    <div id="cy-schema" class="cy-container flex-1"></div>
+    <div id="schema-error" class="hidden text-red-400 text-sm p-4"></div>
 </div>
 
 <!-- Bottom: Validation -->
@@ -149,25 +130,6 @@ async function initSchemaGraph() {
     // Update summary badge
     const summaryEl = document.getElementById('schema-summary');
     if (summaryEl) summaryEl.textContent = `${data.nodes.length}개 클래스`;
-
-    // Build class list sidebar
-    const listEl = document.getElementById('class-list');
-    if (listEl) {
-        listEl.innerHTML = '';
-        data.nodes.forEach(n => {
-            const d = n.data;
-            const div = document.createElement('div');
-            div.className = 'flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer hover:bg-gray-800 transition-colors group';
-            div.innerHTML = `
-                <span class="text-gray-300 text-xs truncate">${d.label}</span>
-                <span class="text-gray-600 text-xs ml-1 shrink-0 group-hover:text-gray-400">
-                    ${d.instance_count > 0 ? d.instance_count : ''}
-                </span>
-            `;
-            div.addEventListener('click', () => highlightClass(d.id));
-            listEl.appendChild(div);
-        });
-    }
 
     // Init Cytoscape
     const container = document.getElementById('cy-schema');

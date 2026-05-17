@@ -97,34 +97,32 @@ async function showEntityDetail(uri, label) {
     content.innerHTML = '<p class="text-gray-600 text-xs">로딩...</p>';
 
     try {
-        const resp = await fetch(`/ui/data/entity-graph?uri=${encodeURIComponent(uri)}`);
+        const resp = await fetch(`/ui/data/entity-detail?uri=${encodeURIComponent(uri)}`);
         if (!resp.ok) throw new Error(await resp.text());
         const data = await resp.json();
 
-        // Find the focused node data
-        const focusNode = data.nodes.find(n => n.uri === uri) || { uri, label };
-        const shortLabel = label || uri.split('#').pop() || uri.split('/').pop();
+        const shortLabel = data.label || label || uri.split('#').pop() || uri.split('/').pop();
+        const props = data.properties || {};
 
-        // Show properties info — all values go through escHtml() before innerHTML
-        const propLines = Object.entries(focusNode)
-            .filter(([k]) => !['uri', 'depth', 'label'].includes(k))
-            .map(([k, v]) => `<div class="flex gap-2 items-start">
-                <span class="text-gray-600 shrink-0 w-20 truncate">${escHtml(k)}:</span>
+        // Properties from describe_entity — actual entity attributes
+        const propLines = Object.entries(props).map(([k, v]) => `
+            <div class="flex gap-2 items-start">
+                <span class="text-gray-600 shrink-0 w-24 truncate">${escHtml(k.split('#').pop() || k)}:</span>
                 <span class="text-gray-300 break-all">${escHtml(String(v))}</span>
             </div>`);
 
         content.innerHTML = `
             <div class="font-bold text-indigo-300 mb-1">${escHtml(shortLabel)}</div>
             <div class="text-gray-600 text-xs break-all mb-3 pb-3 border-b border-gray-800">${escHtml(uri)}</div>
-            <div class="text-xs text-gray-500 mb-1">연결 노드: ${data.nodes.length}개 / 엣지: ${data.edges.length}개</div>
             ${propLines.length ? propLines.join('') : '<p class="text-gray-700 text-xs">속성 없음</p>'}
         `;
 
-        // Init entity graph
+        // Graph from traverse
+        const graphData = data.graph || { nodes: [], edges: [] };
         if (window._cyEnt) { window._cyEnt.destroy(); window._cyEnt = null; }
 
-        if (data.nodes.length > 0) {
-            const cyNodes = data.nodes.map(n => ({
+        if (graphData.nodes.length > 0) {
+            const cyNodes = graphData.nodes.map(n => ({
                 data: {
                     id: n.uri,
                     label: n.label || n.uri.split('#').pop() || n.uri.split('/').pop() || n.uri,
@@ -133,7 +131,7 @@ async function showEntityDetail(uri, label) {
                     isFocus: n.uri === uri,
                 }
             }));
-            const cyEdges = data.edges.map((e, i) => ({
+            const cyEdges = graphData.edges.map((e, i) => ({
                 data: {
                     id: `e_${i}`,
                     source: e.from,
@@ -194,7 +192,7 @@ async function showEntityDetail(uri, label) {
             });
         }
     } catch (err) {
-        content.innerHTML = `<p class="text-red-400 text-xs">오류: ${err.message}</p>`;
+        content.innerHTML = `<p class="text-red-400 text-xs">오류: ${escHtml(err.message)}</p>`;
     }
 }
 

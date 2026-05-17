@@ -290,11 +290,16 @@ function handleSseEvent(event, onText, appendText) {
         addToolEvent('tool_call', event);
     } else if (event.type === 'tool_result') {
         addToolEvent('tool_result', event);
-        // Collect traversal graph data
         const c = event.content;
-        if (c && Array.isArray(c.nodes) && c.nodes.length > 0) {
+        if (!c) { /* skip */ }
+        // traverse/find_path: {nodes, edges, start_uri, ...}
+        else if (c.nodes && Array.isArray(c.nodes) && c.nodes.length > 0) {
             _pendingGraphData.nodes.push(...c.nodes);
             if (Array.isArray(c.edges)) _pendingGraphData.edges.push(...c.edges);
+        }
+        // find_entities: [{uri, label, class_uri, properties}, ...]
+        else if (Array.isArray(c) && c.length > 0 && c[0].uri) {
+            c.forEach(e => _pendingGraphData.nodes.push({ uri: e.uri, label: e.label, depth: 0 }));
         }
     } else if (event.type === 'text') {
         removeThinking();
