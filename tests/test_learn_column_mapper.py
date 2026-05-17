@@ -119,10 +119,22 @@ class TestProposeMapping:
         assert result[0].predicate_uri is None
 
     @pytest.mark.asyncio
-    async def test_llm_failure_returns_empty(self):
+    async def test_llm_failure_raises(self):
+        """Network/auth errors propagate so the caller can surface them to the user."""
         schema = make_schema()
         llm = AsyncMock()
         llm.complete = AsyncMock(side_effect=RuntimeError("LLM down"))
+        with pytest.raises(RuntimeError, match="LLM down"):
+            await propose_mapping(llm, schema, ["type"])
+
+    @pytest.mark.asyncio
+    async def test_invalid_json_returns_empty(self):
+        """JSON parse errors are recoverable — return [] without raising."""
+        schema = make_schema()
+        llm = AsyncMock()
+        llm.complete = AsyncMock(
+            return_value=type("_R", (), {"content": [type("_T", (), {"text": "not-json"})()]})()
+        )
         result = await propose_mapping(llm, schema, ["type"])
         assert result == []
 

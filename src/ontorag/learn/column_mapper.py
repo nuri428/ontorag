@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import urllib.parse
 import uuid
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -103,8 +104,14 @@ async def propose_mapping(
         )
         parsed = json.loads(text)
         raw = parsed.get("mappings", [])
-    except Exception:
+    except json.JSONDecodeError as exc:
+        # LLM returned non-JSON — log and return empty (recoverable)
+        import logging
+        logging.getLogger(__name__).warning("propose_mapping: LLM returned invalid JSON — %s", exc)
         return []
+    except Exception:
+        # Network error, auth failure, etc. — propagate so caller can surface it
+        raise
 
     result: list[ColumnMapping] = []
     for item in raw:
@@ -131,7 +138,7 @@ def mint_subject_uri(
     so that reloading the same file yields the same URI (idempotent).
     """
     if id_column and id_column in row:
-        slug = str(row[id_column]).strip().replace(" ", "_")
+        slug = urllib.parse.quote(str(row[id_column]).strip(), safe="-._~")
         return f"{namespace.rstrip('/')}/{slug}"
     seed = f"{filepath}:{row_index}"
     deterministic_uuid = uuid.uuid5(uuid.NAMESPACE_URL, seed)

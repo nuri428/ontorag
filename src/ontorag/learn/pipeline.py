@@ -266,6 +266,10 @@ class LLMOntologyLearner:
             return PopulationResult()
 
         schema = await self._store.get_schema()
+        if not schema.properties:
+            raise ValueError(
+                "TBox에 속성이 없습니다. 먼저 스키마를 로드하세요: ontorag load schema <파일>"
+            )
         mapping_path = path.parent / (path.name + ".mapping.json")
 
         # --- Load or invalidate cached column mapping ---

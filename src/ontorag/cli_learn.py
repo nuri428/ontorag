@@ -355,14 +355,21 @@ def learn_populate_structured(
         finally:
             await learner._store.aclose()
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[bold blue]{task.description}"),
-        console=console,
-        transient=True,
-    ) as progress:
-        progress.add_task("컬럼 매핑 + 트리플 생성 중...", total=None)
-        result = asyncio.run(_run())
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.description}"),
+            console=console,
+            transient=True,
+        ) as progress:
+            progress.add_task("컬럼 매핑 + 트리플 생성 중...", total=None)
+            result = asyncio.run(_run())
+    except ValueError as exc:
+        console.print(f"[yellow]⚠[/] {exc}")
+        raise typer.Exit(1)
+    except Exception as exc:
+        console.print(f"[red]Error:[/] 파이프라인 실행 실패 — {exc}")
+        raise typer.Exit(1)
 
     if not result.triples:
         console.print(
