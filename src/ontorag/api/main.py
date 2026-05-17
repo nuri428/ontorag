@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi_mcp import FastApiMCP
 
-from ontorag.api.routes import chat, health, load, status
+from ontorag.api.routes import chat, dump, health, load, status
 from ontorag.api.routes.tools import (
     _sparql,
     entities,
@@ -55,6 +55,7 @@ app = FastAPI(
 app.include_router(health.router)
 app.include_router(status.router)
 app.include_router(load.router)
+app.include_router(dump.router)
 app.include_router(chat.router)
 
 # Tool routes — Layer 1 + Layer 2 (exposed via MCP)

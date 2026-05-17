@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.3.2 — 2026-05-18
+
+### Added — TBox/ABox Dump
+
+- **`ontorag dump schema|data|all`** — CLI 덤프 커맨드 그룹
+  - `--format ttl|json|jsonl|xlsx` — 출력 포맷 선택 (기본값: ttl)
+  - `--output FILE` — 저장 경로 (생략 시 `ontorag_{target}_{timestamp}.{ext}` 자동 생성)
+- **`GET /dump?target=schema|data|all&format=ttl|json|jsonl|xlsx`** — REST 덤프 엔드포인트
+  - `Content-Disposition: attachment` 헤더 포함 → 브라우저 직접 다운로드
+  - target=all + format=xlsx 시 TBox/ABox를 별도 시트로 분리
+- **Web UI 다운로드 버튼** — Schema 탭과 Data 탭에 📥 다운로드 섹션 추가
+  - Schema 탭: TBox 다운로드 (TTL/JSON/JSONL/XLSX)
+  - Data 탭: ABox 다운로드 + All 다운로드 (TBox+ABox 합쳐서)
+- **`GraphStore.dump_graph(target, fmt)`** — Protocol에 추가 (Neo4j 어댑터도 동일 인터페이스 강제)
+- **`FusekiStore._gsp_get(named_graph)`** — GSP GET 메서드 추가 (404 시 빈 Graph 반환)
+- **`openpyxl>=3.1.0`** — 신규 의존성 추가
+
+### Format details
+
+| 포맷 | MIME | 내용 |
+|------|------|------|
+| `ttl` | `text/turtle` | RDF Turtle 직렬화 |
+| `json` | `application/json` | `[{"s":…,"p":…,"o":…},…]` 트리플 배열 |
+| `jsonl` | `application/x-ndjson` | 트리플 1개/줄 NDJSON |
+| `xlsx` | `application/vnd.openxmlformats…` | Subject/Predicate/Object 컬럼 (all: TBox+ABox 별도 시트) |
+
 ## v0.3.1 — 2026-05-18
 
 ### Added — Structured ABox Population

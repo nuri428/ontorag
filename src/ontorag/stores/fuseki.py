@@ -146,6 +146,22 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
         if response.status_code != 404:
             response.raise_for_status()
 
+    async def _gsp_get(self, named_graph: str) -> Graph:
+        """Fetch a named graph via GSP GET (returns empty Graph if not found)."""
+        client = await self._http()
+        response = await client.get(
+            f"{self._base}/{self._dataset}/data",
+            params={"graph": named_graph},
+            headers={"Accept": "text/turtle"},
+        )
+        if response.status_code == 404:
+            return Graph()
+        response.raise_for_status()
+        g = Graph()
+        if response.text.strip():
+            g.parse(data=response.text, format="turtle")
+        return g
+
     async def clear_graph(
         self, target: Literal["schema", "data", "all"]
     ) -> dict[str, int]:
@@ -169,6 +185,60 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
             await self._gsp_delete(DATA_GRAPH_URI)
 
         return removed
+
+    async def dump_graph(
+        self,
+        target: Literal["schema", "data", "all"],
+        fmt: Literal["ttl", "json", "jsonl", "xlsx"] = "ttl",
+    ) -> bytes:
+        """Export one or both named graphs as bytes in the requested format.
+
+        Args:
+            target: "schema" (TBox), "data" (ABox), or "all" (both).
+            fmt: "ttl" | "json" (triple array) | "jsonl" | "xlsx".
+
+        Returns:
+            Serialised bytes.
+        """
+        import json as _json
+
+        await self._ensure_dataset()
+
+        if target == "schema":
+            graphs: dict[str, Graph] = {"TBox": await self._gsp_get(SCHEMA_GRAPH_URI)}
+        elif target == "data":
+            graphs = {"ABox": await self._gsp_get(DATA_GRAPH_URI)}
+        else:
+            schema_g, data_g = await asyncio.gather(
+                self._gsp_get(SCHEMA_GRAPH_URI),
+                self._gsp_get(DATA_GRAPH_URI),
+            )
+            graphs = {"TBox": schema_g, "ABox": data_g}
+
+        if len(graphs) == 1:
+            merged = next(iter(graphs.values()))
+        else:
+            merged = Graph()
+            for g in graphs.values():
+                for triple in g:
+                    merged.add(triple)
+
+        if fmt == "ttl":
+            return merged.serialize(format="turtle").encode()
+
+        if fmt == "json":
+            rows = [{"s": str(s), "p": str(p), "o": str(o)} for s, p, o in merged]
+            return _json.dumps(rows, ensure_ascii=False, indent=2).encode()
+
+        if fmt == "jsonl":
+            lines = [
+                _json.dumps({"s": str(s), "p": str(p), "o": str(o)}, ensure_ascii=False)
+                for s, p, o in merged
+            ]
+            return "\n".join(lines).encode()
+
+        # xlsx
+        return _graphs_to_xlsx(graphs)
 
     async def _sparql_select(self, sparql: str) -> dict[str, Any]:
         """Execute a SPARQL SELECT query (internal use only — not MCP-exposed).
@@ -592,3 +662,39 @@ WHERE {{
         ]
 
         return QueryResult(columns=vars_list, rows=rows, total=len(rows))
+
+
+# ── Module-level helpers ──────────────────────────────────────────────────────
+
+
+def _graphs_to_xlsx(graphs: dict[str, Graph]) -> bytes:
+    """Serialise one or more rdflib Graphs into an XLSX workbook.
+
+    Each graph becomes a sheet named after its key.
+    Columns: Subject | Predicate | Object.
+    """
+    import io
+
+    try:
+        import openpyxl
+    except ImportError as exc:
+        raise ImportError(
+            "openpyxl이 설치되어 있지 않습니다. 'uv add openpyxl' 후 재시도하세요."
+        ) from exc
+
+    wb = openpyxl.Workbook()
+    first = True
+    for sheet_name, graph in graphs.items():
+        if first:
+            ws = wb.active
+            ws.title = sheet_name
+            first = False
+        else:
+            ws = wb.create_sheet(title=sheet_name)
+        ws.append(["Subject", "Predicate", "Object"])
+        for s, p, o in graph:
+            ws.append([str(s), str(p), str(o)])
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -34,6 +35,9 @@ app.add_typer(config_app, name="config")
 history_app = typer.Typer(help="채팅 대화 기록을 조회/삭제합니다.")
 app.add_typer(history_app, name="history")
 app.add_typer(learn_app, name="learn")
+
+dump_app = typer.Typer(help="그래프 스토어의 TBox/ABox를 파일로 덤프합니다.")
+app.add_typer(dump_app, name="dump")
 
 
 # ── load subcommands ─────────────────────────────────────────────────────────
@@ -170,6 +174,92 @@ def clear_data() -> None:
 def clear_all() -> None:
     """스키마(TBox)와 인스턴스 데이터(ABox)를 모두 삭제합니다."""
     _run_clear("all")
+
+
+# ── dump subcommands ─────────────────────────────────────────────────────────
+
+_DUMP_FORMATS = ["ttl", "json", "jsonl", "xlsx"]
+_DUMP_EXT = {"ttl": "ttl", "json": "json", "jsonl": "jsonl", "xlsx": "xlsx"}
+
+
+def _run_dump(target: str, fmt: str, output: Path | None) -> None:
+    """Export a named graph to a local file with a Rich spinner."""
+    from ontorag.stores.fuseki import FusekiStore
+
+    if fmt not in _DUMP_FORMATS:
+        console.print(
+            f"[red]Error:[/] 지원하지 않는 포맷입니다: {fmt!r}. "
+            f"허용값: {', '.join(_DUMP_FORMATS)}"
+        )
+        raise typer.Exit(1)
+
+    store = FusekiStore.from_env()
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]{task.description}"),
+        TimeElapsedColumn(),
+        console=console,
+        transient=True,
+    ) as progress:
+        progress.add_task(f"{target} 덤프 중 ({fmt})...", total=None)
+        try:
+            data = asyncio.run(store.dump_graph(target, fmt))  # type: ignore[arg-type]
+        except ImportError as exc:
+            console.print(f"[red]Error:[/] {exc}")
+            raise typer.Exit(1)
+        except Exception as exc:
+            console.print(f"[red]Error:[/] 덤프 실패 — {exc}")
+            console.print(
+                "[dim]Fuseki가 실행 중인지 확인하세요: docker compose up fuseki[/]"
+            )
+            raise typer.Exit(1)
+
+    if output is None:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output = Path(f"ontorag_{target}_{ts}.{_DUMP_EXT[fmt]}")
+
+    output.write_bytes(data)
+    console.print(f"[green]✓[/] [bold]{len(data):,}[/] 바이트 → [bold]{output}[/]")
+
+
+@dump_app.command("schema")
+def dump_schema(
+    fmt: str = typer.Option(
+        "ttl", "--format", "-f", help="출력 포맷: ttl | json | jsonl | xlsx"
+    ),
+    output: Optional[Path] = typer.Option(
+        None, "--output", "-o", help="저장할 파일 경로 (기본값: 자동 생성)"
+    ),
+) -> None:
+    """TBox(스키마) 그래프를 파일로 덤프합니다."""
+    _run_dump("schema", fmt, output)
+
+
+@dump_app.command("data")
+def dump_data(
+    fmt: str = typer.Option(
+        "ttl", "--format", "-f", help="출력 포맷: ttl | json | jsonl | xlsx"
+    ),
+    output: Optional[Path] = typer.Option(
+        None, "--output", "-o", help="저장할 파일 경로 (기본값: 자동 생성)"
+    ),
+) -> None:
+    """ABox(데이터) 그래프를 파일로 덤프합니다."""
+    _run_dump("data", fmt, output)
+
+
+@dump_app.command("all")
+def dump_all(
+    fmt: str = typer.Option(
+        "ttl", "--format", "-f", help="출력 포맷: ttl | json | jsonl | xlsx"
+    ),
+    output: Optional[Path] = typer.Option(
+        None, "--output", "-o", help="저장할 파일 경로 (기본값: 자동 생성)"
+    ),
+) -> None:
+    """TBox + ABox 전체를 파일로 덤프합니다."""
+    _run_dump("all", fmt, output)
 
 
 # ── status command ───────────────────────────────────────────────────────────

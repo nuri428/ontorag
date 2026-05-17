@@ -22,6 +22,27 @@
     <div id="schema-error" class="hidden text-red-400 text-sm p-4"></div>
 </div>
 
+<!-- Download TBox -->
+<details class="bg-gray-900 rounded-xl border border-gray-800 mb-3 group">
+    <summary class="px-5 py-3 text-xs text-gray-500 font-bold uppercase tracking-wider cursor-pointer hover:text-gray-300 transition-colors select-none flex items-center justify-between">
+        <span>📥 TBox 다운로드</span>
+        <span class="text-gray-700 group-open:rotate-180 transition-transform text-xs">▼</span>
+    </summary>
+    <div class="px-5 pb-5 border-t border-gray-800 pt-4">
+        <p class="text-xs text-gray-600 mb-3">현재 TBox(스키마)를 원하는 포맷으로 다운로드합니다.</p>
+        <div class="flex gap-2 flex-wrap">
+            <a href="/dump?target=schema&format=ttl"
+               class="px-4 py-1.5 bg-gray-700 hover:bg-indigo-600 text-gray-200 text-xs font-medium rounded transition-colors">TTL</a>
+            <a href="/dump?target=schema&format=json"
+               class="px-4 py-1.5 bg-gray-700 hover:bg-indigo-600 text-gray-200 text-xs font-medium rounded transition-colors">JSON</a>
+            <a href="/dump?target=schema&format=jsonl"
+               class="px-4 py-1.5 bg-gray-700 hover:bg-indigo-600 text-gray-200 text-xs font-medium rounded transition-colors">JSONL</a>
+            <a href="/dump?target=schema&format=xlsx"
+               class="px-4 py-1.5 bg-gray-700 hover:bg-indigo-600 text-gray-200 text-xs font-medium rounded transition-colors">XLSX</a>
+        </div>
+    </div>
+</details>
+
 <!-- Upload TBox -->
 <details class="bg-gray-900 rounded-xl border border-gray-800 mb-5 group">
     <summary class="px-5 py-3 text-xs text-gray-500 font-bold uppercase tracking-wider cursor-pointer hover:text-gray-300 transition-colors select-none flex items-center justify-between">

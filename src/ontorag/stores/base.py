@@ -477,6 +477,25 @@ class GraphStore(Protocol):
         """
         ...
 
+    # ── Dump ─────────────────────────────────────────────────────────────────
+
+    async def dump_graph(
+        self,
+        target: Literal["schema", "data", "all"],
+        fmt: Literal["ttl", "json", "jsonl", "xlsx"] = "ttl",
+    ) -> bytes:
+        """Export one or both named graphs as bytes in the requested format.
+
+        Args:
+            target: "schema" (TBox only), "data" (ABox only), or "all" (both).
+            fmt: Serialisation format — "ttl" (Turtle), "json" (triple array),
+                 "jsonl" (one triple per line), "xlsx" (spreadsheet).
+
+        Returns:
+            Serialised bytes ready to write to a file or HTTP response.
+        """
+        ...
+
     # ── Store management ─────────────────────────────────────────────────────
 
     async def status(self) -> StoreStatus:
