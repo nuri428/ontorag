@@ -248,6 +248,41 @@ MCP (Model Context Protocol) endpoint. Any MCP-compatible client can connect and
 
 ---
 
+## v0.3 — LLMs4OL: Ontology Learning from Text
+
+v0.3 adds the **LLMs4OL pipeline** — an LLM reads plain text and proposes RDF triples that extend the live ontology. No manual authoring required.
+
+### CLI commands
+
+![learn --help](assets/learn_help.png)
+
+### Task A — Term Typing (`type-term`)
+
+Maps a text mention to the best-matching TBox class, with confidence scores and reasoning.
+
+```bash
+ontorag learn type-term "Pikachu" --context "evolved Pokémon"
+ontorag learn type-term "React"
+```
+
+![learn type-term output](assets/learn_type_term.png)
+
+### A+B+C Pipeline (`populate`)
+
+Runs all three tasks in sequence — Term Typing → Taxonomy Discovery → Relation Extraction — then optionally loads the accepted triples into Fuseki.
+
+```bash
+ontorag learn populate examples/techstack/corpus.txt
+```
+
+![learn populate output](assets/learn_populate.png)
+
+### Test suite — v0.3 learn module (48 tests)
+
+![v0.3 test results](assets/learn_tests.png)
+
+---
+
 ## Example: Tech Stack ontology (v0.3 — LLMs4OL)
 
 This example shows what a plain vector-search RAG cannot do.
@@ -264,21 +299,6 @@ uv run ontorag load data   examples/techstack/data.ttl
 ```bash
 # Feed a text corpus → LLM extracts types + relations → propose RDF triples
 uv run ontorag learn populate examples/techstack/corpus.txt
-```
-
-```
-Task A — term typing (10 items)
-  SvelteKit   → FullstackFramework  0.94
-  Deno        → RuntimeEnvironment  0.96
-  ...
-
-Task C — triples (18 items)
-  SvelteKit  dependsOn  Vite        0.92
-  Svelte     maintainedBy  Vercel   0.95
-  ...
-
-Load to Fuseki? [y/N]: y
-✓ 38 triples loaded to ABox.
 ```
 
 **Step 3 — query the expanded graph** — OWL transitive reasoning included

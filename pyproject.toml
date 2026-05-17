@@ -45,5 +45,6 @@ testpaths = ["tests"]
 
 [dependency-groups]
 dev = [
+    "pillow>=12.2.0",
     "pytest>=9.0.3",
 ]
