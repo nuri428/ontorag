@@ -1,11 +1,11 @@
 {% if ok %}
 <div class="flex items-center gap-2 text-green-400 text-xs bg-green-950 border border-green-800 rounded-lg px-3 py-2">
     <span>✓</span>
-    <span>.env 저장 완료 — 다음 채팅부터 반영됩니다.</span>
+    <span data-i18n="config.saved">.env 저장 완료 — 다음 채팅부터 반영됩니다.</span>
 </div>
 {% else %}
 <div class="bg-red-950 border border-red-800 rounded-lg px-3 py-2">
-    <p class="text-red-300 text-xs font-medium mb-1">저장 오류</p>
+    <p class="text-red-300 text-xs font-medium mb-1" data-i18n="config.saveError">저장 오류</p>
     {% for err in errors %}
     <p class="text-red-500 text-xs font-mono">{{ err }}</p>
     {% endfor %}

@@ -34,9 +34,8 @@
                         data-uri="{{ entity.uri }}"
                         data-label="{{ entity.label or '' }}"
                         onclick="window.showEntityDetail && showEntityDetail(this.dataset.uri, this.dataset.label)"
-                        class="text-indigo-500 hover:text-indigo-300 transition-colors opacity-0 group-hover:opacity-100 text-xs">
-                        탐색→
-                    </button>
+                        class="text-indigo-500 hover:text-indigo-300 transition-colors opacity-0 group-hover:opacity-100 text-xs"
+                        data-i18n="data.explore">탐색→</button>
                 </td>
             </tr>
             {% endfor %}
@@ -44,12 +43,15 @@
     </table>
 </div>
 <div class="px-4 py-3 border-t border-gray-800 text-xs text-gray-700 flex items-center justify-between">
-    <span>{{ entities | length }}개 인스턴스</span>
+    <span data-i18n-n="data.instanceCount" data-count="{{ entities | length }}">{{ entities | length }}개 인스턴스</span>
     <span class="text-gray-800">{{ class_uri }}</span>
 </div>
 {% else %}
 <div class="p-10 text-center">
-    <p class="text-gray-700 text-sm">해당 클래스에 인스턴스가 없습니다.</p>
-    <p class="text-gray-800 text-xs mt-2">ABox 데이터가 로드되어 있는지 확인하세요: <code>ontorag load data ./data.ttl</code></p>
+    <p class="text-gray-700 text-sm" data-i18n="data.noInstances">해당 클래스에 인스턴스가 없습니다.</p>
+    <p class="text-gray-800 text-xs mt-2">
+        <span data-i18n="data.noInstancesHint">ABox 데이터가 로드되어 있는지 확인하세요:</span>
+        <code>ontorag load data ./data.ttl</code>
+    </p>
 </div>
 {% endif %}

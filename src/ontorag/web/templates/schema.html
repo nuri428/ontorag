@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="flex items-center gap-3 mb-5">
-    <h1 class="text-indigo-400 font-bold text-lg">TBox 스키마</h1>
+    <h1 class="text-indigo-400 font-bold text-lg" data-i18n="schema.h1">TBox 스키마</h1>
     <span id="schema-summary" class="text-gray-600 text-sm"></span>
 </div>
 
@@ -15,7 +15,7 @@
             <span class="flex items-center gap-1.5">
                 <span class="inline-block w-6 h-0.5 bg-blue-400"></span> subClassOf
             </span>
-            <span class="text-gray-700">노드 클릭: 하이라이트 / 더블클릭: 초기화</span>
+            <span class="text-gray-700" data-i18n="schema.nodeHint">노드 클릭: 하이라이트 / 더블클릭: 초기화</span>
         </div>
     </div>
     <div id="cy-schema" class="cy-container flex-1"></div>
@@ -25,18 +25,16 @@
 <!-- Bottom: Validation -->
 <div class="bg-gray-900 rounded-xl border border-gray-800 p-5">
     <div class="flex items-center gap-3 mb-4">
-        <h2 class="text-gray-200 font-bold text-sm">검증</h2>
+        <h2 class="text-gray-200 font-bold text-sm" data-i18n="schema.validation">검증</h2>
         <div class="flex rounded-lg overflow-hidden border border-gray-700">
             <button id="btn-syntax" onclick="setCheckType('syntax')"
-                class="px-4 py-1.5 text-xs font-medium transition-colors bg-indigo-600 text-white">
-                문법 체크
-            </button>
+                class="px-4 py-1.5 text-xs font-medium transition-colors bg-indigo-600 text-white"
+                data-i18n="schema.syntaxBtn">문법 체크</button>
             <button id="btn-shacl" onclick="setCheckType('shacl')"
-                class="px-4 py-1.5 text-xs font-medium transition-colors text-gray-400 hover:text-white hover:bg-gray-700">
-                SHACL 검증
-            </button>
+                class="px-4 py-1.5 text-xs font-medium transition-colors text-gray-400 hover:text-white hover:bg-gray-700"
+                data-i18n="schema.shaclBtn">SHACL 검증</button>
         </div>
-        <span id="check-spinner" class="text-xs text-gray-600 hidden">처리 중...</span>
+        <span id="check-spinner" class="text-xs text-gray-600 hidden" data-i18n="schema.spinner">처리 중...</span>
     </div>
 
     <form hx-post="/ui/schema/check"
@@ -47,14 +45,14 @@
 
         <div class="flex gap-4">
             <div class="flex-1">
-                <label class="text-xs text-gray-500 block mb-1.5">데이터 그래프 (TTL)</label>
+                <label class="text-xs text-gray-500 block mb-1.5" data-i18n="schema.ttlLabel">데이터 그래프 (TTL)</label>
                 <textarea name="ttl_content" rows="8"
                     class="w-full bg-gray-800 border border-gray-700 rounded-lg text-xs font-mono text-gray-200 p-3
                            focus:outline-none focus:border-indigo-500 resize-y"
                     placeholder="@prefix ex: &lt;http://example.org/&gt; .&#10;ex:Pikachu a ex:Pokemon .&#10;ex:Pikachu rdfs:label &quot;피카츄&quot; ."></textarea>
             </div>
             <div id="shacl-shapes-panel" class="flex-1 hidden">
-                <label class="text-xs text-gray-500 block mb-1.5">SHACL Shapes (TTL, 선택)</label>
+                <label class="text-xs text-gray-500 block mb-1.5" data-i18n="schema.shaclLabel">SHACL Shapes (TTL, 선택)</label>
                 <textarea name="shapes_content" rows="8"
                     class="w-full bg-gray-800 border border-gray-700 rounded-lg text-xs font-mono text-gray-200 p-3
                            focus:outline-none focus:border-indigo-500 resize-y"
@@ -64,9 +62,8 @@
 
         <div class="flex items-center gap-3">
             <button type="submit"
-                class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors">
-                실행
-            </button>
+                class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors"
+                data-i18n="schema.runBtn">실행</button>
         </div>
     </form>
 
@@ -121,7 +118,7 @@ async function initSchemaGraph() {
     } catch (err) {
         const errEl = document.getElementById('schema-error');
         if (errEl) {
-            errEl.textContent = `그래프 로드 실패: ${err.message}`;
+            errEl.textContent = `${t('schema.loadError')}: ${err.message}`;
             errEl.classList.remove('hidden');
         }
         return;
@@ -129,7 +126,7 @@ async function initSchemaGraph() {
 
     // Update summary badge
     const summaryEl = document.getElementById('schema-summary');
-    if (summaryEl) summaryEl.textContent = `${data.nodes.length}개 클래스`;
+    if (summaryEl) summaryEl.textContent = t('schema.classesSummary', { n: data.nodes.length });
 
     // Init Cytoscape
     const container = document.getElementById('cy-schema');

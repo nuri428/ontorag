@@ -3,13 +3,13 @@
 
 {% block content %}
 <div class="flex items-center gap-3 mb-5">
-    <h1 class="text-indigo-400 font-bold text-lg">ABox 데이터</h1>
+    <h1 class="text-indigo-400 font-bold text-lg" data-i18n="data.h1">ABox 데이터</h1>
     <span id="instance-count" class="text-gray-600 text-sm"></span>
 </div>
 
 <!-- Class selector bar -->
 <div class="bg-gray-900 rounded-xl border border-gray-800 px-5 py-3 mb-4 flex items-center gap-4">
-    <label class="text-xs text-gray-500 font-bold uppercase tracking-wider shrink-0">클래스</label>
+    <label class="text-xs text-gray-500 font-bold uppercase tracking-wider shrink-0" data-i18n="data.classLabel">클래스</label>
     <select id="class-selector"
         class="bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-1.5
                focus:outline-none focus:border-indigo-500 min-w-[240px]"
@@ -19,7 +19,7 @@
         hx-swap="innerHTML"
         hx-trigger="change"
         hx-include="[name='limit']">
-        <option value="">-- 클래스 선택 --</option>
+        <option value="" data-i18n="data.classSelect">-- 클래스 선택 --</option>
         {% for cls in classes %}
         <option value="{{ cls.uri }}">
             {{ cls.label or cls.uri.split('#')[-1] }}
@@ -28,7 +28,7 @@
         {% endfor %}
     </select>
     <input type="hidden" name="limit" value="100">
-    <span id="instance-spinner" class="text-xs text-gray-600 hidden">로딩...</span>
+    <span id="instance-spinner" class="text-xs text-gray-600 hidden" data-i18n="data.loading">로딩...</span>
     <div class="ml-auto text-xs text-gray-700">
         클래스 {{ classes | length }}개
     </div>
@@ -40,7 +40,7 @@
     <!-- Instance grid -->
     <div class="flex-1 bg-gray-900 rounded-xl border border-gray-800 overflow-hidden min-h-[400px]">
         <div id="instances-container">
-            <p class="text-gray-700 text-sm p-8 text-center">
+            <p class="text-gray-700 text-sm p-8 text-center" data-i18n="data.selectHint">
                 위에서 클래스를 선택하면 인스턴스가 표시됩니다.
             </p>
         </div>
@@ -82,7 +82,7 @@ document.addEventListener('htmx:afterSettle', () => {
     // Update row count after HTMX loads instances
     const rows = document.querySelectorAll('#instances-container tbody tr');
     const countEl = document.getElementById('instance-count');
-    if (countEl && rows.length) countEl.textContent = `${rows.length}개 표시`;
+    if (countEl && rows.length) countEl.textContent = t('data.rowsShown', { n: rows.length });
 });
 
 function closeEntityDetail() {
@@ -94,7 +94,7 @@ async function showEntityDetail(uri, label) {
     const panel = document.getElementById('entity-detail');
     const content = document.getElementById('entity-detail-content');
     panel.classList.remove('hidden');
-    content.innerHTML = '<p class="text-gray-600 text-xs">로딩...</p>';
+    content.innerHTML = `<p class="text-gray-600 text-xs">${t('data.entityLoading')}</p>`;
 
     try {
         const resp = await fetch(`/ui/data/entity-detail?uri=${encodeURIComponent(uri)}`);
@@ -114,7 +114,7 @@ async function showEntityDetail(uri, label) {
         content.innerHTML = `
             <div class="font-bold text-indigo-300 mb-1">${escHtml(shortLabel)}</div>
             <div class="text-gray-600 text-xs break-all mb-3 pb-3 border-b border-gray-800">${escHtml(uri)}</div>
-            ${propLines.length ? propLines.join('') : '<p class="text-gray-700 text-xs">속성 없음</p>'}
+            ${propLines.length ? propLines.join('') : `<p class="text-gray-700 text-xs">${t('data.noProperties')}</p>`}
         `;
 
         // Graph from traverse
@@ -192,7 +192,7 @@ async function showEntityDetail(uri, label) {
             });
         }
     } catch (err) {
-        content.innerHTML = `<p class="text-red-400 text-xs">오류: ${escHtml(err.message)}</p>`;
+        content.innerHTML = `<p class="text-red-400 text-xs">${t('common.error')}: ${escHtml(err.message)}</p>`;
     }
 }
 

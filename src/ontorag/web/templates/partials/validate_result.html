@@ -3,10 +3,15 @@
     <span class="text-green-400 text-xl shrink-0 mt-0.5">✓</span>
     <div>
         <p class="text-green-300 font-medium text-sm">
-            {% if check_type == 'syntax' %}문법 유효{% else %}SHACL 적합 (Conforms){% endif %}
+            {% if check_type == 'syntax' %}
+            <span data-i18n="schema.syntaxValid">문법 유효</span>
+            {% else %}
+            <span data-i18n="schema.shaclConforms">SHACL 적합 (Conforms)</span>
+            {% endif %}
         </p>
         {% if result.triple_count is defined %}
-        <p class="text-green-600 text-xs mt-1">{{ result.triple_count }}개 트리플 파싱됨</p>
+        <p class="text-green-600 text-xs mt-1"
+           data-i18n-n="schema.triplesParsed" data-count="{{ result.triple_count }}">{{ result.triple_count }}개 트리플 파싱됨</p>
         {% endif %}
         {% if result.message and result.message != result.triple_count|string %}
         <pre class="text-green-700 text-xs mt-2 whitespace-pre-wrap font-mono">{{ result.message }}</pre>
@@ -18,7 +23,11 @@
     <span class="text-red-400 text-xl shrink-0 mt-0.5">✗</span>
     <div class="flex-1 min-w-0">
         <p class="text-red-300 font-medium text-sm">
-            {% if check_type == 'syntax' %}문법 오류{% else %}SHACL 위반 (Non-conforming){% endif %}
+            {% if check_type == 'syntax' %}
+            <span data-i18n="schema.syntaxError">문법 오류</span>
+            {% else %}
+            <span data-i18n="schema.shaclViolation">SHACL 위반 (Non-conforming)</span>
+            {% endif %}
         </p>
         <pre class="text-red-500 text-xs mt-2 whitespace-pre-wrap break-all font-mono max-h-48 overflow-y-auto">{{ result.message }}</pre>
     </div>

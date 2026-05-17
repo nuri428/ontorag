@@ -19,7 +19,6 @@
     <style>
         body { background-color: #030712; }
         .cy-container { background-color: #111827; }
-        /* HTMX loading indicator */
         .htmx-indicator { opacity: 0; transition: opacity 150ms; }
         .htmx-request .htmx-indicator,
         .htmx-request.htmx-indicator { opacity: 1; }
@@ -45,7 +44,12 @@
             {% endfor %}
         </div>
         <div class="ml-auto flex items-center gap-3">
-            <span class="htmx-indicator text-xs text-gray-500">로딩...</span>
+            <span class="htmx-indicator text-xs text-gray-500" data-i18n="nav.loading">로딩...</span>
+            <button id="lang-toggle" onclick="toggleLang()"
+                class="text-xs px-2 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700
+                       text-gray-400 hover:text-gray-200 rounded transition-colors font-mono">
+                EN
+            </button>
             <span class="text-xs text-gray-700 font-mono">v0.1.0</span>
         </div>
     </nav>
@@ -55,7 +59,7 @@
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Shared JS utilities available to all pages -->
+    <!-- Shared JS utilities (runs after {% block content %} elements are in DOM) -->
     <script>
     function escHtml(str) {
         return String(str ?? '')
@@ -65,6 +69,156 @@
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
     }
+
+    // ── i18n ──────────────────────────────────────────────────────────────────────
+
+    const _I18N = {
+        ko: {
+            'nav.loading': '로딩...',
+            'schema.h1': 'TBox 스키마',
+            'schema.nodeHint': '노드 클릭: 하이라이트 / 더블클릭: 초기화',
+            'schema.validation': '검증',
+            'schema.syntaxBtn': '문법 체크',
+            'schema.shaclBtn': 'SHACL 검증',
+            'schema.spinner': '처리 중...',
+            'schema.ttlLabel': '데이터 그래프 (TTL)',
+            'schema.shaclLabel': 'SHACL Shapes (TTL, 선택)',
+            'schema.runBtn': '실행',
+            'schema.classesSummary': '{n}개 클래스',
+            'schema.loadError': '그래프 로드 실패',
+            'schema.syntaxValid': '문법 유효',
+            'schema.shaclConforms': 'SHACL 적합 (Conforms)',
+            'schema.syntaxError': '문법 오류',
+            'schema.shaclViolation': 'SHACL 위반 (Non-conforming)',
+            'schema.triplesParsed': '{n}개 트리플 파싱됨',
+            'data.h1': 'ABox 데이터',
+            'data.classLabel': '클래스',
+            'data.classSelect': '-- 클래스 선택 --',
+            'data.loading': '로딩...',
+            'data.selectHint': '위에서 클래스를 선택하면 인스턴스가 표시됩니다.',
+            'data.rowsShown': '{n}개 표시',
+            'data.entityLoading': '로딩...',
+            'data.noProperties': '속성 없음',
+            'data.noInstances': '해당 클래스에 인스턴스가 없습니다.',
+            'data.noInstancesHint': 'ABox 데이터가 로드되어 있는지 확인하세요:',
+            'data.instanceCount': '{n}개 인스턴스',
+            'data.explore': '탐색→',
+            'playground.subtitle': '온톨로지 데이터를 자연어로 조회하세요',
+            'playground.history': '대화 기록',
+            'playground.newChat': '+ 새 대화',
+            'playground.llmSettings': '⚙ LLM 설정',
+            'playground.saveBtn': '💾 .env 저장',
+            'playground.clearBtn': '지우기',
+            'playground.sendBtn': '전송 ▶',
+            'playground.placeholder': '← 새 대화를 시작하거나 기존 대화를 선택하세요.',
+            'playground.exHint': '예: "모든 포켓몬 목록을 알려줘"',
+            'playground.newChatPlaceholder': '새 대화를 시작하세요. 무엇이 궁금하신가요?',
+            'playground.inputPlaceholder': '예: 피카츄의 진화 체인을 알려줘',
+            'playground.refreshTitle': '목록 새로고침',
+            'playground.modelLoading': '로딩 중...',
+            'playground.modelFailed': '조회 실패',
+            'playground.thinking': '생각 중...',
+            'playground.noSessions': '대화 없음',
+            'playground.deleteTitle': '삭제',
+            'playground.deleteConfirm': '이 대화를 삭제할까요?',
+            'config.saved': '.env 저장 완료 — 다음 채팅부터 반영됩니다.',
+            'config.saveError': '저장 오류',
+            'common.error': '오류',
+        },
+        en: {
+            'nav.loading': 'Loading...',
+            'schema.h1': 'TBox Schema',
+            'schema.nodeHint': 'Click: highlight / Dblclick: reset',
+            'schema.validation': 'Validation',
+            'schema.syntaxBtn': 'Syntax Check',
+            'schema.shaclBtn': 'SHACL Validate',
+            'schema.spinner': 'Processing...',
+            'schema.ttlLabel': 'Data Graph (TTL)',
+            'schema.shaclLabel': 'SHACL Shapes (TTL, optional)',
+            'schema.runBtn': 'Run',
+            'schema.classesSummary': '{n} classes',
+            'schema.loadError': 'Failed to load graph',
+            'schema.syntaxValid': 'Syntax Valid',
+            'schema.shaclConforms': 'SHACL Conforms',
+            'schema.syntaxError': 'Syntax Error',
+            'schema.shaclViolation': 'SHACL Violation (Non-conforming)',
+            'schema.triplesParsed': '{n} triples parsed',
+            'data.h1': 'ABox Data',
+            'data.classLabel': 'Class',
+            'data.classSelect': '-- Select Class --',
+            'data.loading': 'Loading...',
+            'data.selectHint': 'Select a class above to show instances.',
+            'data.rowsShown': '{n} shown',
+            'data.entityLoading': 'Loading...',
+            'data.noProperties': 'No properties',
+            'data.noInstances': 'No instances in this class.',
+            'data.noInstancesHint': 'Ensure ABox data is loaded:',
+            'data.instanceCount': '{n} instances',
+            'data.explore': 'Explore→',
+            'playground.subtitle': 'Query ontology data in natural language',
+            'playground.history': 'History',
+            'playground.newChat': '+ New Chat',
+            'playground.llmSettings': '⚙ LLM Settings',
+            'playground.saveBtn': '💾 Save .env',
+            'playground.clearBtn': 'Clear',
+            'playground.sendBtn': 'Send ▶',
+            'playground.placeholder': '← Start a new chat or select an existing one.',
+            'playground.exHint': 'e.g. "List all Pokémon"',
+            'playground.newChatPlaceholder': 'Start a new chat. What would you like to know?',
+            'playground.inputPlaceholder': "e.g. Show Pikachu's evolution chain",
+            'playground.refreshTitle': 'Refresh list',
+            'playground.modelLoading': 'Loading...',
+            'playground.modelFailed': 'Failed to load',
+            'playground.thinking': 'Thinking...',
+            'playground.noSessions': 'No conversations',
+            'playground.deleteTitle': 'Delete',
+            'playground.deleteConfirm': 'Delete this conversation?',
+            'config.saved': '.env saved — applies to the next chat.',
+            'config.saveError': 'Save error',
+            'common.error': 'Error',
+        },
+    };
+
+    let _lang = localStorage.getItem('ontorag_lang') || 'ko';
+
+    function t(key, vars) {
+        let s = (_I18N[_lang] || _I18N.ko)[key] || key;
+        if (vars) Object.entries(vars).forEach(([k, v]) => { s = s.replace(`{${k}}`, v); });
+        return s;
+    }
+
+    function applyLang(lang) {
+        _lang = lang;
+        localStorage.setItem('ontorag_lang', lang);
+        document.documentElement.lang = lang;
+
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            el.textContent = t(el.dataset.i18n);
+        });
+        document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+            el.placeholder = t(el.dataset.i18nPh);
+        });
+        document.querySelectorAll('[data-i18n-title]').forEach(el => {
+            el.title = t(el.dataset.i18nTitle);
+        });
+        // Template strings with {n}: <span data-i18n-n="key" data-count="42">
+        document.querySelectorAll('[data-i18n-n]').forEach(el => {
+            el.textContent = t(el.dataset.i18nN, { n: el.dataset.count });
+        });
+
+        const langBtn = document.getElementById('lang-toggle');
+        if (langBtn) langBtn.textContent = lang === 'ko' ? 'EN' : 'KO';
+    }
+
+    function toggleLang() {
+        applyLang(_lang === 'ko' ? 'en' : 'ko');
+    }
+
+    // Re-apply after HTMX swaps in a partial
+    document.body.addEventListener('htmx:afterSettle', () => applyLang(_lang));
+
+    // Apply on initial load ({% block content %} elements are already in DOM here)
+    applyLang(_lang);
     </script>
 
     {% block scripts %}{% endblock %}

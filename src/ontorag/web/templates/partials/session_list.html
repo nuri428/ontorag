@@ -12,9 +12,10 @@
     <button class="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400
                    text-xs shrink-0 transition-opacity leading-none"
             onclick="event.stopPropagation(); deleteSession('{{ s.id }}')"
+            data-i18n-title="playground.deleteTitle"
             title="삭제">✕</button>
 </div>
 {% endfor %}
 {% else %}
-<div class="text-xs text-gray-700 text-center py-6 select-none">대화 없음</div>
+<div class="text-xs text-gray-700 text-center py-6 select-none" data-i18n="playground.noSessions">대화 없음</div>
 {% endif %}
