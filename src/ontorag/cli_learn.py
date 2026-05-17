@@ -65,8 +65,14 @@ def learn_type_term(
     """
     learner = _get_learner()
 
+    async def _run() -> list:
+        try:
+            return await learner.type_term(term, context=context, top_k=top_k)
+        finally:
+            await learner._store.aclose()
+
     with console.status("[bold]분류 중..."):
-        results = asyncio.run(learner.type_term(term, context=context, top_k=top_k))
+        results = asyncio.run(_run())
 
     if not results:
         console.print("[yellow]결과 없음[/] — 스키마가 로드되어 있는지 확인하세요.")
@@ -111,8 +117,14 @@ def learn_taxonomy(
     text = text_file.read_text(encoding="utf-8")
     learner = _get_learner()
 
+    async def _run() -> list:
+        try:
+            return await learner.discover_taxonomy(text)
+        finally:
+            await learner._store.aclose()
+
     with console.status("[bold]분류 계층 탐색 중..."):
-        results = asyncio.run(learner.discover_taxonomy(text))
+        results = asyncio.run(_run())
 
     filtered = [r for r in results if r.confidence >= min_confidence]
 
@@ -149,8 +161,14 @@ def learn_extract(
     text = text_file.read_text(encoding="utf-8")
     learner = _get_learner()
 
+    async def _run() -> list:
+        try:
+            return await learner.extract_relations(text, min_confidence=min_confidence)
+        finally:
+            await learner._store.aclose()
+
     with console.status("[bold]트리플 추출 중..."):
-        results = asyncio.run(learner.extract_relations(text, min_confidence=min_confidence))
+        results = asyncio.run(_run())
 
     if not results:
         console.print("[yellow]추출된 트리플 없음[/]")
@@ -181,10 +199,16 @@ def learn_populate(
     text = text_file.read_text(encoding="utf-8")
     learner = _get_learner()
 
+    async def _run_pipeline() -> object:
+        try:
+            return await learner.populate_from_text(
+                text, auto_load=False, min_confidence=min_confidence
+            )
+        finally:
+            await learner._store.aclose()
+
     with console.status("[bold]A+B+C 파이프라인 실행 중..."):
-        result = asyncio.run(learner.populate_from_text(
-            text, auto_load=False, min_confidence=min_confidence
-        ))
+        result = asyncio.run(_run_pipeline())
 
     total = len(result.term_typings) + len(result.taxonomy_proposals) + len(result.triples)
     if total == 0:
@@ -228,8 +252,11 @@ def learn_populate(
             raise typer.Exit(0)
 
     async def _load() -> int:
-        schema = await learner._store.get_schema()
-        return await learner._load_triples(result.triples, result.term_typings, schema)
+        try:
+            schema = await learner._store.get_schema()
+            return await learner._load_triples(result.triples, result.term_typings, schema)
+        finally:
+            await learner._store.aclose()
 
     with console.status("[bold]Fuseki에 로드 중..."):
         loaded = asyncio.run(_load())
