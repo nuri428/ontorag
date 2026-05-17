@@ -59,7 +59,7 @@
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Shared JS utilities (runs after {% block content %} elements are in DOM) -->
+    <!-- Shared JS utilities — runs after main content is in DOM -->
     <script>
     function escHtml(str) {
         return String(str ?? '')
@@ -217,7 +217,7 @@
     // Re-apply after HTMX swaps in a partial
     document.body.addEventListener('htmx:afterSettle', () => applyLang(_lang));
 
-    // Apply on initial load ({% block content %} elements are already in DOM here)
+    // Apply on initial load — content elements are already in DOM at this point
     applyLang(_lang);
     </script>
 
