@@ -310,8 +310,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 |---|---|---|---|
 | LangChain / LlamaIndex | 최소 지원 | Yes | 코드 중심 RAG, 온톨로지 플러그인 수준 |
 | Dify | 미지원 | Yes | 비주얼 빌더, OWL 미지원 |
-| GraphRAG (Microsoft) | 텍스트→KG | Yes | 사용자 정의 온톨로지 약함 |
-| **ontorag** | **1등 시민** | **Yes** | RDF/OWL/SPARQL을 기본 구조로 사용 |
+| GraphRAG (Microsoft) | 텍스트→프로퍼티 그래프 | Yes | OWL 시맨틱 없음 — `rdfs:subClassOf` 추론·`owl:TransitiveProperty`·SPARQL 미지원; 스키마가 쿼리 시 강제되지 않음 |
+| **ontorag** | **OWL-native** | **Yes** | TBox가 스키마를 정의; Fuseki가 OWL 추론 강제; v0.3에서 LLMs4OL로 텍스트→온톨로지 확장 |
 
 ---
 
@@ -319,7 +319,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 - **v0.1** — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE 스트리밍
 - **v0.2** (현재) — Web UI (Schema/Data/Playground) · 브라우저 RDF 업로드 · 레이트 리밋 UX · 온톨로지 데이터 존재 시 툴 호출 강제
-- **v0.3** — Neo4j + n10s 어댑터 · `GRAPH_STORE` 환경 변수 · 벡터 유사도 툴 (`find_similar`) · 멀티 온톨로지 지원
+- **v0.3** — LLMs4OL: 텍스트 → 온톨로지 학습 (용어 타이핑 · 분류 발견 · 관계 추출) · `ontorag learn` CLI · `type_term` + `extract_triples` MCP 툴
+- **v0.5** — Neo4j + n10s 어댑터 · `GRAPH_STORE` 환경 변수 · 벡터 유사도 툴 (`find_similar`) · 멀티 온톨로지 지원
 
 ---
 

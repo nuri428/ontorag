@@ -310,8 +310,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 |---|---|---|---|
 | LangChain / LlamaIndex | Minimal | Yes | Code-first RAG, ontology is a plugin |
 | Dify | None | Yes | Visual builder, no OWL support |
-| GraphRAG (Microsoft) | KG from text | Yes | User-defined ontology weak |
-| **ontorag** | **First-class** | **Yes** | RDF/OWL/SPARQL as primary structure |
+| GraphRAG (Microsoft) | Property graph from text | Yes | No OWL semantics — no `rdfs:subClassOf` inference, no `owl:TransitiveProperty`, no SPARQL; schema not enforced at query time |
+| **ontorag** | **OWL-native** | **Yes** | TBox defines schema; Fuseki enforces OWL reasoning; v0.3 adds LLMs4OL (text → ontology extension) |
 
 ---
 
@@ -319,7 +319,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 - **v0.1** — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE streaming
 - **v0.2** (current) — Web UI (Schema/Data/Playground) · RDF upload from browser · Rate-limit UX · Forced tool-use when ontology has data
-- **v0.3** — Neo4j + n10s adapter · `GRAPH_STORE` env var · Vector similarity tool (`find_similar`) · Multi-ontology support
+- **v0.3** — LLMs4OL: text → ontology learning (Term Typing · Taxonomy Discovery · Relation Extraction) · `ontorag learn` CLI · `type_term` + `extract_triples` MCP tools
+- **v0.5** — Neo4j + n10s adapter · `GRAPH_STORE` env var · Vector similarity tool (`find_similar`) · Multi-ontology support
 
 ---
 
