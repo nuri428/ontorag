@@ -202,6 +202,18 @@ ontorag status                  # 그래프 스토어 연결 + 트리플 수 확
 
 ontorag config set [OPTIONS]
 ontorag config show
+
+# v0.3 — 텍스트에서 온톨로지 학습
+ontorag learn type-term "React"                        # Task A — 용어를 TBox 클래스에 매핑
+ontorag learn taxonomy corpus.txt                      # Task B — rdfs:subClassOf 제안
+ontorag learn extract corpus.txt                       # Task C — RDF 트리플 추출
+ontorag learn populate corpus.txt [--yes]              # A+B+C 파이프라인 → Fuseki
+
+# v0.3.1 — 구조화 파일에서 ABox 확장 (CSV / JSON / JSONL)
+ontorag learn populate-structured data.csv \
+    --class-uri pk:Pokemon --id-column name [--yes]
+ontorag learn populate-structured data.jsonl --batch-size 100 --yes
+ontorag learn populate-structured nested.json --min-confidence 0.8
 ```
 
 ---
@@ -277,9 +289,35 @@ ontorag learn populate examples/techstack/corpus.txt
 
 ![learn populate 출력](assets/learn_populate.png)
 
-### 테스트 스위트 — v0.3 learn 모듈 (48개 테스트)
+### 구조화 파일 ABox 확장 (`populate-structured`) — v0.3.1
 
-![v0.3 테스트 결과](assets/learn_tests.png)
+**CSV / JSON / JSONL** 파일을 읽어 LLM으로 컬럼을 TBox 속성 URI에 매핑하고, 각 행을 RDF 트리플로 변환합니다. 컬럼 매핑 결과는 사이드카 `.mapping.json` 파일에 저장되어 — 이후 실행에서는 LLM 호출 없이 재사용됩니다.
+
+```bash
+# 첫 번째 실행: LLM이 컬럼을 매핑 → pokemon.csv.mapping.json 저장
+ontorag learn populate-structured pokemon.csv \
+    --class-uri pk:Pokemon --id-column name
+
+# 두 번째 실행: 캐시 재사용, LLM 호출 없음
+ontorag learn populate-structured pokemon.csv --yes
+
+# JSON / JSONL (중첩 키는 자동 평탄화: {"stats":{"hp":35}} → "stats.hp")
+ontorag learn populate-structured pokedex.jsonl --batch-size 100 --yes
+```
+
+![learn populate-structured 출력](assets/learn_populate_structured.png)
+
+| 옵션 | 기본값 | 설명 |
+|---|---|---|
+| `--class-uri` | — | 각 행의 TBox 클래스 URI (예: `pk:Pokemon`) |
+| `--id-column` | — | 주어 URI 슬러그로 사용할 컬럼; 생략 시 uuid5 자동 발급 |
+| `--batch-size` | 50 | LLM 매핑 호출당 처리 행 수 |
+| `--min-confidence` | 0.7 | 컬럼 매핑 최소 신뢰도 임계값 |
+| `--yes` | false | Fuseki 로드 확인 프롬프트 생략 |
+
+### 테스트 스위트 — v0.3.1 (214개 테스트)
+
+![v0.3.1 테스트 결과](assets/learn_tests.png)
 
 ---
 
@@ -384,7 +422,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 - **v0.1** — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE 스트리밍 ✅
 - **v0.2** — Web UI (Schema/Data/Playground) · 브라우저 RDF 업로드 · 레이트 리밋 UX · 온톨로지 데이터 존재 시 툴 호출 강제 ✅
-- **v0.3** (현재) — LLMs4OL: `ontorag learn` CLI (용어 타이핑 · 분류 발견 · 관계 추출) · `type_term` + `extract_triples` MCP 툴 · 기술 스택 예제 ✅
+- **v0.3** — LLMs4OL: `ontorag learn` CLI (용어 타이핑 · 분류 발견 · 관계 추출) · `type_term` + `extract_triples` MCP 툴 · 기술 스택 예제 ✅
+- **v0.3.1** (현재) — 구조화 ABox 확장: `populate-structured`로 CSV/JSON/JSONL 읽기 → LLM으로 컬럼을 TBox에 매핑 → RDF 트리플 → Fuseki; 매핑 캐시, uuid5 멱등 URI, 배치 체크포인팅 ✅
 - **v0.5** — Neo4j + n10s 어댑터 · `GRAPH_STORE` 환경 변수 · 벡터 유사도 툴 (`find_similar`) · 멀티 온톨로지 지원
 
 ---

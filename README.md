@@ -202,6 +202,18 @@ ontorag status                  # Graph store connection + triple counts
 
 ontorag config set [OPTIONS]
 ontorag config show
+
+# v0.3 — Ontology learning from text
+ontorag learn type-term "React"                        # Task A — map term to TBox class
+ontorag learn taxonomy corpus.txt                      # Task B — propose rdfs:subClassOf
+ontorag learn extract corpus.txt                       # Task C — extract RDF triples
+ontorag learn populate corpus.txt [--yes]              # A+B+C pipeline → Fuseki
+
+# v0.3.1 — Structured ABox population (CSV / JSON / JSONL)
+ontorag learn populate-structured data.csv \
+    --class-uri pk:Pokemon --id-column name [--yes]
+ontorag learn populate-structured data.jsonl --batch-size 100 --yes
+ontorag learn populate-structured nested.json --min-confidence 0.8
 ```
 
 ---
@@ -277,9 +289,35 @@ ontorag learn populate examples/techstack/corpus.txt
 
 ![learn populate output](assets/learn_populate.png)
 
-### Test suite — v0.3 learn module (48 tests)
+### Structured ABox Population (`populate-structured`) — v0.3.1
 
-![v0.3 test results](assets/learn_tests.png)
+Reads a **CSV / JSON / JSONL** file, maps columns to TBox property URIs via LLM, and converts each row into RDF triples. The column mapping is cached in a sidecar `.mapping.json` file — subsequent runs reuse it without any LLM call.
+
+```bash
+# First run: LLM maps columns → saves pokemon.csv.mapping.json
+ontorag learn populate-structured pokemon.csv \
+    --class-uri pk:Pokemon --id-column name
+
+# Second run: mapping reused, zero LLM calls
+ontorag learn populate-structured pokemon.csv --yes
+
+# JSON / JSONL (nested keys are flattened: {"stats":{"hp":35}} → "stats.hp")
+ontorag learn populate-structured pokedex.jsonl --batch-size 100 --yes
+```
+
+![learn populate-structured output](assets/learn_populate_structured.png)
+
+| Option | Default | Description |
+|---|---|---|
+| `--class-uri` | — | TBox class URI for each row (e.g. `pk:Pokemon`) |
+| `--id-column` | — | Column to use as subject URI slug; uuid5 if omitted |
+| `--batch-size` | 50 | Rows per LLM mapping call |
+| `--min-confidence` | 0.7 | Minimum column-mapping confidence threshold |
+| `--yes` | false | Skip Fuseki load confirmation prompt |
+
+### Test suite — v0.3.1 (214 tests)
+
+![v0.3.1 test results](assets/learn_tests.png)
 
 ---
 
@@ -390,7 +428,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 - **v0.1** — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE streaming ✅
 - **v0.2** — Web UI (Schema/Data/Playground) · RDF upload from browser · Rate-limit UX · Forced tool-use when ontology has data ✅
-- **v0.3** (current) — LLMs4OL: `ontorag learn` CLI (Term Typing · Taxonomy Discovery · Relation Extraction) · `type_term` + `extract_triples` MCP tools · Tech Stack example ✅
+- **v0.3** — LLMs4OL: `ontorag learn` CLI (Term Typing · Taxonomy Discovery · Relation Extraction) · `type_term` + `extract_triples` MCP tools · Tech Stack example ✅
+- **v0.3.1** (current) — Structured ABox population: `populate-structured` reads CSV/JSON/JSONL → maps columns to TBox via LLM → RDF triples → Fuseki; mapping cache, uuid5 idempotent URIs, batch checkpointing ✅
 - **v0.5** — Neo4j + n10s adapter · `GRAPH_STORE` env var · Vector similarity tool (`find_similar`) · Multi-ontology support
 
 ---
