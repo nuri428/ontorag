@@ -28,9 +28,7 @@ class _EntityMixin:
     """L1 entity-level tool implementations mixed into FusekiStore."""
 
     _namespaces: dict[str, str]
-
-    async def _sparql_select(self, sparql: str) -> dict[str, Any]:
-        raise NotImplementedError
+    _sparql_select: Any  # provided by FusekiStore at runtime
 
     def _pfx(self) -> str:
         return build_prefix_block({**STANDARD_PREFIXES, **self._namespaces})
@@ -217,6 +215,14 @@ ORDER BY DESC(?result)"""
             try:
                 val: int | float = int(raw) if "." not in raw else float(raw)
             except ValueError:
+                if agg != AggFunc.count:
+                    logger.warning(
+                        "aggregate: non-numeric value %r for agg=%s group=%r — skipping",
+                        raw,
+                        agg,
+                        b.get("group", {}).get("value"),
+                    )
+                    continue  # skip this group instead of silently returning 0
                 val = 0
             out.append(AggregateResult(group_value=b["group"]["value"], result=val))
         return out

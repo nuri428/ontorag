@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
 from ontorag.core.sparql import (
     STANDARD_PREFIXES,
     build_filter_sparql,
-    build_prefix_block,
     uri_ref,
 )
 from ontorag.stores.base import EntityFilter, TraversalDirection, TraversalResult
@@ -21,12 +21,7 @@ class _TraversalMixin:
     """L1 traversal tool implementations mixed into FusekiStore."""
 
     _namespaces: dict[str, str]
-
-    async def _sparql_select(self, sparql: str) -> dict[str, Any]:
-        raise NotImplementedError
-
-    def _pfx(self) -> str:
-        return build_prefix_block({**STANDARD_PREFIXES, **self._namespaces})
+    _sparql_select: Any  # provided by FusekiStore at runtime
 
     async def traverse(
         self,
@@ -117,7 +112,7 @@ WHERE {{
         uri_b: str,
         max_depth: int = 4,
     ) -> TraversalResult:
-        """BFS shortest-path search between two entities."""
+        """BFS shortest-path search between two entities (both directions)."""
         max_depth = min(max_depth, _MAX_DEPTH_HARD)
         pfx = self._pfx()
 
@@ -126,11 +121,13 @@ WHERE {{
         # parent[node] = (parent_uri, predicate_uri)
         parent: dict[str, tuple[str | None, str | None]] = {uri_a: (None, None)}
 
+        found = False
         for _ in range(max_depth):
-            if not frontier:
+            if not frontier or found:
                 break
             values_block = " ".join(f"<{u}>" for u in frontier)
-            query = f"""{pfx}
+
+            out_query = f"""{pfx}
 SELECT DISTINCT ?src ?pred ?tgt
 WHERE {{
   VALUES ?src {{ {values_block} }}
@@ -139,9 +136,24 @@ WHERE {{
     FILTER(isIRI(?tgt))
   }}
 }}"""
+            in_query = f"""{pfx}
+SELECT DISTINCT ?src ?pred ?tgt
+WHERE {{
+  VALUES ?tgt {{ {values_block} }}
+  GRAPH <{_DATA}> {{
+    ?src ?pred ?tgt .
+    FILTER(isIRI(?src))
+  }}
+}}"""
+            out_rows_result, in_rows_result = await asyncio.gather(
+                self._sparql_select(out_query),
+                self._sparql_select(in_query),
+            )
+
             new_frontier: list[str] = []
-            found = False
-            for b in (await self._sparql_select(query)).get("results", {}).get("bindings", []):
+
+            # Process outgoing edges: ?src → ?tgt
+            for b in out_rows_result.get("results", {}).get("bindings", []):
                 src, pred_uri, tgt = b["src"]["value"], b["pred"]["value"], b["tgt"]["value"]
                 if tgt not in visited:
                     visited.add(tgt)
@@ -152,6 +164,21 @@ WHERE {{
                     new_frontier.append(tgt)
             if found:
                 break
+
+            # Process incoming edges: ?src ← ?tgt (frontier nodes are the ?tgt end)
+            for b in in_rows_result.get("results", {}).get("bindings", []):
+                src, pred_uri, tgt = b["src"]["value"], b["pred"]["value"], b["tgt"]["value"]
+                # src is the new node discovered; tgt is already in frontier/visited
+                if src not in visited:
+                    visited.add(src)
+                    parent[src] = (tgt, pred_uri)
+                    if src == uri_b:
+                        found = True
+                        break
+                    new_frontier.append(src)
+            if found:
+                break
+
             frontier = new_frontier
 
         if uri_b not in parent:
