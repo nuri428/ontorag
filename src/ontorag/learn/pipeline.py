@@ -11,7 +11,6 @@ from ontorag.learn import relation as _relation_mod
 from ontorag.learn._utils import mint_uri
 from ontorag.learn.base import (
     ExtractedTriple,
-    OntologyLearner,
     PopulationResult,
     TaxonomyRelation,
     TermTypingResult,
@@ -28,6 +27,7 @@ _TERM_EXTRACTION_TOOL: dict[str, Any] = {
         "properties": {
             "terms": {
                 "type": "array",
+                "maxItems": 50,
                 "items": {"type": "string"},
                 "description": "Distinct entity labels / noun phrases.",
             },
@@ -59,7 +59,7 @@ def _serialize_to_ttl(
     """
     try:
         from rdflib import Graph, Literal, Namespace, URIRef
-        from rdflib.namespace import RDF, RDFS, XSD
+        from rdflib.namespace import RDF, RDFS
     except ImportError as exc:
         raise ImportError("rdflib is required for RDF serialization") from exc
 
@@ -69,12 +69,12 @@ def _serialize_to_ttl(
     for prefix, uri_str in schema.namespaces.items():
         try:
             g.bind(prefix, Namespace(uri_str))
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("namespace bind skipped %r: %s", prefix, exc)
 
     # Emit rdf:type assertions from Task A
     for typing in typings:
-        subj_uri = typing_subject_uri(typing, schema)
+        subj_uri = mint_uri(typing.term, schema)
         g.add((URIRef(subj_uri), RDF.type, URIRef(typing.class_uri)))
         g.add((URIRef(subj_uri), RDFS.label, Literal(typing.term)))
 
@@ -92,10 +92,6 @@ def _serialize_to_ttl(
 
     return g.serialize(format="turtle")
 
-
-def typing_subject_uri(typing: TermTypingResult, schema: SchemaResult) -> str:
-    """Mint or return the subject URI for a TermTypingResult."""
-    return mint_uri(typing.term, schema)
 
 
 class LLMOntologyLearner:

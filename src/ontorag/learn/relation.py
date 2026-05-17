@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from ontorag.learn._utils import class_uris, structured_call
+from ontorag.learn._utils import structured_call
 from ontorag.learn.base import ExtractedTriple
 from ontorag.stores.base import SchemaResult
 
@@ -106,7 +106,6 @@ async def extract_relations(
         List of ExtractedTriple with valid predicate URIs.
     """
     prop_uris = _collect_property_uris(schema)
-    known_class_uris = class_uris(schema)
 
     prompt_parts = [
         f"Schema:\n{_schema_summary(schema)}",
@@ -140,8 +139,6 @@ async def extract_relations(
             continue
 
         obj_uri = item.get("object_uri") or None
-        if obj_uri and obj_uri not in known_class_uris:
-            pass  # object URIs reference instances, not classes — keep as-is
 
         results.append(ExtractedTriple(
             subject_label=item.get("subject_label", ""),

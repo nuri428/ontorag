@@ -16,7 +16,7 @@ router = APIRouter(prefix="/tools/learn", tags=["learning"])
 class TypeTermRequest(BaseModel):
     """Request body for Task A: term → TBox class."""
 
-    term: str = Field(description="Text mention to classify against the TBox.")
+    term: str = Field(min_length=1, description="Text mention to classify against the TBox.")
     context: str | None = Field(
         default=None,
         description="Optional surrounding text for disambiguation (max 500 chars used).",
@@ -27,7 +27,7 @@ class TypeTermRequest(BaseModel):
 class ExtractTriplesRequest(BaseModel):
     """Request body for Task C: text → RDF triples."""
 
-    text: str = Field(description="Source text to extract triples from.")
+    text: str = Field(min_length=1, description="Source text to extract triples from.")
     entities: list[str] | None = Field(
         default=None,
         description="Optional entity label whitelist to focus extraction.",

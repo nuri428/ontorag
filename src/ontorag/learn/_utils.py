@@ -43,15 +43,6 @@ def class_uris(schema: SchemaResult) -> frozenset[str]:
     return frozenset(c.uri for c in schema.classes)
 
 
-def property_uris(schema: SchemaResult) -> frozenset[str]:
-    """Return the set of all TBox property URIs (from ClassDetail-level data if available)."""
-    uris: set[str] = set()
-    for cls in schema.classes:
-        if hasattr(cls, "properties"):
-            for p in cls.properties:  # type: ignore[union-attr]
-                uris.add(p.uri)
-    return frozenset(uris)
-
 
 async def structured_call(
     llm: Any,
