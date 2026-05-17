@@ -7,6 +7,7 @@ from typing import Optional
 import typer
 from rich.console import Console
 from rich.markup import escape
+from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
 learn_app = typer.Typer(help="텍스트에서 온톨로지 트리플을 학습합니다 (LLMs4OL v0.3).")
@@ -284,3 +285,137 @@ def learn_populate(
         loaded = asyncio.run(_load())
 
     console.print(f"\n[green]✓[/] [bold]{loaded:,}[/]개 트리플을 ABox에 로드했습니다.")
+
+
+@learn_app.command("populate-structured")
+def learn_populate_structured(
+    file: Path = typer.Argument(
+        ..., help="구조화 파일 경로 (.csv / .json / .jsonl)."
+    ),
+    class_uri: Optional[str] = typer.Option(
+        None, "--class-uri", "-c", help="행에 매핑할 TBox 클래스 URI (예: pk:Pokemon)."
+    ),
+    id_column: Optional[str] = typer.Option(
+        None, "--id-column", "-i", help="주어 URI의 슬러그로 쓸 컬럼명 (없으면 uuid5 자동 발급)."
+    ),
+    batch_size: int = typer.Option(
+        50, "--batch-size", "-b", help="LLM 호출당 처리할 행 수."
+    ),
+    min_confidence: float = typer.Option(
+        0.7, "--min-confidence", help="컬럼 매핑 포함 최소 신뢰도 임계값."
+    ),
+    yes: bool = typer.Option(
+        False, "--yes", "-y", help="확인 없이 즉시 Fuseki에 로드합니다."
+    ),
+) -> None:
+    """구조화 파일(CSV/JSON/JSONL)에서 ABox 트리플을 생성하고 Fuseki에 로드합니다.
+
+    LLM이 컬럼 이름을 TBox 속성 URI에 매핑하고, 각 행을 RDF 트리플로 변환합니다.
+    컬럼 매핑 결과는 <파일명>.mapping.json 에 저장되어 재실행 시 LLM 호출 없이 재사용됩니다.
+
+    \\b
+    예시:
+        ontorag learn populate-structured pokemon.csv --class-uri pk:Pokemon --id-column name
+        ontorag learn populate-structured data.jsonl --batch-size 100 --yes
+        ontorag learn populate-structured nested.json --min-confidence 0.8
+    """
+    if not file.exists():
+        console.print(f"[red]Error:[/] 파일을 찾을 수 없습니다: {file}")
+        raise typer.Exit(1)
+
+    suffix = file.suffix.lower()
+    if suffix not in {".csv", ".json", ".jsonl"}:
+        console.print(
+            f"[red]Error:[/] 지원하지 않는 형식입니다: [bold]{suffix}[/]\n"
+            "[dim]지원 형식: .csv  .json  .jsonl[/]"
+        )
+        raise typer.Exit(1)
+
+    learner = _get_learner()
+
+    # --- 1단계: 파이프라인 실행 (자동 로드 없이) ---
+    mapping_path = file.parent / (file.name + ".mapping.json")
+    cache_label = (
+        f"[dim](캐시: {mapping_path.name})[/]" if mapping_path.exists() else "[dim](신규 매핑)[/]"
+    )
+    console.print(
+        f"\n[bold]{file.name}[/] 처리 중 — 배치 크기 {batch_size}행  {cache_label}"
+    )
+
+    async def _run() -> object:
+        try:
+            return await learner.populate_from_structured(
+                file,
+                class_uri=class_uri,
+                id_column=id_column,
+                batch_size=batch_size,
+                min_confidence=min_confidence,
+                auto_load=False,
+            )
+        finally:
+            await learner._store.aclose()
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]{task.description}"),
+        console=console,
+        transient=True,
+    ) as progress:
+        progress.add_task("컬럼 매핑 + 트리플 생성 중...", total=None)
+        result = asyncio.run(_run())
+
+    if not result.triples:
+        console.print(
+            "[yellow]생성된 트리플 없음[/] — 파일에 데이터가 있는지, "
+            "스키마가 로드되어 있는지 확인하세요."
+        )
+        raise typer.Exit(0)
+
+    # --- 2단계: 매핑 요약 표시 ---
+    if mapping_path.exists():
+        try:
+            from ontorag.learn.column_mapper import load_mapping
+
+            mf = load_mapping(mapping_path)
+            console.print("\n[bold]컬럼 → TBox 속성 매핑:[/]")
+            mt = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
+            mt.add_column("컬럼", style="cyan")
+            mt.add_column("속성 URI")
+            mt.add_column("신뢰도", justify="right")
+            for cm in sorted(mf.columns, key=lambda c: c.confidence, reverse=True):
+                pred = cm.predicate_uri or "[dim](매핑 없음)[/]"
+                mt.add_row(cm.column_name, escape(pred), f"{cm.confidence:.2f}")
+            console.print(mt)
+        except Exception:
+            pass
+
+    # --- 3단계: 트리플 미리보기 (최대 10건) ---
+    preview = result.triples[:10]
+    console.print(f"\n[bold]생성된 RDF 트리플 ({len(result.triples):,}건)[/]")
+    if len(result.triples) > 10:
+        console.print(f"[dim](상위 10건만 표시, 총 {len(result.triples):,}건)[/]")
+    _print_triples_table(preview)
+
+    # --- 4단계: Fuseki 로드 확인 ---
+    if not yes:
+        confirmed = typer.confirm(
+            f"\n{len(result.triples):,}건의 트리플을 Fuseki ABox에 로드하시겠습니까?"
+        )
+        if not confirmed:
+            console.print("[dim]취소했습니다.[/]")
+            raise typer.Exit(0)
+
+    async def _load() -> int:
+        try:
+            schema = await learner._store.get_schema()
+            return await learner._load_triples(result.triples, [], schema)
+        finally:
+            await learner._store.aclose()
+
+    with console.status("[bold]Fuseki에 로드 중..."):
+        loaded = asyncio.run(_load())
+
+    console.print(
+        f"\n[green]✓[/] [bold]{loaded:,}[/]개 트리플을 ABox에 로드했습니다. "
+        f"[dim]← {file.name}[/]"
+    )
