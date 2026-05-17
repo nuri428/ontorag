@@ -426,6 +426,7 @@ async function sendChat() {
     _pendingGraphData = { nodes: [], edges: [] };
 
     _appendUserBubble(message);
+    addThinking(t('playground.thinking')); // show immediately — don't wait for SSE
     document.getElementById('chat-messages').scrollTop = 9999;
 
     let aiBubble = null;
