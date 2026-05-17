@@ -315,7 +315,7 @@ ontorag learn populate-structured pokedex.jsonl --batch-size 100 --yes
 | `--min-confidence` | 0.7 | Minimum column-mapping confidence threshold |
 | `--yes` | false | Skip Fuseki load confirmation prompt |
 
-### Test suite — v0.3.1 (214 tests)
+### Test suite — v0.3.1 (264 tests)
 
 ![v0.3.1 test results](assets/learn_tests.png)
 

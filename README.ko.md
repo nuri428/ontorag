@@ -315,7 +315,7 @@ ontorag learn populate-structured pokedex.jsonl --batch-size 100 --yes
 | `--min-confidence` | 0.7 | 컬럼 매핑 최소 신뢰도 임계값 |
 | `--yes` | false | Fuseki 로드 확인 프롬프트 생략 |
 
-### 테스트 스위트 — v0.3.1 (214개 테스트)
+### 테스트 스위트 — v0.3.1 (264개 테스트)
 
 ![v0.3.1 테스트 결과](assets/learn_tests.png)
 
