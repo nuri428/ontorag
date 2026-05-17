@@ -5,9 +5,8 @@ import logging
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from ontorag.llm.base import _CompletionMessage  # noqa: F401 — re-exported for type hints
 from ontorag.llm.factory import LLMProvider
-from ontorag.stores.base import PatternQuery, PatternTriple
+from ontorag.stores.base import GraphStore, PatternQuery, PatternTriple
 
 logger = logging.getLogger(__name__)
 
@@ -239,8 +238,8 @@ class AgentLoop:
 
     def __init__(
         self,
-        store: Any,  # GraphStore Protocol — avoid circular import
-        llm: Any,    # LLMProvider Protocol
+        store: GraphStore,
+        llm: LLMProvider,
         schema_context: str | None = None,
     ) -> None:
         self._store = store

@@ -401,10 +401,7 @@ GROUP BY ?class
         Raises:
             ValueError: If class_uri contains characters that would enable SPARQL injection.
         """
-        # Fix 1: Injection guard — reject URIs containing angle brackets.
-        # uri_ref() from sparql module wraps bare URIs, but does not strip >.
-        # An attacker could pass "http://x.org/C> } INJECT {" to break out of
-        # the SPARQL template. We validate before wrapping.
+        # Reject angle brackets before SPARQL interpolation — breaks out of <URI> quoting.
         if ">" in class_uri or "<" in class_uri:
             raise ValueError(
                 f"class_uri contains illegal characters for SPARQL: {class_uri!r}"
