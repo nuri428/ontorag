@@ -162,12 +162,17 @@
         </div>
 
         <!-- Result graph — right panel (display:none until traversal data arrives) -->
-        <div id="result-graph-panel" class="w-72 shrink-0 bg-gray-900 rounded-xl border border-gray-800 flex-col"
+        <div id="result-graph-panel" class="w-96 shrink-0 bg-gray-900 rounded-xl border border-gray-800 flex-col"
              style="display:none; min-height:0;">
             <div class="px-4 py-2 border-b border-gray-800 flex items-center justify-between shrink-0">
                 <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">Query Result Graph</span>
-                <button onclick="closeResultGraph()"
-                    class="text-gray-600 hover:text-gray-400 text-xs transition-colors">✕</button>
+                <div class="flex items-center gap-2">
+                    <button onclick="fitResultGraph()"
+                        class="text-gray-600 hover:text-gray-300 text-xs transition-colors"
+                        title="Fit to view">⊡</button>
+                    <button onclick="closeResultGraph()"
+                        class="text-gray-600 hover:text-gray-400 text-xs transition-colors">✕</button>
+                </div>
             </div>
             <div id="cy-result" class="cy-container flex-1"></div>
         </div>
@@ -538,6 +543,10 @@ function handleSseEvent(event, onText, appendText) {
 }
 
 // ── Result Graph ───────────────────────────────────────────────────────────────
+function fitResultGraph() {
+    if (window._cyRes) window._cyRes.animate({ fit: { padding: 24 } }, { duration: 250 });
+}
+
 function renderResultGraph(data) {
     const panel = document.getElementById('result-graph-panel');
     panel.style.display = 'flex';
@@ -553,6 +562,7 @@ function renderResultGraph(data) {
                 label: n.label || n.uri.split('#').pop() || n.uri.split('/').pop() || n.uri,
                 uri: n.uri,
                 depth: n.depth || 0,
+                isRoot: (n.depth || 0) === 0,
             }
         }));
 
@@ -567,6 +577,12 @@ function renderResultGraph(data) {
         }))
         .filter(e => e.data.source && e.data.target && seenIds.has(e.data.source) && seenIds.has(e.data.target));
 
+    // breadthfirst for chains/trees, cose fallback for dense graphs
+    const isChain = cyEdges.length > 0 && cyEdges.length <= cyNodes.length;
+    const layout = isChain
+        ? { name: 'breadthfirst', directed: true, padding: 28, spacingFactor: 1.4, avoidOverlap: true }
+        : { name: 'cose', padding: 24, nodeRepulsion: 8192, idealEdgeLength: 100, animate: false };
+
     window._cyRes = cytoscape({
         container: document.getElementById('cy-result'),
         elements: [...cyNodes, ...cyEdges],
@@ -574,48 +590,86 @@ function renderResultGraph(data) {
             {
                 selector: 'node',
                 style: {
-                    'background-color': '#4338ca',
+                    'background-color': '#3730a3',
                     'label': 'data(label)',
                     'color': '#e2e8f0',
-                    'font-size': '10px',
+                    'font-size': '11px',
                     'font-family': 'monospace',
                     'text-valign': 'center',
                     'text-halign': 'center',
                     'width': 'label',
                     'height': 'label',
-                    'padding': '8px',
+                    'padding': '10px',
                     'shape': 'round-rectangle',
-                    'text-wrap': 'ellipsis',
-                    'text-max-width': '120px',
+                    'text-wrap': 'wrap',
+                    'text-max-width': '140px',
+                    'border-width': '1px',
+                    'border-color': '#4f46e5',
                 }
             },
             {
-                selector: 'node[depth = 0]',
+                selector: 'node[?isRoot]',
                 style: {
-                    'background-color': '#d97706',
-                    'border-color': '#fbbf24',
+                    'background-color': '#b45309',
+                    'border-color': '#f59e0b',
                     'border-width': '2px',
+                    'color': '#fff',
+                }
+            },
+            {
+                selector: 'node:selected',
+                style: {
+                    'border-color': '#818cf8',
+                    'border-width': '3px',
                 }
             },
             {
                 selector: 'edge',
                 style: {
-                    'line-color': '#f97316',
-                    'target-arrow-color': '#f97316',
+                    'line-color': '#6366f1',
+                    'target-arrow-color': '#6366f1',
                     'target-arrow-shape': 'triangle',
                     'curve-style': 'bezier',
-                    'width': 1.5,
+                    'width': 2,
                     'label': 'data(label)',
-                    'font-size': '8px',
-                    'color': '#fb923c',
+                    'font-size': '9px',
+                    'color': '#a5b4fc',
                     'text-rotation': 'autorotate',
                     'text-background-color': '#111827',
                     'text-background-opacity': 1,
-                    'text-background-padding': '2px',
+                    'text-background-padding': '3px',
+                    'text-border-color': '#374151',
+                    'text-border-width': '1px',
+                    'text-border-opacity': 1,
                 }
+            },
+            {
+                selector: '.dimmed',
+                style: { 'opacity': 0.2 }
+            },
+            {
+                selector: '.highlighted',
+                style: { 'border-width': '3px', 'border-color': '#f59e0b' }
             }
         ],
-        layout: { name: 'cose', padding: 20, nodeRepulsion: 4096, idealEdgeLength: 80 }
+        layout,
+        minZoom: 0.3,
+        maxZoom: 3,
+    });
+
+    // click to highlight neighbourhood
+    window._cyRes.on('tap', 'node', evt => {
+        const cy = window._cyRes;
+        const node = evt.target;
+        cy.elements().removeClass('highlighted dimmed');
+        const hood = node.closedNeighborhood();
+        hood.addClass('highlighted');
+        cy.elements().not('.highlighted').addClass('dimmed');
+    });
+    window._cyRes.on('tap', evt => {
+        if (evt.target === window._cyRes) {
+            window._cyRes.elements().removeClass('highlighted dimmed');
+        }
     });
 }
 
