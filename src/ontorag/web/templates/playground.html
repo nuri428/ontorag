@@ -596,94 +596,98 @@ function renderResultGraph(data) {
         ? { name: 'breadthfirst', directed: true, padding: 28, spacingFactor: 1.4, avoidOverlap: true }
         : { name: 'cose', padding: 24, nodeRepulsion: 8192, idealEdgeLength: 100, animate: false };
 
-    window._cyRes = cytoscape({
-        container: document.getElementById('cy-result'),
-        elements: [...cyNodes, ...cyEdges],
-        style: [
-            {
-                selector: 'node',
-                style: {
-                    'background-color': '#3730a3',
-                    'label': 'data(label)',
-                    'color': '#e2e8f0',
-                    'font-size': '11px',
-                    'font-family': 'monospace',
-                    'text-valign': 'center',
-                    'text-halign': 'center',
-                    'width': 'label',
-                    'height': 'label',
-                    'padding': '10px',
-                    'shape': 'round-rectangle',
-                    'text-wrap': 'wrap',
-                    'text-max-width': '140px',
-                    'border-width': '1px',
-                    'border-color': '#4f46e5',
+    // Double rAF: first frame triggers reflow after display:flex,
+    // second frame reads actual container dimensions so Cytoscape isn't 0×0.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        window._cyRes = cytoscape({
+            container: document.getElementById('cy-result'),
+            elements: [...cyNodes, ...cyEdges],
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'background-color': '#3730a3',
+                        'label': 'data(label)',
+                        'color': '#e2e8f0',
+                        'font-size': '11px',
+                        'font-family': 'monospace',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'width': 'label',
+                        'height': 'label',
+                        'padding': '10px',
+                        'shape': 'round-rectangle',
+                        'text-wrap': 'wrap',
+                        'text-max-width': '140px',
+                        'border-width': '1px',
+                        'border-color': '#4f46e5',
+                    }
+                },
+                {
+                    selector: 'node[?isRoot]',
+                    style: {
+                        'background-color': '#b45309',
+                        'border-color': '#f59e0b',
+                        'border-width': '2px',
+                        'color': '#fff',
+                    }
+                },
+                {
+                    selector: 'node:selected',
+                    style: {
+                        'border-color': '#818cf8',
+                        'border-width': '3px',
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'line-color': '#6366f1',
+                        'target-arrow-color': '#6366f1',
+                        'target-arrow-shape': 'triangle',
+                        'curve-style': 'bezier',
+                        'width': 2,
+                        'label': 'data(label)',
+                        'font-size': '9px',
+                        'color': '#a5b4fc',
+                        'text-rotation': 'autorotate',
+                        'text-background-color': '#111827',
+                        'text-background-opacity': 1,
+                        'text-background-padding': '3px',
+                        'text-border-color': '#374151',
+                        'text-border-width': '1px',
+                        'text-border-opacity': 1,
+                    }
+                },
+                {
+                    selector: '.dimmed',
+                    style: { 'opacity': 0.2 }
+                },
+                {
+                    selector: '.highlighted',
+                    style: { 'border-width': '3px', 'border-color': '#f59e0b' }
                 }
-            },
-            {
-                selector: 'node[?isRoot]',
-                style: {
-                    'background-color': '#b45309',
-                    'border-color': '#f59e0b',
-                    'border-width': '2px',
-                    'color': '#fff',
-                }
-            },
-            {
-                selector: 'node:selected',
-                style: {
-                    'border-color': '#818cf8',
-                    'border-width': '3px',
-                }
-            },
-            {
-                selector: 'edge',
-                style: {
-                    'line-color': '#6366f1',
-                    'target-arrow-color': '#6366f1',
-                    'target-arrow-shape': 'triangle',
-                    'curve-style': 'bezier',
-                    'width': 2,
-                    'label': 'data(label)',
-                    'font-size': '9px',
-                    'color': '#a5b4fc',
-                    'text-rotation': 'autorotate',
-                    'text-background-color': '#111827',
-                    'text-background-opacity': 1,
-                    'text-background-padding': '3px',
-                    'text-border-color': '#374151',
-                    'text-border-width': '1px',
-                    'text-border-opacity': 1,
-                }
-            },
-            {
-                selector: '.dimmed',
-                style: { 'opacity': 0.2 }
-            },
-            {
-                selector: '.highlighted',
-                style: { 'border-width': '3px', 'border-color': '#f59e0b' }
-            }
-        ],
-        layout,
-        minZoom: 0.3,
-        maxZoom: 3,
-    });
+            ],
+            layout,
+            minZoom: 0.3,
+            maxZoom: 3,
+        });
 
-    // click to highlight neighbourhood
-    window._cyRes.on('tap', 'node', evt => {
-        const cy = window._cyRes;
-        const node = evt.target;
-        cy.elements().removeClass('highlighted dimmed');
-        const hood = node.closedNeighborhood();
-        hood.addClass('highlighted');
-        cy.elements().not('.highlighted').addClass('dimmed');
-    });
-    window._cyRes.on('tap', evt => {
-        if (evt.target === window._cyRes) {
-            window._cyRes.elements().removeClass('highlighted dimmed');
-        }
-    });
+        // click to highlight neighbourhood
+        window._cyRes.on('tap', 'node', evt => {
+            const cy = window._cyRes;
+            const node = evt.target;
+            cy.elements().removeClass('highlighted dimmed');
+            const hood = node.closedNeighborhood();
+            hood.addClass('highlighted');
+            cy.elements().not('.highlighted').addClass('dimmed');
+        });
+        window._cyRes.on('tap', evt => {
+            if (evt.target === window._cyRes) {
+                window._cyRes.elements().removeClass('highlighted dimmed');
+            }
+        });
+    }));
 }
 
 // ── Restore last session on page load ─────────────────────────────────────────
