@@ -28,9 +28,10 @@ User query → LLM agent → ontology tools (get_schema / find_entities / traver
 |---|---|
 | **Ontology-first** | RDF/OWL schema (TBox) + instance data (ABox) as primary structure |
 | **Agentic MCP loop** | LLM calls 9 typed tools; tool calls visible in SSE stream |
+| **Web UI** | Built-in browser interface — Schema graph, Data browser, Playground chat at `/ui` |
 | **Multi-LLM** | Anthropic Claude · OpenAI · Ollama (local) |
 | **GraphStore Protocol** | Abstract interface — swap Fuseki → Neo4j without changing tool code |
-| **SSE streaming** | `thinking / tool_call / tool_result / text / done` events |
+| **SSE streaming** | `thinking / tool_call / tool_result / text / done / rate_limit` events |
 | **Progressive disclosure** | `get_schema` (compact) + `get_class_detail` (drill-down) |
 | **Injection-safe L2 DSL** | `query_pattern` translates JSON triple patterns to SPARQL internally |
 | **Schema caching** | Schema injected into system prompt at session start — no `get_schema` call per turn |
@@ -58,6 +59,30 @@ uv run ontorag chat
 Example session:
 
 ![Pokemon chat demo](assets/pokemon_chat_en.png)
+
+---
+
+## Web UI
+
+After starting the server, open **http://localhost:8000/ui** in your browser.
+
+### Schema tab (TBox)
+
+Browse the ontology class hierarchy as an interactive Cytoscape.js graph. Click a node to highlight its neighbourhood; double-click to reset. Upload TBox files (always replace) and run syntax / SHACL validation directly in the browser.
+
+![Schema tab](assets/TBox.png)
+
+### Data tab (ABox)
+
+Select a class from the dropdown to browse its instances. Click any row to open an entity detail panel showing all properties and a depth-2 neighbourhood graph. Upload ABox files with **append** or **replace** mode.
+
+![Data tab](assets/ABox.png)
+
+### Playground tab
+
+Chat with the LLM agent. Tool calls (`find_entities`, `traverse_graph`, …) are shown in real time as they execute. Query results that contain graph data render as an interactive result graph. Manage conversation sessions and configure the LLM provider without restarting the server.
+
+![Playground tab](assets/playground.png)
 
 ---
 
@@ -100,6 +125,7 @@ User  (CLI / browser)
 | `text` | `content: str` | LLM final answer chunk |
 | `done` | — | Turn complete |
 | `error` | `content: str` | Unrecoverable error |
+| `rate_limit` | `retry_after: int` | API rate limit hit — retrying in N seconds |
 
 ---
 
@@ -291,9 +317,9 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 ## Roadmap
 
-- **v0.1** (current) — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE streaming
-- **v0.2** — Neo4j + n10s adapter · `GRAPH_STORE` env var to switch backends
-- **v0.3** — Web UI · Vector similarity tool (`find_similar`) · Multi-ontology support
+- **v0.1** — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE streaming
+- **v0.2** (current) — Web UI (Schema/Data/Playground) · RDF upload from browser · Rate-limit UX · Forced tool-use when ontology has data
+- **v0.3** — Neo4j + n10s adapter · `GRAPH_STORE` env var · Vector similarity tool (`find_similar`) · Multi-ontology support
 
 ---
 

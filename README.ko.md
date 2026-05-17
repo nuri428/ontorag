@@ -28,9 +28,10 @@
 |---|---|
 | **온톨로지 중심** | RDF/OWL 스키마(TBox) + 인스턴스 데이터(ABox)를 1등 시민으로 처리 |
 | **Agentic MCP 루프** | LLM이 9개의 타입 툴을 호출; 툴 호출 내역이 SSE 스트림에서 실시간 노출 |
+| **Web UI** | 브라우저 내장 인터페이스 — 스키마 그래프, 데이터 탐색, Playground 채팅 (`/ui`) |
 | **멀티 LLM** | Anthropic Claude · OpenAI · Ollama(로컬) 지원 |
 | **GraphStore Protocol** | 추상 인터페이스 — 툴 코드 변경 없이 Fuseki → Neo4j 교체 가능 |
-| **SSE 스트리밍** | `thinking / tool_call / tool_result / text / done` 이벤트 |
+| **SSE 스트리밍** | `thinking / tool_call / tool_result / text / done / rate_limit` 이벤트 |
 | **점진적 공개** | `get_schema` (간략) + `get_class_detail` (드릴다운) |
 | **인젝션 안전 L2 DSL** | `query_pattern`은 JSON 트리플 패턴을 내부적으로 SPARQL로 변환 |
 | **스키마 캐싱** | 세션 시작 시 스키마를 system prompt에 주입 — 매 턴 `get_schema` 호출 불필요 |
@@ -58,6 +59,30 @@ uv run ontorag chat
 실행 예시:
 
 ![포켓몬 채팅 데모](assets/pokemon_chat.png)
+
+---
+
+## Web UI
+
+서버 실행 후 브라우저에서 **http://localhost:8000/ui** 를 열면 됩니다.
+
+### Schema 탭 (TBox)
+
+온톨로지 클래스 계층 구조를 Cytoscape.js 인터랙티브 그래프로 탐색합니다. 노드를 클릭하면 이웃 노드가 하이라이트되고, 더블클릭하면 초기화됩니다. TBox 파일 업로드(항상 교체 모드)와 구문/SHACL 검증을 브라우저에서 바로 실행할 수 있습니다.
+
+![Schema 탭](assets/TBox.png)
+
+### Data 탭 (ABox)
+
+클래스를 선택하면 해당 인스턴스 목록이 표시됩니다. 행을 클릭하면 엔티티의 모든 속성과 depth-2 이웃 그래프가 사이드 패널에 나타납니다. ABox 파일을 **추가** 또는 **교체** 모드로 업로드할 수 있습니다.
+
+![Data 탭](assets/ABox.png)
+
+### Playground 탭
+
+LLM 에이전트와 채팅합니다. `find_entities`, `traverse_graph` 등 툴 호출이 실행되는 즉시 화면에 표시됩니다. 그래프 데이터가 포함된 응답은 인터랙티브 결과 그래프로 시각화됩니다. 대화 세션 관리와 LLM 제공자 설정을 서버 재시작 없이 UI에서 변경할 수 있습니다.
+
+![Playground 탭](assets/playground.png)
 
 ---
 
@@ -100,6 +125,7 @@ uv run ontorag chat
 | `text` | `content: str` | LLM 최종 답변 청크 |
 | `done` | — | 턴 완료 |
 | `error` | `content: str` | 복구 불가 오류 |
+| `rate_limit` | `retry_after: int` | API 레이트 리밋 도달 — N초 후 재시도 |
 
 ---
 
@@ -291,9 +317,9 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 ## 로드맵
 
-- **v0.1** (현재) — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE 스트리밍
-- **v0.2** — Neo4j + n10s 어댑터 · `GRAPH_STORE` 환경 변수로 백엔드 전환
-- **v0.3** — Web UI · 벡터 유사도 툴 (`find_similar`) · 멀티 온톨로지 지원
+- **v0.1** — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE 스트리밍
+- **v0.2** (현재) — Web UI (Schema/Data/Playground) · 브라우저 RDF 업로드 · 레이트 리밋 UX · 온톨로지 데이터 존재 시 툴 호출 강제
+- **v0.3** — Neo4j + n10s 어댑터 · `GRAPH_STORE` 환경 변수 · 벡터 유사도 툴 (`find_similar`) · 멀티 온톨로지 지원
 
 ---
 
