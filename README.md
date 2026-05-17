@@ -111,8 +111,8 @@ User  (CLI / browser)
 └──────────────────┼─────────────────────┘
                    │ SPARQL (HTTP)
                    ▼
-        Apache Jena Fuseki   ← Phase 1
-        Neo4j + n10s         ← Phase 2
+        Apache Jena Fuseki   ← v0.1–v0.3.1
+        Neo4j + n10s         ← v0.5
 ```
 
 ### SSE event types
