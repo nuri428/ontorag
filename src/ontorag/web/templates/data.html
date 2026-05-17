@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Data{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-5">
+    <h1 class="text-indigo-400 font-bold text-lg">ABox 데이터</h1>
+    <span id="instance-count" class="text-gray-600 text-sm"></span>
+</div>
+
+<!-- Class selector bar -->
+<div class="bg-gray-900 rounded-xl border border-gray-800 px-5 py-3 mb-4 flex items-center gap-4">
+    <label class="text-xs text-gray-500 font-bold uppercase tracking-wider shrink-0">클래스</label>
+    <select id="class-selector"
+        class="bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-1.5
+               focus:outline-none focus:border-indigo-500 min-w-[240px]"
+        name="class_uri"
+        hx-get="/ui/data/instances"
+        hx-target="#instances-container"
+        hx-swap="innerHTML"
+        hx-trigger="change"
+        hx-include="[name='limit']">
+        <option value="">-- 클래스 선택 --</option>
+        {% for cls in classes %}
+        <option value="{{ cls.uri }}">
+            {{ cls.label or cls.uri.split('#')[-1] }}
+            {% if cls.instance_count > 0 %} ({{ cls.instance_count }}){% endif %}
+        </option>
+        {% endfor %}
+    </select>
+    <input type="hidden" name="limit" value="100">
+    <span id="instance-spinner" class="text-xs text-gray-600 hidden">로딩...</span>
+    <div class="ml-auto text-xs text-gray-700">
+        클래스 {{ classes | length }}개
+    </div>
+</div>
+
+<!-- Main content: grid + detail panel -->
+<div class="flex gap-4">
+
+    <!-- Instance grid -->
+    <div class="flex-1 bg-gray-900 rounded-xl border border-gray-800 overflow-hidden min-h-[400px]">
+        <div id="instances-container">
+            <p class="text-gray-700 text-sm p-8 text-center">
+                위에서 클래스를 선택하면 인스턴스가 표시됩니다.
+            </p>
+        </div>
+    </div>
+
+    <!-- Entity detail panel (hidden until row clicked) -->
+    <div id="entity-detail" class="w-80 shrink-0 hidden flex flex-col gap-4">
+
+        <!-- Properties -->
+        <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">Entity Detail</span>
+                <button onclick="closeEntityDetail()"
+                    class="text-gray-600 hover:text-gray-300 text-sm transition-colors">✕</button>
+            </div>
+            <div id="entity-detail-content" class="text-xs space-y-2"></div>
+        </div>
+
+        <!-- Entity mini-graph -->
+        <div class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            <div class="px-4 py-2 border-b border-gray-800">
+                <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">Graph (depth 2)</span>
+            </div>
+            <div id="cy-entity" class="cy-container" style="height: 320px;"></div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// HTMX spinner
+document.addEventListener('htmx:beforeRequest', () => {
+    document.getElementById('instance-spinner').classList.remove('hidden');
+});
+document.addEventListener('htmx:afterSettle', () => {
+    document.getElementById('instance-spinner').classList.add('hidden');
+    // Update row count after HTMX loads instances
+    const rows = document.querySelectorAll('#instances-container tbody tr');
+    const countEl = document.getElementById('instance-count');
+    if (countEl && rows.length) countEl.textContent = `${rows.length}개 표시`;
+});
+
+function closeEntityDetail() {
+    document.getElementById('entity-detail').classList.add('hidden');
+    if (window._cyEnt) { window._cyEnt.destroy(); window._cyEnt = null; }
+}
+
+async function showEntityDetail(uri, label) {
+    const panel = document.getElementById('entity-detail');
+    const content = document.getElementById('entity-detail-content');
+    panel.classList.remove('hidden');
+    content.innerHTML = '<p class="text-gray-600 text-xs">로딩...</p>';
+
+    try {
+        const resp = await fetch(`/ui/data/entity-graph?uri=${encodeURIComponent(uri)}`);
+        if (!resp.ok) throw new Error(await resp.text());
+        const data = await resp.json();
+
+        // Find the focused node data
+        const focusNode = data.nodes.find(n => n.uri === uri) || { uri, label };
+        const shortLabel = label || uri.split('#').pop() || uri.split('/').pop();
+
+        // Show properties info — all values go through escHtml() before innerHTML
+        const propLines = Object.entries(focusNode)
+            .filter(([k]) => !['uri', 'depth', 'label'].includes(k))
+            .map(([k, v]) => `<div class="flex gap-2 items-start">
+                <span class="text-gray-600 shrink-0 w-20 truncate">${escHtml(k)}:</span>
+                <span class="text-gray-300 break-all">${escHtml(String(v))}</span>
+            </div>`);
+
+        content.innerHTML = `
+            <div class="font-bold text-indigo-300 mb-1">${escHtml(shortLabel)}</div>
+            <div class="text-gray-600 text-xs break-all mb-3 pb-3 border-b border-gray-800">${escHtml(uri)}</div>
+            <div class="text-xs text-gray-500 mb-1">연결 노드: ${data.nodes.length}개 / 엣지: ${data.edges.length}개</div>
+            ${propLines.length ? propLines.join('') : '<p class="text-gray-700 text-xs">속성 없음</p>'}
+        `;
+
+        // Init entity graph
+        if (window._cyEnt) { window._cyEnt.destroy(); window._cyEnt = null; }
+
+        if (data.nodes.length > 0) {
+            const cyNodes = data.nodes.map(n => ({
+                data: {
+                    id: n.uri,
+                    label: n.label || n.uri.split('#').pop() || n.uri.split('/').pop() || n.uri,
+                    uri: n.uri,
+                    depth: n.depth || 0,
+                    isFocus: n.uri === uri,
+                }
+            }));
+            const cyEdges = data.edges.map((e, i) => ({
+                data: {
+                    id: `e_${i}`,
+                    source: e.from,
+                    target: e.to,
+                    label: e.predicate.split('#').pop() || e.predicate.split('/').pop() || '',
+                }
+            }));
+
+            window._cyEnt = cytoscape({
+                container: document.getElementById('cy-entity'),
+                elements: [...cyNodes, ...cyEdges],
+                style: [
+                    {
+                        selector: 'node',
+                        style: {
+                            'background-color': '#4338ca',
+                            'label': 'data(label)',
+                            'color': '#e2e8f0',
+                            'font-size': '9px',
+                            'font-family': 'monospace',
+                            'text-valign': 'center',
+                            'text-halign': 'center',
+                            'width': 'label',
+                            'height': 'label',
+                            'padding': '7px',
+                            'shape': 'round-rectangle',
+                            'text-wrap': 'ellipsis',
+                            'text-max-width': '100px',
+                        }
+                    },
+                    {
+                        selector: 'node[?isFocus]',
+                        style: {
+                            'background-color': '#d97706',
+                            'border-color': '#fbbf24',
+                            'border-width': '3px',
+                        }
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'line-color': '#3b82f6',
+                            'target-arrow-color': '#3b82f6',
+                            'target-arrow-shape': 'triangle',
+                            'curve-style': 'bezier',
+                            'width': 1.5,
+                            'label': 'data(label)',
+                            'font-size': '8px',
+                            'color': '#60a5fa',
+                            'text-rotation': 'autorotate',
+                            'text-background-color': '#111827',
+                            'text-background-opacity': 1,
+                            'text-background-padding': '2px',
+                        }
+                    }
+                ],
+                layout: { name: 'cose', padding: 20, nodeRepulsion: 4096, idealEdgeLength: 80 }
+            });
+        }
+    } catch (err) {
+        content.innerHTML = `<p class="text-red-400 text-xs">오류: ${err.message}</p>`;
+    }
+}
+
+// Make accessible from HTMX-loaded HTML
+window.showEntityDetail = showEntityDetail;
+window.closeEntityDetail = closeEntityDetail;
+</script>
+{% endblock %}

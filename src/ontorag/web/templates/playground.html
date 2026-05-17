@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+{% block title %}Playground{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-5">
+    <h1 class="text-indigo-400 font-bold text-lg">Playground</h1>
+    <span class="text-gray-600 text-xs">온톨로지 데이터를 자연어로 조회하세요</span>
+</div>
+
+<div class="flex gap-4" style="height: calc(100vh - 160px); min-height: 600px;">
+
+    <!-- Left: LLM Config -->
+    <div class="w-72 shrink-0 flex flex-col gap-4">
+        <div class="bg-gray-900 rounded-xl border border-gray-800 p-5 flex-1 flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">LLM 설정</span>
+                <span class="text-xs text-gray-700">.env</span>
+            </div>
+
+            <form hx-post="/ui/playground/config"
+                  hx-target="#config-result"
+                  hx-swap="innerHTML"
+                  class="space-y-4 flex-1">
+
+                <div>
+                    <label class="text-xs text-gray-500 block mb-1.5">Provider</label>
+                    <select name="LLM_PROVIDER"
+                        class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2
+                               focus:outline-none focus:border-indigo-500">
+                        {% for opt in ['anthropic', 'openai', 'ollama'] %}
+                        <option value="{{ opt }}" {% if config.get('LLM_PROVIDER', 'anthropic') == opt %}selected{% endif %}>
+                            {{ opt }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-xs text-gray-500 block mb-1.5">Anthropic API Key</label>
+                    <input type="password" name="ANTHROPIC_API_KEY"
+                        value="{{ config.get('ANTHROPIC_API_KEY', '') }}"
+                        class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2
+                               focus:outline-none focus:border-indigo-500 font-mono"
+                        placeholder="sk-ant-...">
+                </div>
+
+                <div>
+                    <label class="text-xs text-gray-500 block mb-1.5">OpenAI API Key</label>
+                    <input type="password" name="OPENAI_API_KEY"
+                        value="{{ config.get('OPENAI_API_KEY', '') }}"
+                        class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2
+                               focus:outline-none focus:border-indigo-500 font-mono"
+                        placeholder="sk-...">
+                </div>
+
+                <div>
+                    <label class="text-xs text-gray-500 block mb-1.5">Ollama URL</label>
+                    <input type="text" name="OLLAMA_BASE_URL"
+                        value="{{ config.get('OLLAMA_BASE_URL', '') }}"
+                        class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2
+                               focus:outline-none focus:border-indigo-500 font-mono"
+                        placeholder="http://localhost:11434">
+                </div>
+
+                <div>
+                    <label class="text-xs text-gray-500 block mb-1.5">Ollama Model</label>
+                    <input type="text" name="OLLAMA_MODEL"
+                        value="{{ config.get('OLLAMA_MODEL', '') }}"
+                        class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2
+                               focus:outline-none focus:border-indigo-500 font-mono"
+                        placeholder="llama3.2">
+                </div>
+
+                <button type="submit"
+                    class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium
+                           rounded-lg transition-colors">
+                    💾 .env 저장
+                </button>
+            </form>
+
+            <div id="config-result" class="mt-3 text-xs"></div>
+        </div>
+    </div>
+
+    <!-- Right: Chat + Result Graph -->
+    <div class="flex-1 flex flex-col gap-4 min-h-0">
+
+        <!-- Chat window -->
+        <div class="flex-1 bg-gray-900 rounded-xl border border-gray-800 flex flex-col min-h-0 overflow-hidden">
+
+            <!-- Chat header -->
+            <div class="px-5 py-3 border-b border-gray-800 flex items-center justify-between shrink-0">
+                <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">Chat</span>
+                <button onclick="clearChat()"
+                    class="text-gray-600 hover:text-gray-400 text-xs transition-colors">
+                    지우기
+                </button>
+            </div>
+
+            <!-- Messages -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-5 space-y-3">
+                <p class="text-gray-700 text-xs text-center py-8">
+                    온톨로지에 대해 자연어로 질문하세요.<br>
+                    <span class="text-gray-800">예: "모든 포켓몬 목록을 알려줘"</span>
+                </p>
+            </div>
+
+            <!-- Input area -->
+            <div class="border-t border-gray-800 p-4 shrink-0">
+                <div class="flex gap-3">
+                    <input type="text" id="chat-input"
+                        class="flex-1 bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-4 py-2.5
+                               focus:outline-none focus:border-indigo-500 font-mono"
+                        placeholder="예: 피카츄의 진화 체인을 알려줘"
+                        autocomplete="off"
+                        onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); sendChat(); }">
+                    <button id="send-btn" onclick="sendChat()"
+                        class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed
+                               text-white text-sm font-medium rounded-lg transition-colors">
+                        전송 ▶
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result graph (shown when traversal data arrives) -->
+        <div id="result-graph-panel" class="bg-gray-900 rounded-xl border border-gray-800 hidden shrink-0"
+             style="height: 260px;">
+            <div class="px-4 py-2 border-b border-gray-800 flex items-center justify-between">
+                <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">Query Result Graph</span>
+                <button onclick="document.getElementById('result-graph-panel').classList.add('hidden')"
+                    class="text-gray-600 hover:text-gray-400 text-xs transition-colors">✕</button>
+            </div>
+            <div id="cy-result" class="cy-container" style="height: 216px;"></div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _streaming = false;
+let _pendingGraphData = null;
+
+function clearChat() {
+    document.getElementById('chat-messages').innerHTML = `
+        <p class="text-gray-700 text-xs text-center py-8">
+            온톨로지에 대해 자연어로 질문하세요.
+        </p>`;
+    document.getElementById('result-graph-panel').classList.add('hidden');
+    _pendingGraphData = null;
+}
+
+// ── Message rendering ──────────────────────────────────────────────────────────
+function addUserMsg(text) {
+    const msgs = document.getElementById('chat-messages');
+    clearPlaceholder(msgs);
+    const d = document.createElement('div');
+    d.className = 'flex justify-end';
+    d.innerHTML = `<div class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl max-w-[80%] text-sm">${escHtml(text)}</div>`;
+    msgs.appendChild(d);
+    msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addToolEvent(type, event) {
+    const msgs = document.getElementById('chat-messages');
+    const d = document.createElement('div');
+    d.className = 'flex items-start gap-2';
+    const icon = type === 'tool_call' ? '⚙️' : '📦';
+    let label;
+    if (type === 'tool_call') {
+        label = `<span class="text-orange-400">tool:</span> ${escHtml(event.tool || '')}`;
+        if (event.input) label += ` <span class="text-gray-600">${escHtml(JSON.stringify(event.input).slice(0, 80))}</span>`;
+    } else {
+        const preview = JSON.stringify(event.content || event).slice(0, 100);
+        label = `<span class="text-blue-400">result:</span> <span class="text-gray-600">${escHtml(preview)}…</span>`;
+    }
+    d.innerHTML = `<span class="text-gray-700 shrink-0 mt-0.5">${icon}</span>
+                   <span class="text-xs font-mono break-all text-gray-500">${label}</span>`;
+    msgs.appendChild(d);
+    msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addThinking(text) {
+    const msgs = document.getElementById('chat-messages');
+    const d = document.createElement('div');
+    d.id = 'thinking-indicator';
+    d.className = 'flex items-center gap-2 text-xs text-gray-600 font-mono italic';
+    d.innerHTML = `<span class="animate-pulse">🤔</span> ${escHtml(text || '생각 중...')}`;
+    msgs.appendChild(d);
+    msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeThinking() {
+    const el = document.getElementById('thinking-indicator');
+    if (el) el.remove();
+}
+
+function clearPlaceholder(container) {
+    const placeholder = container.querySelector('p.text-center');
+    if (placeholder) placeholder.remove();
+}
+
+// ── Chat SSE stream ────────────────────────────────────────────────────────────
+async function sendChat() {
+    if (_streaming) return;
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+
+    input.value = '';
+    input.disabled = true;
+    document.getElementById('send-btn').disabled = true;
+    _streaming = true;
+    _pendingGraphData = { nodes: [], edges: [] };
+
+    addUserMsg(message);
+
+    let aiBubble = null;
+    let aiText = '';
+
+    try {
+        const resp = await fetch('/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message }),
+        });
+
+        if (!resp.ok) {
+            const err = await resp.text();
+            throw new Error(err);
+        }
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buf += decoder.decode(value, { stream: true });
+            const lines = buf.split('\n');
+            buf = lines.pop() ?? '';
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                let event;
+                try { event = JSON.parse(line.slice(6)); } catch { continue; }
+                handleSseEvent(event, () => {
+                    // Lazy AI bubble creation on first text chunk
+                    if (!aiBubble) {
+                        const msgs = document.getElementById('chat-messages');
+                        const d = document.createElement('div');
+                        d.className = 'flex justify-start';
+                        aiBubble = document.createElement('div');
+                        aiBubble.className = 'bg-gray-800 text-gray-100 px-4 py-3 rounded-xl max-w-[88%] text-sm whitespace-pre-wrap leading-relaxed';
+                        d.appendChild(aiBubble);
+                        msgs.appendChild(d);
+                    }
+                    aiBubble.textContent = aiText;
+                    document.getElementById('chat-messages').scrollTop = 9999;
+                }, (chunk) => { aiText += chunk; });
+            }
+        }
+
+    } catch (err) {
+        const msgs = document.getElementById('chat-messages');
+        const d = document.createElement('div');
+        d.className = 'flex justify-center';
+        d.innerHTML = `<span class="text-red-400 text-xs bg-red-950 border border-red-800 px-3 py-1.5 rounded-lg">연결 오류: ${escHtml(err.message)}</span>`;
+        msgs.appendChild(d);
+    } finally {
+        _streaming = false;
+        input.disabled = false;
+        document.getElementById('send-btn').disabled = false;
+        input.focus();
+    }
+}
+
+function handleSseEvent(event, onText, appendText) {
+    const msgs = document.getElementById('chat-messages');
+
+    if (event.type === 'thinking') {
+        removeThinking();
+        addThinking(event.content);
+    } else if (event.type === 'tool_call') {
+        removeThinking();
+        addToolEvent('tool_call', event);
+    } else if (event.type === 'tool_result') {
+        addToolEvent('tool_result', event);
+        // Collect traversal graph data
+        const c = event.content;
+        if (c && Array.isArray(c.nodes) && c.nodes.length > 0) {
+            _pendingGraphData.nodes.push(...c.nodes);
+            if (Array.isArray(c.edges)) _pendingGraphData.edges.push(...c.edges);
+        }
+    } else if (event.type === 'text') {
+        removeThinking();
+        appendText(event.content || '');
+        onText();
+    } else if (event.type === 'done') {
+        removeThinking();
+        if (_pendingGraphData && _pendingGraphData.nodes.length > 0) {
+            renderResultGraph(_pendingGraphData);
+        }
+    } else if (event.type === 'error') {
+        removeThinking();
+        const d = document.createElement('div');
+        d.className = 'flex justify-center';
+        d.innerHTML = `<span class="text-red-400 text-xs">오류: ${escHtml(event.content)}</span>`;
+        msgs.appendChild(d);
+    }
+
+    msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ── Result Graph ───────────────────────────────────────────────────────────────
+function renderResultGraph(data) {
+    const panel = document.getElementById('result-graph-panel');
+    panel.classList.remove('hidden');
+
+    if (window._cyRes) { window._cyRes.destroy(); window._cyRes = null; }
+
+    // Deduplicate nodes
+    const seenIds = new Set();
+    const cyNodes = data.nodes
+        .filter(n => { const id = n.uri; if (seenIds.has(id)) return false; seenIds.add(id); return true; })
+        .map(n => ({
+            data: {
+                id: n.uri,
+                label: n.label || n.uri.split('#').pop() || n.uri.split('/').pop() || n.uri,
+                uri: n.uri,
+                depth: n.depth || 0,
+            }
+        }));
+
+    const cyEdges = (data.edges || [])
+        .map((e, i) => ({
+            data: {
+                id: `re_${i}`,
+                source: e.from,
+                target: e.to,
+                label: (e.predicate || '').split('#').pop() || (e.predicate || '').split('/').pop() || '',
+            }
+        }))
+        .filter(e => e.data.source && e.data.target && seenIds.has(e.data.source) && seenIds.has(e.data.target));
+
+    window._cyRes = cytoscape({
+        container: document.getElementById('cy-result'),
+        elements: [...cyNodes, ...cyEdges],
+        style: [
+            {
+                selector: 'node',
+                style: {
+                    'background-color': '#4338ca',
+                    'label': 'data(label)',
+                    'color': '#e2e8f0',
+                    'font-size': '10px',
+                    'font-family': 'monospace',
+                    'text-valign': 'center',
+                    'text-halign': 'center',
+                    'width': 'label',
+                    'height': 'label',
+                    'padding': '8px',
+                    'shape': 'round-rectangle',
+                    'text-wrap': 'ellipsis',
+                    'text-max-width': '120px',
+                }
+            },
+            {
+                selector: 'node[depth = 0]',
+                style: {
+                    'background-color': '#d97706',
+                    'border-color': '#fbbf24',
+                    'border-width': '2px',
+                }
+            },
+            {
+                selector: 'edge',
+                style: {
+                    'line-color': '#f97316',
+                    'target-arrow-color': '#f97316',
+                    'target-arrow-shape': 'triangle',
+                    'curve-style': 'bezier',
+                    'width': 1.5,
+                    'label': 'data(label)',
+                    'font-size': '8px',
+                    'color': '#fb923c',
+                    'text-rotation': 'autorotate',
+                    'text-background-color': '#111827',
+                    'text-background-opacity': 1,
+                    'text-background-padding': '2px',
+                }
+            }
+        ],
+        layout: { name: 'cose', padding: 20, nodeRepulsion: 4096, idealEdgeLength: 80 }
+    });
+}
+</script>
+{% endblock %}

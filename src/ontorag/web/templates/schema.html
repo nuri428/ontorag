@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% block title %}Schema{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-5">
+    <h1 class="text-indigo-400 font-bold text-lg">TBox 스키마</h1>
+    <span id="schema-summary" class="text-gray-600 text-sm"></span>
+</div>
+
+<!-- Top: class list + graph -->
+<div class="flex gap-4 mb-5" style="height: 540px;">
+
+    <!-- Class list sidebar -->
+    <div class="w-64 shrink-0 bg-gray-900 rounded-xl border border-gray-800 flex flex-col overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+            <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">Classes</span>
+            <button onclick="resetGraphHighlight()"
+                class="text-xs text-gray-600 hover:text-gray-400 transition-colors">reset</button>
+        </div>
+        <div id="class-list" class="flex-1 overflow-y-auto p-2 space-y-0.5 text-sm">
+            <p class="text-gray-700 text-xs px-2 py-4 text-center">그래프 로드 중...</p>
+        </div>
+    </div>
+
+    <!-- Cytoscape graph -->
+    <div class="flex-1 bg-gray-900 rounded-xl border border-gray-800 flex flex-col overflow-hidden">
+        <div class="px-4 py-2 border-b border-gray-800 flex items-center justify-between shrink-0">
+            <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">Class Hierarchy</span>
+            <div class="flex items-center gap-4 text-xs text-gray-600">
+                <span class="flex items-center gap-1.5">
+                    <span class="inline-block w-6 h-0.5 bg-blue-400"></span> subClassOf
+                </span>
+                <span class="flex items-center gap-1.5">
+                    <span class="inline-block w-6 h-0.5 bg-orange-400" style="border-top: 2px dashed #f97316; height:0;"></span> ObjectProperty
+                </span>
+                <span class="text-gray-700">더블클릭으로 초기화</span>
+            </div>
+        </div>
+        <div id="cy-schema" class="cy-container flex-1"></div>
+        <div id="schema-error" class="hidden text-red-400 text-sm p-4"></div>
+    </div>
+</div>
+
+<!-- Bottom: Validation -->
+<div class="bg-gray-900 rounded-xl border border-gray-800 p-5">
+    <div class="flex items-center gap-3 mb-4">
+        <h2 class="text-gray-200 font-bold text-sm">검증</h2>
+        <div class="flex rounded-lg overflow-hidden border border-gray-700">
+            <button id="btn-syntax" onclick="setCheckType('syntax')"
+                class="px-4 py-1.5 text-xs font-medium transition-colors bg-indigo-600 text-white">
+                문법 체크
+            </button>
+            <button id="btn-shacl" onclick="setCheckType('shacl')"
+                class="px-4 py-1.5 text-xs font-medium transition-colors text-gray-400 hover:text-white hover:bg-gray-700">
+                SHACL 검증
+            </button>
+        </div>
+        <span id="check-spinner" class="text-xs text-gray-600 hidden">처리 중...</span>
+    </div>
+
+    <form hx-post="/ui/schema/check"
+          hx-target="#validate-result"
+          hx-swap="innerHTML"
+          class="space-y-3">
+        <input type="hidden" name="check_type" id="check-type-input" value="syntax">
+
+        <div class="flex gap-4">
+            <div class="flex-1">
+                <label class="text-xs text-gray-500 block mb-1.5">데이터 그래프 (TTL)</label>
+                <textarea name="ttl_content" rows="8"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg text-xs font-mono text-gray-200 p-3
+                           focus:outline-none focus:border-indigo-500 resize-y"
+                    placeholder="@prefix ex: &lt;http://example.org/&gt; .&#10;ex:Pikachu a ex:Pokemon .&#10;ex:Pikachu rdfs:label &quot;피카츄&quot; ."></textarea>
+            </div>
+            <div id="shacl-shapes-panel" class="flex-1 hidden">
+                <label class="text-xs text-gray-500 block mb-1.5">SHACL Shapes (TTL, 선택)</label>
+                <textarea name="shapes_content" rows="8"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg text-xs font-mono text-gray-200 p-3
+                           focus:outline-none focus:border-indigo-500 resize-y"
+                    placeholder="@prefix sh: &lt;http://www.w3.org/ns/shacl#&gt; .&#10;@prefix ex: &lt;http://example.org/&gt; .&#10;&#10;ex:PokemonShape a sh:NodeShape ;&#10;    sh:targetClass ex:Pokemon ;&#10;    sh:property [ sh:path rdfs:label ; sh:minCount 1 ] ."></textarea>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button type="submit"
+                class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors">
+                실행
+            </button>
+        </div>
+    </form>
+
+    <div id="validate-result" class="mt-4"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Check type toggle ──────────────────────────────────────────────────────────
+function setCheckType(type) {
+    document.getElementById('check-type-input').value = type;
+    const shaclPanel = document.getElementById('shacl-shapes-panel');
+    shaclPanel.classList.toggle('hidden', type !== 'shacl');
+
+    const btnSyntax = document.getElementById('btn-syntax');
+    const btnSHACL = document.getElementById('btn-shacl');
+    const activeClass = 'bg-indigo-600 text-white';
+    const inactiveClass = 'text-gray-400 hover:text-white hover:bg-gray-700';
+
+    if (type === 'syntax') {
+        btnSyntax.className = `px-4 py-1.5 text-xs font-medium transition-colors ${activeClass}`;
+        btnSHACL.className = `px-4 py-1.5 text-xs font-medium transition-colors ${inactiveClass}`;
+    } else {
+        btnSHACL.className = `px-4 py-1.5 text-xs font-medium transition-colors ${activeClass}`;
+        btnSyntax.className = `px-4 py-1.5 text-xs font-medium transition-colors ${inactiveClass}`;
+    }
+}
+
+// HTMX spinner
+document.addEventListener('htmx:beforeRequest', () => {
+    document.getElementById('check-spinner').classList.remove('hidden');
+});
+document.addEventListener('htmx:afterSettle', () => {
+    document.getElementById('check-spinner').classList.add('hidden');
+});
+
+// ── Cytoscape Schema Graph ─────────────────────────────────────────────────────
+function resetGraphHighlight() {
+    if (window._cySch) {
+        window._cySch.elements().removeClass('highlighted dimmed');
+        window._cySch.animate({ fit: { padding: 30 } }, { duration: 300 });
+    }
+}
+
+async function initSchemaGraph() {
+    let data;
+    try {
+        const resp = await fetch('/ui/schema/graph-data');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+        data = await resp.json();
+    } catch (err) {
+        const errEl = document.getElementById('schema-error');
+        if (errEl) {
+            errEl.textContent = `그래프 로드 실패: ${err.message}`;
+            errEl.classList.remove('hidden');
+        }
+        return;
+    }
+
+    // Update summary badge
+    const summaryEl = document.getElementById('schema-summary');
+    if (summaryEl) summaryEl.textContent = `${data.nodes.length}개 클래스`;
+
+    // Build class list sidebar
+    const listEl = document.getElementById('class-list');
+    if (listEl) {
+        listEl.innerHTML = '';
+        data.nodes.forEach(n => {
+            const d = n.data;
+            const div = document.createElement('div');
+            div.className = 'flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer hover:bg-gray-800 transition-colors group';
+            div.innerHTML = `
+                <span class="text-gray-300 text-xs truncate">${d.label}</span>
+                <span class="text-gray-600 text-xs ml-1 shrink-0 group-hover:text-gray-400">
+                    ${d.instance_count > 0 ? d.instance_count : ''}
+                </span>
+            `;
+            div.addEventListener('click', () => highlightClass(d.id));
+            listEl.appendChild(div);
+        });
+    }
+
+    // Init Cytoscape
+    const container = document.getElementById('cy-schema');
+    if (!container) return;
+
+    const cy = cytoscape({
+        container,
+        elements: [...data.nodes, ...data.edges],
+        style: [
+            {
+                selector: 'node',
+                style: {
+                    'background-color': '#4338ca',
+                    'label': 'data(label)',
+                    'color': '#e2e8f0',
+                    'font-size': '11px',
+                    'font-family': 'monospace',
+                    'text-valign': 'center',
+                    'text-halign': 'center',
+                    'width': 'label',
+                    'height': 'label',
+                    'padding': '10px',
+                    'shape': 'round-rectangle',
+                    'text-wrap': 'ellipsis',
+                    'text-max-width': '140px',
+                    'border-width': '1px',
+                    'border-color': '#4f46e5',
+                }
+            },
+            {
+                selector: 'node[?instance_count]',
+                style: {
+                    'background-color': '#3730a3',
+                    'border-width': '2px',
+                    'border-color': '#818cf8',
+                }
+            },
+            {
+                selector: 'edge[edge_type = "hierarchy"]',
+                style: {
+                    'line-color': '#3b82f6',
+                    'target-arrow-color': '#3b82f6',
+                    'target-arrow-shape': 'triangle',
+                    'curve-style': 'bezier',
+                    'width': 1.5,
+                    'label': 'data(label)',
+                    'font-size': '9px',
+                    'color': '#60a5fa',
+                    'text-rotation': 'autorotate',
+                    'text-background-color': '#111827',
+                    'text-background-opacity': 1,
+                    'text-background-padding': '2px',
+                }
+            },
+            {
+                selector: 'edge[edge_type = "property"]',
+                style: {
+                    'line-color': '#f97316',
+                    'target-arrow-color': '#f97316',
+                    'target-arrow-shape': 'triangle',
+                    'curve-style': 'bezier',
+                    'width': 1.5,
+                    'label': 'data(label)',
+                    'font-size': '9px',
+                    'color': '#fb923c',
+                    'text-rotation': 'autorotate',
+                    'line-style': 'dashed',
+                    'text-background-color': '#111827',
+                    'text-background-opacity': 1,
+                    'text-background-padding': '2px',
+                }
+            },
+            {
+                selector: '.highlighted',
+                style: {
+                    'background-color': '#d97706',
+                    'border-color': '#fbbf24',
+                    'border-width': '3px',
+                    'color': '#fff',
+                }
+            },
+            {
+                selector: '.dimmed',
+                style: { 'opacity': 0.2 }
+            }
+        ],
+        layout: {
+            name: 'breadthfirst',
+            directed: true,
+            padding: 30,
+            spacingFactor: 1.6,
+            avoidOverlap: true,
+        }
+    });
+
+    window._cySch = cy;
+
+    cy.on('dblclick', () => resetGraphHighlight());
+    cy.on('tap', 'node', evt => highlightClass(evt.target.id()));
+}
+
+function highlightClass(id) {
+    const cy = window._cySch;
+    if (!cy) return;
+    cy.elements().removeClass('highlighted dimmed');
+    const node = cy.getElementById(id);
+    if (!node.length) return;
+    const neighborhood = node.closedNeighborhood();
+    neighborhood.addClass('highlighted');
+    cy.elements().not('.highlighted').addClass('dimmed');
+    cy.animate({ fit: { eles: neighborhood, padding: 50 } }, { duration: 300 });
+}
+
+initSchemaGraph();
+</script>
+{% endblock %}

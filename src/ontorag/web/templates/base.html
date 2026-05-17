@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ontorag — {% block title %}{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'] }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+    <script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+    <style>
+        body { background-color: #030712; }
+        .cy-container { background-color: #111827; }
+        /* HTMX loading indicator */
+        .htmx-indicator { opacity: 0; transition: opacity 150ms; }
+        .htmx-request .htmx-indicator,
+        .htmx-request.htmx-indicator { opacity: 1; }
+    </style>
+</head>
+<body class="text-gray-100 min-h-screen font-mono">
+
+    <!-- Navigation -->
+    <nav class="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center gap-3 sticky top-0 z-50 shadow-xl">
+        <a href="/ui/schema" class="text-indigo-400 font-bold text-base tracking-tight hover:text-indigo-300 transition-colors">
+            ⬡ ontorag
+        </a>
+        <div class="w-px h-5 bg-gray-700 mx-1"></div>
+        <div class="flex gap-1">
+            {% set tabs = [('schema', '📐 Schema'), ('data', '📊 Data'), ('playground', '🛝 Playground')] %}
+            {% for tab_id, tab_label in tabs %}
+            <a href="/ui/{{ tab_id }}"
+               class="px-4 py-1.5 rounded text-sm font-medium transition-colors
+                      {{ 'bg-indigo-600 text-white shadow' if active_tab == tab_id
+                         else 'text-gray-400 hover:text-white hover:bg-gray-700' }}">
+                {{ tab_label }}
+            </a>
+            {% endfor %}
+        </div>
+        <div class="ml-auto flex items-center gap-3">
+            <span class="htmx-indicator text-xs text-gray-500">로딩...</span>
+            <span class="text-xs text-gray-700 font-mono">v0.1.0</span>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="p-6 max-w-[1800px] mx-auto">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Shared JS utilities available to all pages -->
+    <script>
+    function escHtml(str) {
+        return String(str ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

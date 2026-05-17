@@ -1,0 +1,55 @@
+{% if entities %}
+<div class="overflow-x-auto">
+    <table class="w-full text-xs">
+        <thead>
+            <tr class="bg-gray-800 text-gray-400 text-left sticky top-0">
+                <th class="px-4 py-2.5 font-medium">Label</th>
+                <th class="px-4 py-2.5 font-medium">URI</th>
+                <th class="px-4 py-2.5 font-medium">Properties (preview)</th>
+                <th class="px-4 py-2.5 w-16"></th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+            {% for entity in entities %}
+            <tr class="hover:bg-gray-800/60 transition-colors group">
+                <td class="px-4 py-2.5 text-gray-200 font-medium">
+                    {{ entity.label or entity.uri.split('#')[-1].split('/')[-1] }}
+                    {% if entity.inferred %}
+                    <span class="ml-1 text-xs text-indigo-500 font-normal">(inferred)</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-2.5 text-gray-600 font-mono max-w-[220px]">
+                    <span class="truncate block" title="{{ entity.uri }}">{{ entity.uri }}</span>
+                </td>
+                <td class="px-4 py-2.5 text-gray-500 max-w-[340px]">
+                    <span class="truncate block">
+                        {% for k, v in entity.properties.items() %}
+                        {% if not loop.first %}<span class="text-gray-700">, </span>{% endif %}
+                        <span class="text-gray-500">{{ k.split('#')[-1] }}</span>=<span class="text-gray-400">{{ v }}</span>
+                        {% endfor %}
+                    </span>
+                </td>
+                <td class="px-4 py-2.5 text-right">
+                    <button
+                        data-uri="{{ entity.uri }}"
+                        data-label="{{ entity.label or '' }}"
+                        onclick="window.showEntityDetail && showEntityDetail(this.dataset.uri, this.dataset.label)"
+                        class="text-indigo-500 hover:text-indigo-300 transition-colors opacity-0 group-hover:opacity-100 text-xs">
+                        탐색→
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="px-4 py-3 border-t border-gray-800 text-xs text-gray-700 flex items-center justify-between">
+    <span>{{ entities | length }}개 인스턴스</span>
+    <span class="text-gray-800">{{ class_uri }}</span>
+</div>
+{% else %}
+<div class="p-10 text-center">
+    <p class="text-gray-700 text-sm">해당 클래스에 인스턴스가 없습니다.</p>
+    <p class="text-gray-800 text-xs mt-2">ABox 데이터가 로드되어 있는지 확인하세요: <code>ontorag load data ./data.ttl</code></p>
+</div>
+{% endif %}

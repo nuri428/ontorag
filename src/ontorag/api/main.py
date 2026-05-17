@@ -16,6 +16,7 @@ from ontorag.api.routes.tools import (
     schema,
     traversal,
 )
+from ontorag.web.router import router as web_router
 
 load_dotenv()
 
@@ -55,6 +56,9 @@ app.include_router(pattern.router)
 
 # Debug route — Layer 3 (NOT exposed via MCP)
 app.include_router(_sparql.router)
+
+# Web UI — served at /ui/*
+app.include_router(web_router)
 
 # MCP server — mount after all routes are registered
 # query_sparql_raw is excluded: internal/debug use only, never LLM-callable
