@@ -119,9 +119,7 @@ class TestReadJSON:
 class TestReadJSONL:
     def test_basic_jsonl(self, tmp_path):
         f = tmp_path / "data.jsonl"
-        f.write_text(
-            '{"name": "Pikachu"}\n{"name": "Mewtwo"}\n'
-        )
+        f.write_text('{"name": "Pikachu"}\n{"name": "Mewtwo"}\n')
         rows = read_structured(f)
         assert len(rows) == 2
 

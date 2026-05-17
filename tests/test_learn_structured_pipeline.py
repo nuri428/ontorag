@@ -23,7 +23,6 @@ def make_tool_response(text: str):
     return type("_R", (), {"content": [type("_T", (), {"text": text})()]})()
 
 
-
 def make_schema() -> SchemaResult:
     classes = [ClassSummary(uri="pk:Pokemon", label="Pokemon", instance_count=2)]
     properties = [
@@ -40,7 +39,9 @@ def make_schema() -> SchemaResult:
     )
 
 
-def make_learner(schema: SchemaResult | None = None) -> tuple[LLMOntologyLearner, MockGraphStore, AsyncMock]:
+def make_learner(
+    schema: SchemaResult | None = None,
+) -> tuple[LLMOntologyLearner, MockGraphStore, AsyncMock]:
     _schema = schema or make_schema()
     store = MockGraphStore(_schema)
     store.get_schema = AsyncMock(return_value=_schema)
@@ -73,15 +74,29 @@ class TestPopulateFromStructuredCSV:
             return_value=make_tool_response(
                 mapping_llm_response(
                     [
-                        {"column": "type", "predicate_uri": "pk:hasType", "confidence": 0.9},
-                        {"column": "hp", "predicate_uri": "pk:hasHP", "confidence": 0.85},
-                        {"column": "name", "predicate_uri": "rdfs:label", "confidence": 0.95},
+                        {
+                            "column": "type",
+                            "predicate_uri": "pk:hasType",
+                            "confidence": 0.9,
+                        },
+                        {
+                            "column": "hp",
+                            "predicate_uri": "pk:hasHP",
+                            "confidence": 0.85,
+                        },
+                        {
+                            "column": "name",
+                            "predicate_uri": "rdfs:label",
+                            "confidence": 0.95,
+                        },
                     ]
                 )
             )
         )
 
-        result = await learner.populate_from_structured(csv, class_uri="pk:Pokemon", id_column="name")
+        result = await learner.populate_from_structured(
+            csv, class_uri="pk:Pokemon", id_column="name"
+        )
         assert isinstance(result, PopulationResult)
         assert len(result.triples) > 0
 
@@ -99,7 +114,10 @@ class TestPopulateFromStructuredCSV:
         )
 
         result = await learner.populate_from_structured(csv, id_column="name")
-        assert any("Pikachu" in t.subject_uri or "Pikachu" in t.subject_label for t in result.triples)
+        assert any(
+            "Pikachu" in t.subject_uri or "Pikachu" in t.subject_label
+            for t in result.triples
+        )
 
     @pytest.mark.asyncio
     async def test_uuid5_used_when_no_id_column(self, tmp_path):
@@ -125,7 +143,9 @@ class TestPopulateFromStructuredCSV:
         learner, store, llm = make_learner()
 
         response = make_tool_response(
-            mapping_llm_response([{"column": "hp", "predicate_uri": "pk:hasHP", "confidence": 0.9}])
+            mapping_llm_response(
+                [{"column": "hp", "predicate_uri": "pk:hasHP", "confidence": 0.9}]
+            )
         )
         llm.complete = AsyncMock(return_value=response)
 
@@ -144,8 +164,16 @@ class TestPopulateFromStructuredCSV:
             return_value=make_tool_response(
                 mapping_llm_response(
                     [
-                        {"column": "name", "predicate_uri": "rdfs:label", "confidence": 0.95},
-                        {"column": "secret", "predicate_uri": "pk:hasType", "confidence": 0.3},
+                        {
+                            "column": "name",
+                            "predicate_uri": "rdfs:label",
+                            "confidence": 0.95,
+                        },
+                        {
+                            "column": "secret",
+                            "predicate_uri": "pk:hasType",
+                            "confidence": 0.3,
+                        },
                     ]
                 )
             )
@@ -204,13 +232,20 @@ class TestMappingFilePersistence:
             schema_hash=compute_schema_hash(schema),
             class_uri=None,
             id_column=None,
-            columns=[ColumnMapping(column_name="hp", predicate_uri="pk:hasHP", confidence=0.9)],
+            columns=[
+                ColumnMapping(
+                    column_name="hp", predicate_uri="pk:hasHP", confidence=0.9
+                )
+            ],
             last_row=0,
         )
         from ontorag.learn.column_mapper import save_mapping
+
         save_mapping(mf, tmp_path / "data.csv.mapping.json")
 
-        llm.complete = AsyncMock(side_effect=AssertionError("LLM mapping should not be called"))
+        llm.complete = AsyncMock(
+            side_effect=AssertionError("LLM mapping should not be called")
+        )
 
         # Should not raise — mapping reused from file, LLM not called for mapping
         result = await learner.populate_from_structured(csv)
@@ -227,10 +262,15 @@ class TestMappingFilePersistence:
             schema_hash="stale_hash",
             class_uri=None,
             id_column=None,
-            columns=[ColumnMapping(column_name="hp", predicate_uri="pk:hasHP", confidence=0.9)],
+            columns=[
+                ColumnMapping(
+                    column_name="hp", predicate_uri="pk:hasHP", confidence=0.9
+                )
+            ],
             last_row=0,
         )
         from ontorag.learn.column_mapper import save_mapping
+
         save_mapping(mf, tmp_path / "data.csv.mapping.json")
 
         llm_called = []
@@ -301,7 +341,13 @@ class TestPopulateFromStructuredJSON:
                 called_with_columns.append(["stats.hp"])
             return make_tool_response(
                 mapping_llm_response(
-                    [{"column": "stats.hp", "predicate_uri": "pk:hasHP", "confidence": 0.9}]
+                    [
+                        {
+                            "column": "stats.hp",
+                            "predicate_uri": "pk:hasHP",
+                            "confidence": 0.9,
+                        }
+                    ]
                 )
             )
 
@@ -354,6 +400,7 @@ class TestBatchProcessing:
         await learner.populate_from_structured(csv, batch_size=50)
 
         from ontorag.learn.column_mapper import load_mapping
+
         mf = load_mapping(tmp_path / "data.csv.mapping.json")
         assert mf.last_row == 60
 
@@ -366,15 +413,26 @@ class TestNullValueHandling:
     async def test_null_json_value_skipped(self, tmp_path):
         """JSON null values must not produce 'None'^^xsd:string literals."""
         import json as _json
+
         f = tmp_path / "data.json"
         f.write_text(_json.dumps([{"hp": None, "name": "Pikachu"}]))
         learner, store, llm = make_learner()
         llm.complete = AsyncMock(
             return_value=make_tool_response(
-                mapping_llm_response([
-                    {"column": "hp", "predicate_uri": "pk:hasHP", "confidence": 0.9},
-                    {"column": "name", "predicate_uri": "rdfs:label", "confidence": 0.95},
-                ])
+                mapping_llm_response(
+                    [
+                        {
+                            "column": "hp",
+                            "predicate_uri": "pk:hasHP",
+                            "confidence": 0.9,
+                        },
+                        {
+                            "column": "name",
+                            "predicate_uri": "rdfs:label",
+                            "confidence": 0.95,
+                        },
+                    ]
+                )
             )
         )
         result = await learner.populate_from_structured(f)
@@ -390,9 +448,15 @@ class TestNullValueHandling:
         learner, store, llm = make_learner()
         llm.complete = AsyncMock(
             return_value=make_tool_response(
-                mapping_llm_response([
-                    {"column": "hp", "predicate_uri": "pk:hasHP", "confidence": 0.9},
-                ])
+                mapping_llm_response(
+                    [
+                        {
+                            "column": "hp",
+                            "predicate_uri": "pk:hasHP",
+                            "confidence": 0.9,
+                        },
+                    ]
+                )
             )
         )
         result = await learner.populate_from_structured(csv)

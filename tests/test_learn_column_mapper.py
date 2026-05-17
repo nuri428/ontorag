@@ -90,7 +90,9 @@ class TestProposeMapping:
                 {"column": "hp", "predicate_uri": "pk:hasHP", "confidence": 0.88},
             ]
         )
-        result = await propose_mapping(llm, schema, ["type", "hp"], class_uri="pk:Pokemon")
+        result = await propose_mapping(
+            llm, schema, ["type", "hp"], class_uri="pk:Pokemon"
+        )
         assert len(result) == 2
         assert result[0].column_name == "type"
         assert result[0].predicate_uri == "pk:hasType"
@@ -133,7 +135,9 @@ class TestProposeMapping:
         schema = make_schema()
         llm = AsyncMock()
         llm.complete = AsyncMock(
-            return_value=type("_R", (), {"content": [type("_T", (), {"text": "not-json"})()]})()
+            return_value=type(
+                "_R", (), {"content": [type("_T", (), {"text": "not-json"})()]}
+            )()
         )
         result = await propose_mapping(llm, schema, ["type"])
         assert result == []
@@ -150,7 +154,9 @@ class TestSaveLoadMapping:
             class_uri="pk:Pokemon",
             id_column="name",
             columns=[
-                ColumnMapping(column_name="type", predicate_uri="pk:hasType", confidence=0.9)
+                ColumnMapping(
+                    column_name="type", predicate_uri="pk:hasType", confidence=0.9
+                )
             ],
             last_row=0,
         )
@@ -210,44 +216,68 @@ class TestMintSubjectUri:
     def test_id_column_used_when_specified(self):
         row = {"name": "Pikachu", "hp": "35"}
         ns = "http://example.org/pokemon/"
-        uri = mint_subject_uri(row, id_column="name", namespace=ns, filepath="/f.csv", row_index=0)
+        uri = mint_subject_uri(
+            row, id_column="name", namespace=ns, filepath="/f.csv", row_index=0
+        )
         assert "Pikachu" in uri
 
     def test_uuid5_deterministic_without_id_column(self):
         row = {"hp": "35"}
         ns = "http://example.org/pokemon/"
-        uri1 = mint_subject_uri(row, id_column=None, namespace=ns, filepath="/f.csv", row_index=5)
-        uri2 = mint_subject_uri(row, id_column=None, namespace=ns, filepath="/f.csv", row_index=5)
+        uri1 = mint_subject_uri(
+            row, id_column=None, namespace=ns, filepath="/f.csv", row_index=5
+        )
+        uri2 = mint_subject_uri(
+            row, id_column=None, namespace=ns, filepath="/f.csv", row_index=5
+        )
         assert uri1 == uri2
 
     def test_different_rows_different_uris(self):
         ns = "http://example.org/pokemon/"
-        uri0 = mint_subject_uri({}, id_column=None, namespace=ns, filepath="/f.csv", row_index=0)
-        uri1 = mint_subject_uri({}, id_column=None, namespace=ns, filepath="/f.csv", row_index=1)
+        uri0 = mint_subject_uri(
+            {}, id_column=None, namespace=ns, filepath="/f.csv", row_index=0
+        )
+        uri1 = mint_subject_uri(
+            {}, id_column=None, namespace=ns, filepath="/f.csv", row_index=1
+        )
         assert uri0 != uri1
 
     def test_same_file_different_run_same_uri(self):
         """Reloading the same file produces the same URI — idempotent."""
         ns = "http://example.org/"
-        uri_run1 = mint_subject_uri({}, id_column=None, namespace=ns, filepath="/data.csv", row_index=3)
-        uri_run2 = mint_subject_uri({}, id_column=None, namespace=ns, filepath="/data.csv", row_index=3)
+        uri_run1 = mint_subject_uri(
+            {}, id_column=None, namespace=ns, filepath="/data.csv", row_index=3
+        )
+        uri_run2 = mint_subject_uri(
+            {}, id_column=None, namespace=ns, filepath="/data.csv", row_index=3
+        )
         assert uri_run1 == uri_run2
 
     def test_special_chars_percent_encoded(self):
         """Apostrophes, colons, hashes, spaces are percent-encoded in subject URI."""
         row = {"name": "Mr. Mime"}
-        uri = mint_subject_uri(row, id_column="name", namespace="http://ex.org/", filepath="f", row_index=0)
+        uri = mint_subject_uri(
+            row, id_column="name", namespace="http://ex.org/", filepath="f", row_index=0
+        )
         assert " " not in uri
         assert "%20" in uri or "Mr." in uri  # space encoded
 
         row2 = {"name": "Pikachu's"}
-        uri2 = mint_subject_uri(row2, id_column="name", namespace="http://ex.org/", filepath="f", row_index=0)
+        uri2 = mint_subject_uri(
+            row2,
+            id_column="name",
+            namespace="http://ex.org/",
+            filepath="f",
+            row_index=0,
+        )
         assert "'" not in uri2
 
     def test_empty_id_value_falls_back_to_uuid(self):
         """Blank id-column value uses uuid5 fallback instead of bare namespace root."""
         row = {"name": "   "}
-        uri = mint_subject_uri(row, id_column="name", namespace="http://ex.org/", filepath="f", row_index=0)
+        uri = mint_subject_uri(
+            row, id_column="name", namespace="http://ex.org/", filepath="f", row_index=0
+        )
         assert "entity-" in uri  # uuid5 fallback used
 
 
@@ -261,11 +291,29 @@ class TestProposeMapping_NewBehaviours:
         schema = make_schema()
         llm = AsyncMock()
         llm.complete = AsyncMock(
-            return_value=type("_R", (), {"content": [
-                type("_T", (), {"text": json.dumps([
-                    {"column": "hp", "predicate_uri": "pk:hasHP", "confidence": 0.9}
-                ])})()
-            ]})()
+            return_value=type(
+                "_R",
+                (),
+                {
+                    "content": [
+                        type(
+                            "_T",
+                            (),
+                            {
+                                "text": json.dumps(
+                                    [
+                                        {
+                                            "column": "hp",
+                                            "predicate_uri": "pk:hasHP",
+                                            "confidence": 0.9,
+                                        }
+                                    ]
+                                )
+                            },
+                        )()
+                    ]
+                },
+            )()
         )
         result = await propose_mapping(llm, schema, ["hp"])
         assert len(result) == 1
@@ -277,9 +325,9 @@ class TestProposeMapping_NewBehaviours:
         schema = make_schema()
         llm = AsyncMock()
         llm.complete = AsyncMock(
-            return_value=type("_R", (), {"content": [
-                type("_T", (), {"text": "42"})()
-            ]})()
+            return_value=type(
+                "_R", (), {"content": [type("_T", (), {"text": "42"})()]}
+            )()
         )
         result = await propose_mapping(llm, schema, ["hp"])
         assert result == []
@@ -298,8 +346,8 @@ class TestLoadMappingForwardCompat:
             "id_column": None,
             "columns": [],
             "last_row": 0,
-            "version": 2,          # future field — must not raise
-            "extra_flag": True,    # another future field
+            "version": 2,  # future field — must not raise
+            "extra_flag": True,  # another future field
         }
         path.write_text(json.dumps(data), encoding="utf-8")
         mf = load_mapping(path)

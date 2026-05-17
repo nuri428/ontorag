@@ -289,14 +289,15 @@ def learn_populate(
 
 @learn_app.command("populate-structured")
 def learn_populate_structured(
-    file: Path = typer.Argument(
-        ..., help="구조화 파일 경로 (.csv / .json / .jsonl)."
-    ),
+    file: Path = typer.Argument(..., help="구조화 파일 경로 (.csv / .json / .jsonl)."),
     class_uri: Optional[str] = typer.Option(
         None, "--class-uri", "-c", help="행에 매핑할 TBox 클래스 URI (예: pk:Pokemon)."
     ),
     id_column: Optional[str] = typer.Option(
-        None, "--id-column", "-i", help="주어 URI의 슬러그로 쓸 컬럼명 (없으면 uuid5 자동 발급)."
+        None,
+        "--id-column",
+        "-i",
+        help="주어 URI의 슬러그로 쓸 컬럼명 (없으면 uuid5 자동 발급).",
     ),
     batch_size: int = typer.Option(
         50, "--batch-size", "-b", help="LLM 호출당 처리할 행 수."
@@ -336,7 +337,9 @@ def learn_populate_structured(
     # --- 1단계: 파이프라인 실행 (자동 로드 없이) ---
     mapping_path = file.parent / (file.name + ".mapping.json")
     cache_label = (
-        f"[dim](캐시: {mapping_path.name})[/]" if mapping_path.exists() else "[dim](신규 매핑)[/]"
+        f"[dim](캐시: {mapping_path.name})[/]"
+        if mapping_path.exists()
+        else "[dim](신규 매핑)[/]"
     )
     console.print(
         f"\n[bold]{file.name}[/] 처리 중 — 배치 크기 {batch_size}행  {cache_label}"

@@ -88,9 +88,15 @@ def make_mock_learner(
     learner._store.aclose = AsyncMock()
     learner._store.get_schema = AsyncMock(return_value=schema or POKEMON_SCHEMA)
 
-    learner.type_term = AsyncMock(return_value=typings if typings is not None else SAMPLE_TYPINGS)
-    learner.discover_taxonomy = AsyncMock(return_value=taxonomy if taxonomy is not None else SAMPLE_TAXONOMY)
-    learner.extract_relations = AsyncMock(return_value=triples if triples is not None else SAMPLE_TRIPLES)
+    learner.type_term = AsyncMock(
+        return_value=typings if typings is not None else SAMPLE_TYPINGS
+    )
+    learner.discover_taxonomy = AsyncMock(
+        return_value=taxonomy if taxonomy is not None else SAMPLE_TAXONOMY
+    )
+    learner.extract_relations = AsyncMock(
+        return_value=triples if triples is not None else SAMPLE_TRIPLES
+    )
 
     default_result = population_result or PopulationResult(
         term_typings=SAMPLE_TYPINGS,
@@ -98,7 +104,9 @@ def make_mock_learner(
         triples=SAMPLE_TRIPLES,
     )
     learner.populate_from_text = AsyncMock(return_value=default_result)
-    learner.populate_from_structured = AsyncMock(return_value=PopulationResult(triples=SAMPLE_TRIPLES))
+    learner.populate_from_structured = AsyncMock(
+        return_value=PopulationResult(triples=SAMPLE_TRIPLES)
+    )
     learner._load_triples = AsyncMock(return_value=load_count)
 
     return learner
@@ -126,12 +134,23 @@ class TestLearnTypeTerm:
         with patch("ontorag.cli_learn._get_learner", return_value=mock_learner):
             result = runner.invoke(
                 app,
-                ["learn", "type-term", "Pikachu", "--context", "evolved Pokemon", "--top-k", "5"],
+                [
+                    "learn",
+                    "type-term",
+                    "Pikachu",
+                    "--context",
+                    "evolved Pokemon",
+                    "--top-k",
+                    "5",
+                ],
             )
 
         assert result.exit_code == 0
         call_kwargs = mock_learner.type_term.call_args
-        assert call_kwargs.kwargs.get("context") == "evolved Pokemon" or call_kwargs.args[1] == "evolved Pokemon"
+        assert (
+            call_kwargs.kwargs.get("context") == "evolved Pokemon"
+            or call_kwargs.args[1] == "evolved Pokemon"
+        )
 
     def test_empty_results_prints_warning(self):
         """type-term with no results shows a yellow warning."""
@@ -360,9 +379,7 @@ class TestLearnPopulate:
         mock_learner = make_mock_learner()
         with patch("ontorag.cli_learn._get_learner", return_value=mock_learner):
             # provide 'n' as stdin
-            result = runner.invoke(
-                app, ["learn", "populate", str(corpus)], input="n\n"
-            )
+            result = runner.invoke(app, ["learn", "populate", str(corpus)], input="n\n")
 
         assert result.exit_code == 0
         assert "취소" in result.output
@@ -375,9 +392,7 @@ class TestLearnPopulate:
 
         mock_learner = make_mock_learner()
         with patch("ontorag.cli_learn._get_learner", return_value=mock_learner):
-            result = runner.invoke(
-                app, ["learn", "populate", str(corpus)], input="y\n"
-            )
+            result = runner.invoke(app, ["learn", "populate", str(corpus)], input="y\n")
 
         assert result.exit_code == 0
         assert "로드했습니다" in result.output
@@ -506,9 +521,7 @@ class TestLearnPopulateStructured:
         txt_file = tmp_path / "corpus.txt"
         txt_file.write_text("data", encoding="utf-8")
 
-        result = runner.invoke(
-            app, ["learn", "populate-structured", str(txt_file)]
-        )
+        result = runner.invoke(app, ["learn", "populate-structured", str(txt_file)])
 
         assert result.exit_code == 1
         assert "지원하지 않는 형식" in result.output or "Error" in result.output
@@ -593,8 +606,10 @@ class TestLearnPopulateStructured:
                     "learn",
                     "populate-structured",
                     str(csv_file),
-                    "--class-uri", "pk:Pokemon",
-                    "--id-column", "name",
+                    "--class-uri",
+                    "pk:Pokemon",
+                    "--id-column",
+                    "name",
                     "--yes",
                 ],
             )
@@ -614,7 +629,14 @@ class TestLearnPopulateStructured:
         with patch("ontorag.cli_learn._get_learner", return_value=mock_learner):
             runner.invoke(
                 app,
-                ["learn", "populate-structured", str(csv_file), "--batch-size", "25", "--yes"],
+                [
+                    "learn",
+                    "populate-structured",
+                    str(csv_file),
+                    "--batch-size",
+                    "25",
+                    "--yes",
+                ],
             )
 
         call_kwargs = mock_learner.populate_from_structured.call_args
@@ -656,9 +678,7 @@ class TestLearnPopulateStructured:
 
         mock_learner = make_mock_learner()
         with patch("ontorag.cli_learn._get_learner", return_value=mock_learner):
-            runner.invoke(
-                app, ["learn", "populate-structured", str(csv_file), "--yes"]
-            )
+            runner.invoke(app, ["learn", "populate-structured", str(csv_file), "--yes"])
 
         assert mock_learner._store.aclose.await_count >= 2
 
@@ -692,8 +712,12 @@ class TestLearnPopulateStructured:
         mock_col.confidence = 0.95
         mock_mapping.columns = [mock_col]
 
-        with patch("ontorag.cli_learn._get_learner", return_value=mock_learner), \
-             patch("ontorag.learn.column_mapper.load_mapping", return_value=mock_mapping):
+        with (
+            patch("ontorag.cli_learn._get_learner", return_value=mock_learner),
+            patch(
+                "ontorag.learn.column_mapper.load_mapping", return_value=mock_mapping
+            ),
+        ):
             result = runner.invoke(
                 app, ["learn", "populate-structured", str(csv_file), "--yes"]
             )

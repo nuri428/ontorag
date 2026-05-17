@@ -36,9 +36,12 @@ Respond with JSON only:
 {{"mappings": [{{"column": "<col>", "predicate_uri": "<uri_or_null>", "confidence": 0.0}}]}}
 """
 
-_MAPPING_FILE_FIELDS = frozenset(f.name for f in fields(
-    type("_sentinel", (), {"__dataclass_fields__": {}})  # resolved below
-))
+_MAPPING_FILE_FIELDS = frozenset(
+    f.name
+    for f in fields(
+        type("_sentinel", (), {"__dataclass_fields__": {}})  # resolved below
+    )
+)
 
 
 @dataclass
@@ -64,7 +67,9 @@ def compute_schema_hash(schema: SchemaResult) -> str:
     """Stable hash of (class_uri_set, property_uri_set) — order-independent."""
     class_uris = sorted(c.uri for c in schema.classes)
     prop_uris = sorted(p.uri for p in schema.properties)
-    payload = json.dumps({"classes": class_uris, "properties": prop_uris}, sort_keys=True)
+    payload = json.dumps(
+        {"classes": class_uris, "properties": prop_uris}, sort_keys=True
+    )
     return hashlib.md5(payload.encode(), usedforsecurity=False).hexdigest()
 
 
@@ -94,9 +99,7 @@ async def propose_mapping(
 ) -> list[ColumnMapping]:
     """Ask the LLM to map column names to TBox property URIs."""
     valid_uris = {p.uri for p in schema.properties}
-    properties_text = "\n".join(
-        f"  {p.uri} ({p.label})" for p in schema.properties
-    )
+    properties_text = "\n".join(f"  {p.uri} ({p.label})" for p in schema.properties)
     prompt = _PROMPT_TMPL.format(
         properties=properties_text,
         columns="\n".join(f"  - {c}" for c in columns),
@@ -111,9 +114,7 @@ async def propose_mapping(
             tools=[],
             force_tool_name=None,
         )
-        text = next(
-            (b.text for b in response.content if hasattr(b, "text")), ""
-        )
+        text = next((b.text for b in response.content if hasattr(b, "text")), "")
         parsed = json.loads(text)
         # LLM may return the array directly instead of {"mappings": [...]}
         if isinstance(parsed, list):
@@ -121,7 +122,9 @@ async def propose_mapping(
         elif isinstance(parsed, dict):
             raw = parsed.get("mappings", [])
         else:
-            logger.warning("propose_mapping: unexpected JSON type %s — ignoring", type(parsed))
+            logger.warning(
+                "propose_mapping: unexpected JSON type %s — ignoring", type(parsed)
+            )
             return []
     except json.JSONDecodeError as exc:
         # LLM returned non-JSON — recoverable format error, return empty
@@ -138,7 +141,9 @@ async def propose_mapping(
         conf = float(item.get("confidence", 0.0))
         if uri is not None and uri not in valid_uris:
             uri = None
-        result.append(ColumnMapping(column_name=col, predicate_uri=uri, confidence=conf))
+        result.append(
+            ColumnMapping(column_name=col, predicate_uri=uri, confidence=conf)
+        )
     return result
 
 

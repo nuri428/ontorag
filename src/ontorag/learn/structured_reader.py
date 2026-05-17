@@ -12,7 +12,9 @@ class UnsupportedFormatError(ValueError):
     """Raised when the file extension is not csv, json, or jsonl."""
 
 
-def flatten_dict(obj: dict[str, Any], sep: str = ".", prefix: str = "") -> dict[str, Any]:
+def flatten_dict(
+    obj: dict[str, Any], sep: str = ".", prefix: str = ""
+) -> dict[str, Any]:
     """Recursively flatten a nested dict using dotted keys.
 
     Lists are kept as-is (not expanded).
