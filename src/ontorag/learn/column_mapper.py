@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import urllib.parse
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from typing import Any
 
 from ontorag.stores.base import SchemaResult
+
+logger = logging.getLogger(__name__)
 
 _SYSTEM = (
     "You are an RDF ontology expert. Map CSV/JSON column names to OWL property URIs "
@@ -33,6 +36,10 @@ Respond with JSON only:
 {{"mappings": [{{"column": "<col>", "predicate_uri": "<uri_or_null>", "confidence": 0.0}}]}}
 """
 
+_MAPPING_FILE_FIELDS = frozenset(f.name for f in fields(
+    type("_sentinel", (), {"__dataclass_fields__": {}})  # resolved below
+))
+
 
 @dataclass
 class ColumnMapping:
@@ -50,12 +57,15 @@ class MappingFile:
     last_row: int = 0
 
 
+_MAPPING_FILE_FIELDS = frozenset(f.name for f in fields(MappingFile))
+
+
 def compute_schema_hash(schema: SchemaResult) -> str:
     """Stable hash of (class_uri_set, property_uri_set) — order-independent."""
     class_uris = sorted(c.uri for c in schema.classes)
     prop_uris = sorted(p.uri for p in schema.properties)
     payload = json.dumps({"classes": class_uris, "properties": prop_uris}, sort_keys=True)
-    return hashlib.md5(payload.encode()).hexdigest()
+    return hashlib.md5(payload.encode(), usedforsecurity=False).hexdigest()
 
 
 def validate_mapping_hash(mapping_file: MappingFile, schema: SchemaResult) -> bool:
@@ -70,7 +80,9 @@ def save_mapping(mapping_file: MappingFile, path: Path) -> None:
 def load_mapping(path: Path) -> MappingFile:
     data = json.loads(path.read_text(encoding="utf-8"))
     columns = [ColumnMapping(**c) for c in data.pop("columns", [])]
-    return MappingFile(**data, columns=columns)
+    # Drop unknown keys for forward compatibility (future MappingFile versions)
+    known = {k: v for k, v in data.items() if k in _MAPPING_FILE_FIELDS}
+    return MappingFile(**known, columns=columns)
 
 
 async def propose_mapping(
@@ -103,11 +115,17 @@ async def propose_mapping(
             (b.text for b in response.content if hasattr(b, "text")), ""
         )
         parsed = json.loads(text)
-        raw = parsed.get("mappings", [])
+        # LLM may return the array directly instead of {"mappings": [...]}
+        if isinstance(parsed, list):
+            raw = parsed
+        elif isinstance(parsed, dict):
+            raw = parsed.get("mappings", [])
+        else:
+            logger.warning("propose_mapping: unexpected JSON type %s — ignoring", type(parsed))
+            return []
     except json.JSONDecodeError as exc:
-        # LLM returned non-JSON — log and return empty (recoverable)
-        import logging
-        logging.getLogger(__name__).warning("propose_mapping: LLM returned invalid JSON — %s", exc)
+        # LLM returned non-JSON — recoverable format error, return empty
+        logger.warning("propose_mapping: LLM returned invalid JSON — %s", exc)
         return []
     except Exception:
         # Network error, auth failure, etc. — propagate so caller can surface it
@@ -133,13 +151,14 @@ def mint_subject_uri(
 ) -> str:
     """Return a subject URI for a row.
 
-    If id_column is given, slug the value into the namespace.
-    Otherwise, produce a deterministic UUID5 from (filepath, row_index)
-    so that reloading the same file yields the same URI (idempotent).
+    If id_column is given, percent-encode the value as a URI path segment.
+    Falls back to deterministic UUID5 when the column is absent or the value
+    is blank — so reloading the same file always yields the same URI.
     """
     if id_column and id_column in row:
         slug = urllib.parse.quote(str(row[id_column]).strip(), safe="-._~")
-        return f"{namespace.rstrip('/')}/{slug}"
+        if slug:
+            return f"{namespace.rstrip('/')}/{slug}"
     seed = f"{filepath}:{row_index}"
     deterministic_uuid = uuid.uuid5(uuid.NAMESPACE_URL, seed)
     return f"{namespace.rstrip('/')}/entity-{deterministic_uuid}"

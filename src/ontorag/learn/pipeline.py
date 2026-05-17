@@ -315,8 +315,14 @@ class LLMOntologyLearner:
                     class_uri=class_uri,
                     filename=path.name,
                 )
-                mapping.columns = col_mappings
-                col_map = {cm.column_name: cm for cm in col_mappings}
+                if col_mappings:
+                    mapping.columns = col_mappings
+                    col_map = {cm.column_name: cm for cm in col_mappings}
+                else:
+                    logger.warning(
+                        "propose_mapping returned no columns for batch at row %d — skipping cache write",
+                        batch_start,
+                    )
 
             batch_triples: list[ExtractedTriple] = []
             for row_idx, row in enumerate(batch, start=batch_start):
@@ -338,6 +344,9 @@ class LLMOntologyLearner:
                         continue
                     if cm.confidence < min_confidence:
                         continue
+                    # Skip null/empty values — avoids "None"^^xsd:string literals
+                    if value is None or (isinstance(value, str) and not value.strip()):
+                        continue
                     batch_triples.append(
                         ExtractedTriple(
                             subject_label=subject_label,
@@ -356,7 +365,8 @@ class LLMOntologyLearner:
                 total_loaded = (total_loaded or 0) + loaded
 
             mapping.last_row = batch_start + len(batch)
-            save_mapping(mapping, mapping_path)
+            if mapping.columns:
+                save_mapping(mapping, mapping_path)
 
         return PopulationResult(
             triples=all_triples,

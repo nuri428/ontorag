@@ -356,3 +356,61 @@ class TestBatchProcessing:
         from ontorag.learn.column_mapper import load_mapping
         mf = load_mapping(tmp_path / "data.csv.mapping.json")
         assert mf.last_row == 60
+
+
+# ── null / empty value handling (HIGH-3 fix) ──────────────────────────────────
+
+
+class TestNullValueHandling:
+    @pytest.mark.asyncio
+    async def test_null_json_value_skipped(self, tmp_path):
+        """JSON null values must not produce 'None'^^xsd:string literals."""
+        import json as _json
+        f = tmp_path / "data.json"
+        f.write_text(_json.dumps([{"hp": None, "name": "Pikachu"}]))
+        learner, store, llm = make_learner()
+        llm.complete = AsyncMock(
+            return_value=make_tool_response(
+                mapping_llm_response([
+                    {"column": "hp", "predicate_uri": "pk:hasHP", "confidence": 0.9},
+                    {"column": "name", "predicate_uri": "rdfs:label", "confidence": 0.95},
+                ])
+            )
+        )
+        result = await learner.populate_from_structured(f)
+        # hp=null must be skipped; only the name triple is produced
+        hp_triples = [t for t in result.triples if t.predicate_uri == "pk:hasHP"]
+        assert len(hp_triples) == 0
+        assert any("None" not in (t.object_value or "") for t in result.triples)
+
+    @pytest.mark.asyncio
+    async def test_empty_string_value_skipped(self, tmp_path):
+        """Empty string values must not produce empty RDF literals."""
+        csv = make_csv(tmp_path, "name,hp\nPikachu,\n")
+        learner, store, llm = make_learner()
+        llm.complete = AsyncMock(
+            return_value=make_tool_response(
+                mapping_llm_response([
+                    {"column": "hp", "predicate_uri": "pk:hasHP", "confidence": 0.9},
+                ])
+            )
+        )
+        result = await learner.populate_from_structured(csv)
+        hp_triples = [t for t in result.triples if t.predicate_uri == "pk:hasHP"]
+        assert len(hp_triples) == 0
+
+
+# ── empty mapping cache guard (HIGH-2 fix) ────────────────────────────────────
+
+
+class TestEmptyMappingCacheGuard:
+    @pytest.mark.asyncio
+    async def test_empty_mapping_not_written_to_cache(self, tmp_path):
+        """If LLM returns no column mappings, the sidecar file must not be created."""
+        csv = make_csv(tmp_path, "hp\n35\n")
+        learner, store, llm = make_learner()
+        llm.complete = AsyncMock(
+            return_value=make_tool_response(mapping_llm_response([]))
+        )
+        await learner.populate_from_structured(csv)
+        assert not (tmp_path / "data.csv.mapping.json").exists()

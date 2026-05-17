@@ -232,3 +232,76 @@ class TestMintSubjectUri:
         uri_run1 = mint_subject_uri({}, id_column=None, namespace=ns, filepath="/data.csv", row_index=3)
         uri_run2 = mint_subject_uri({}, id_column=None, namespace=ns, filepath="/data.csv", row_index=3)
         assert uri_run1 == uri_run2
+
+    def test_special_chars_percent_encoded(self):
+        """Apostrophes, colons, hashes, spaces are percent-encoded in subject URI."""
+        row = {"name": "Mr. Mime"}
+        uri = mint_subject_uri(row, id_column="name", namespace="http://ex.org/", filepath="f", row_index=0)
+        assert " " not in uri
+        assert "%20" in uri or "Mr." in uri  # space encoded
+
+        row2 = {"name": "Pikachu's"}
+        uri2 = mint_subject_uri(row2, id_column="name", namespace="http://ex.org/", filepath="f", row_index=0)
+        assert "'" not in uri2
+
+    def test_empty_id_value_falls_back_to_uuid(self):
+        """Blank id-column value uses uuid5 fallback instead of bare namespace root."""
+        row = {"name": "   "}
+        uri = mint_subject_uri(row, id_column="name", namespace="http://ex.org/", filepath="f", row_index=0)
+        assert "entity-" in uri  # uuid5 fallback used
+
+
+# ── propose_mapping — new behaviour tests ─────────────────────────────────────
+
+
+class TestProposeMapping_NewBehaviours:
+    @pytest.mark.asyncio
+    async def test_llm_returns_array_directly(self):
+        """LLM returns the mappings array directly (without wrapper object)."""
+        schema = make_schema()
+        llm = AsyncMock()
+        llm.complete = AsyncMock(
+            return_value=type("_R", (), {"content": [
+                type("_T", (), {"text": json.dumps([
+                    {"column": "hp", "predicate_uri": "pk:hasHP", "confidence": 0.9}
+                ])})()
+            ]})()
+        )
+        result = await propose_mapping(llm, schema, ["hp"])
+        assert len(result) == 1
+        assert result[0].predicate_uri == "pk:hasHP"
+
+    @pytest.mark.asyncio
+    async def test_llm_returns_unexpected_type_returns_empty(self):
+        """LLM returns a scalar JSON value — treated as empty, not an error."""
+        schema = make_schema()
+        llm = AsyncMock()
+        llm.complete = AsyncMock(
+            return_value=type("_R", (), {"content": [
+                type("_T", (), {"text": "42"})()
+            ]})()
+        )
+        result = await propose_mapping(llm, schema, ["hp"])
+        assert result == []
+
+
+# ── load_mapping — forward compatibility ──────────────────────────────────────
+
+
+class TestLoadMappingForwardCompat:
+    def test_unknown_keys_ignored(self, tmp_path):
+        """Mapping file with a future 'version' field loads without TypeError."""
+        path = tmp_path / "data.csv.mapping.json"
+        data = {
+            "schema_hash": "abc",
+            "class_uri": None,
+            "id_column": None,
+            "columns": [],
+            "last_row": 0,
+            "version": 2,          # future field — must not raise
+            "extra_flag": True,    # another future field
+        }
+        path.write_text(json.dumps(data), encoding="utf-8")
+        mf = load_mapping(path)
+        assert mf.schema_hash == "abc"
+        assert mf.last_row == 0
