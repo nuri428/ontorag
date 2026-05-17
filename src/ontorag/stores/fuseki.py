@@ -15,7 +15,6 @@ from ontorag.stores._traversal_mixin import _TraversalMixin
 from ontorag.stores.base import (
     ClassDetail,
     ClassSummary,
-    EntityFilter,
     LoadResult,
     PatternQuery,
     PropertySummary,

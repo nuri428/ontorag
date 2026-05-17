@@ -6,13 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from ontorag.api.deps import get_store
-
-logger = logging.getLogger(__name__)
 from ontorag.learn.base import ExtractedTriple, TermTypingResult
 from ontorag.learn import term_typing as _term_typing_mod
 from ontorag.learn import relation as _relation_mod
 from ontorag.llm.factory import get_llm_provider
 from ontorag.stores.fuseki import FusekiStore
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tools/learn", tags=["learning"])
 
@@ -75,7 +75,7 @@ async def type_term(
         return await _term_typing_mod.type_term(
             llm, schema, body.term, body.context, body.top_k
         )
-    except Exception as exc:
+    except Exception:
         logger.exception("type_term failed for term=%r", body.term)
         raise HTTPException(status_code=500, detail="Term typing failed. Check server logs.")
 
@@ -114,6 +114,6 @@ async def extract_triples(
         return await _relation_mod.extract_relations(
             llm, schema, body.text, body.entities, body.min_confidence
         )
-    except Exception as exc:
+    except Exception:
         logger.exception("extract_triples failed for text len=%d", len(body.text))
         raise HTTPException(status_code=500, detail="Triple extraction failed. Check server logs.")

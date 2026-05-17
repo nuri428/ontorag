@@ -5,7 +5,6 @@ import logging
 from typing import Any
 
 from ontorag.core.sparql import (
-    STANDARD_PREFIXES,
     build_filter_sparql,
     uri_ref,
 )

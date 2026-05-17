@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -10,6 +9,8 @@ from dotenv import load_dotenv
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
+
+from ontorag.cli_learn import learn_app
 
 load_dotenv()  # load .env from cwd before any command runs (override=False keeps real env vars)
 
@@ -32,8 +33,6 @@ app.add_typer(config_app, name="config")
 
 history_app = typer.Typer(help="채팅 대화 기록을 조회/삭제합니다.")
 app.add_typer(history_app, name="history")
-
-from ontorag.cli_learn import learn_app
 app.add_typer(learn_app, name="learn")
 
 
@@ -314,7 +313,7 @@ def config_show() -> None:
 
     console.print(table)
     if not env_file.exists():
-        console.print(f"\n[dim].env 파일 없음. ontorag config set --provider anthropic 으로 생성하세요.[/]")
+        console.print("\n[dim].env 파일 없음. ontorag config set --provider anthropic 으로 생성하세요.[/]")
 
 
 # ── chat command ─────────────────────────────────────────────────────────────
@@ -567,7 +566,6 @@ def init(
     7. ontorag chat
     """
     import importlib.resources
-    import shutil
 
     target = directory.resolve()
     target.mkdir(parents=True, exist_ok=True)
