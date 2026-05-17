@@ -8,13 +8,14 @@ from typing import Annotated
 
 import html as _html
 
-from dotenv import set_key
+from dotenv import dotenv_values, set_key
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from rdflib import Graph
 
 from ontorag.api.deps import get_store
+from ontorag.chat import store as chat_store
 from ontorag.stores.base import TraversalDirection
 from ontorag.stores.fuseki import FusekiStore
 
@@ -34,12 +35,26 @@ except ImportError:
 _CONFIG_KEYS = frozenset(
     {
         "LLM_PROVIDER",
+        "LLM_MODEL",
         "ANTHROPIC_API_KEY",
         "OPENAI_API_KEY",
         "OLLAMA_BASE_URL",
-        "OLLAMA_MODEL",
     }
 )
+
+# Known models per provider (static lists; Ollama fetches from live API)
+_ANTHROPIC_MODELS = [
+    "claude-opus-4-7",
+    "claude-sonnet-4-6",
+    "claude-haiku-4-5-20251001",
+]
+_OPENAI_MODELS = [
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4-turbo",
+    "gpt-4",
+    "gpt-3.5-turbo",
+]
 
 
 @router.get("/", response_class=RedirectResponse)
@@ -94,12 +109,15 @@ async def schema_graph_data(store: FusekiStore = Depends(get_store)) -> JSONResp
     return JSONResponse({"nodes": nodes, "edges": edges, "namespaces": schema.namespaces})
 
 
+_MAX_TTL_BYTES = 500_000  # ~5k triples; prevents rdflib OOM on huge payloads
+
+
 @router.post("/schema/check", response_class=HTMLResponse)
 async def schema_check(
     request: Request,
     check_type: Annotated[str, Form()] = "syntax",
-    ttl_content: Annotated[str, Form()] = "",
-    shapes_content: Annotated[str, Form()] = "",
+    ttl_content: Annotated[str, Form(max_length=_MAX_TTL_BYTES)] = "",
+    shapes_content: Annotated[str, Form(max_length=_MAX_TTL_BYTES)] = "",
 ) -> HTMLResponse:
     """Syntax check or SHACL validation. Returns HTMX partial."""
     result: dict = {}
@@ -207,11 +225,30 @@ async def entity_detail(
 # ── Playground tab ─────────────────────────────────────────────────────────────
 
 
+def _load_config() -> dict[str, str]:
+    """Merge .env file values with os.environ (os.environ wins on conflict).
+
+    Reads .env directly on every call so manual edits are reflected without
+    a server restart. os.environ takes precedence because it includes both
+    real system env vars and values set by save_config().
+    """
+    env_path = Path(".env")
+    file_vals: dict[str, str] = dict(dotenv_values(str(env_path))) if env_path.exists() else {}
+    config: dict[str, str] = {}
+    for k in _CONFIG_KEYS:
+        env_val = os.environ.get(k)
+        config[k] = env_val if env_val is not None else file_vals.get(k, "")
+    return config
+
+
 @router.get("/playground", response_class=HTMLResponse)
 async def ui_playground(request: Request) -> HTMLResponse:
-    config = {k: os.environ.get(k, "") for k in sorted(_CONFIG_KEYS)}
+    config = _load_config()
+    sessions = await chat_store.list_sessions()
     return templates.TemplateResponse(
-        request, "playground.html", {"active_tab": "playground", "config": config}
+        request,
+        "playground.html",
+        {"active_tab": "playground", "config": config, "sessions": sessions},
     )
 
 
@@ -236,3 +273,65 @@ async def save_config(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request, "partials/config_saved.html", {"errors": errors, "ok": not errors}
     )
+
+
+@router.get("/playground/models")
+async def playground_models(provider: str) -> dict:
+    """Return available model IDs for the given LLM provider.
+
+    Anthropic and OpenAI return static curated lists.
+    Ollama fetches the list of installed models from the local API.
+    """
+    if provider == "anthropic":
+        return {"models": _ANTHROPIC_MODELS}
+
+    if provider == "openai":
+        return {"models": _OPENAI_MODELS}
+
+    if provider == "ollama":
+        base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+        try:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(f"{base_url}/api/tags", timeout=5.0)
+                resp.raise_for_status()
+                data = resp.json()
+            models = [m["name"] for m in data.get("models", [])]
+            return {"models": models}
+        except Exception as exc:
+            logger.warning("Ollama model list failed: %s", exc)
+            return {"models": [], "error": "Ollama에 연결할 수 없습니다 — URL을 먼저 저장하세요"}
+
+    return {"models": []}
+
+
+# ── Playground session management ──────────────────────────────────────────────
+
+
+@router.get("/playground/sessions", response_class=HTMLResponse)
+async def playground_session_list(request: Request) -> HTMLResponse:
+    sessions = await chat_store.list_sessions()
+    return templates.TemplateResponse(
+        request, "partials/session_list.html", {"sessions": sessions}
+    )
+
+
+@router.post("/playground/sessions")
+async def playground_session_create() -> dict:
+    """Create a new chat session and return its ID."""
+    session_id = await chat_store.create_session()
+    return {"session_id": session_id}
+
+
+@router.delete("/playground/sessions/{session_id}")
+async def playground_session_delete(session_id: str) -> dict:
+    await chat_store.delete_session(session_id)
+    return {"deleted": session_id}
+
+
+@router.get("/playground/sessions/{session_id}/messages")
+async def playground_session_messages(session_id: str) -> dict:
+    """Return user/assistant display messages for a session (JSON)."""
+    history = await chat_store.get_history(session_id)
+    messages = chat_store.extract_display_messages(history)
+    return {"session_id": session_id, "messages": messages}

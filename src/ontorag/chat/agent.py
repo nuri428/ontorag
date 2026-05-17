@@ -241,13 +241,14 @@ class AgentLoop:
         store: GraphStore,
         llm: LLMProvider,
         schema_context: str | None = None,
+        initial_history: list[dict[str, Any]] | None = None,
     ) -> None:
         self._store = store
         self._llm = llm
         self._system = (
             f"{_SYSTEM_BASE}\n\n{schema_context}" if schema_context else _SYSTEM_BASE
         )
-        self._history: list[dict[str, Any]] = []  # persistent across run() calls
+        self._history: list[dict[str, Any]] = list(initial_history) if initial_history else []
 
     async def run(self, user_message: str) -> AsyncGenerator[dict[str, Any], None]:
         """Run one user turn and yield SSE event dicts until done.

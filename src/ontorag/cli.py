@@ -30,6 +30,9 @@ app.add_typer(clear_app, name="clear")
 config_app = typer.Typer(help="LLM 및 스토어 설정을 관리합니다.")
 app.add_typer(config_app, name="config")
 
+history_app = typer.Typer(help="채팅 대화 기록을 조회/삭제합니다.")
+app.add_typer(history_app, name="history")
+
 
 # ── load subcommands ─────────────────────────────────────────────────────────
 
@@ -316,14 +319,17 @@ def config_show() -> None:
 @app.command()
 def chat(
     message: Optional[str] = typer.Argument(None, help="첫 메시지 (생략 시 REPL 프롬프트로 진입)"),
+    resume: Optional[str] = typer.Option(None, "--resume", "-r", help="이전 대화 ID로 이어서 시작."),
 ) -> None:
     """온톨로지 Q&A 대화 세션을 시작합니다 (REPL).
 
     첫 메시지를 인자로 전달할 수도 있습니다: ontorag chat "질문"
+    이전 대화를 이어가려면: ontorag chat --resume <대화ID>
     """
     from rich.markup import escape
     from rich.panel import Panel
 
+    from ontorag.chat import store as chat_store
     from ontorag.llm.factory import get_llm_provider
     from ontorag.stores.fuseki import FusekiStore
 
@@ -336,7 +342,7 @@ def chat(
 
     console.print(Panel(
         "[bold]ontorag chat[/]\n"
-        "[dim]종료: Ctrl+C 또는 'exit'[/]",
+        "[dim]종료: Ctrl+C 또는 'exit'  |  대화 기록: ontorag history list[/]",
         border_style="blue",
     ))
 
@@ -345,6 +351,29 @@ def chat(
         store = FusekiStore.from_env()
 
         from ontorag.chat.agent import AgentLoop, _format_schema_for_prompt
+
+        # 세션 로드 또는 신규 생성
+        initial_history: list = []
+        if resume:
+            loaded = await chat_store.get_history(resume)
+            if loaded:
+                initial_history = loaded
+                session_id = resume
+                display = chat_store.extract_display_messages(loaded)
+                console.print(f"[dim]이전 대화 복원 — {len(display)}개 메시지[/]")
+                # 마지막 3개 교환을 요약해 컨텍스트 제공
+                for m in display[-3:]:
+                    prefix = "[bold blue]>[/]" if m["role"] == "user" else "[bold green]AI[/]"
+                    text = m["text"][:120] + ("…" if len(m["text"]) > 120 else "")
+                    console.print(f"  {prefix} {escape(text)}")
+                console.print("[dim]  ──────────────────────────────[/]")
+            else:
+                console.print(f"[yellow]경고:[/] 대화 ID '{resume}'를 찾을 수 없습니다. 새 대화를 시작합니다.")
+                session_id = await chat_store.create_session()
+        else:
+            session_id = await chat_store.create_session()
+
+        console.print(f"[dim]세션: {session_id}[/]")
 
         # 세션 시작 시 schema를 한 번만 로드해 system prompt에 주입
         schema_ctx: str | None = None
@@ -355,12 +384,15 @@ def chat(
         except Exception as exc:
             console.print(f"[yellow]경고:[/] 스키마 로드 실패 — {exc}")
 
-        # Create the agent once so conversation history persists across turns
-        agent = AgentLoop(store, llm, schema_context=schema_ctx)
+        agent = AgentLoop(store, llm, schema_context=schema_ctx, initial_history=initial_history)
+        is_first = [len(initial_history) == 0]  # 리스트로 감싸 클로저 내부에서 변경 가능
 
         async def run_turn(msg: str) -> None:
             async for event in agent.run(msg):
                 _render_event(event)
+            title = msg[:40] if is_first[0] else None
+            await chat_store.save_session(session_id, agent._history, title=title)
+            is_first[0] = False
 
         if initial:
             try:
@@ -410,6 +442,101 @@ def _render_event(event: dict) -> None:
         console.print()
     elif etype == "error":
         console.print(f"[red]Error:[/] {escape(str(event.get('content', '')))}")
+
+
+# ── history subcommands ──────────────────────────────────────────────────────
+
+
+@history_app.command("list")
+def history_list() -> None:
+    """저장된 대화 목록을 표시합니다."""
+    from ontorag.chat import store as chat_store
+
+    sessions = asyncio.run(chat_store.list_sessions())
+    if not sessions:
+        console.print("[dim]저장된 대화 없음[/]")
+        return
+
+    table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("제목")
+    table.add_column("마지막 수정", style="dim", no_wrap=True)
+
+    for s in sessions:
+        updated = s["updated"][:16].replace("T", " ")
+        table.add_row(s["id"], s["title"], updated)
+
+    console.print(table)
+    console.print(f"\n[dim]{len(sessions)}개 대화 | ontorag chat --resume <ID> 로 이어서 시작[/]")
+
+
+@history_app.command("show")
+def history_show(
+    session_id: str = typer.Argument(..., help="표시할 대화 ID"),
+) -> None:
+    """저장된 대화 내용을 출력합니다."""
+    from rich.markup import escape
+
+    from ontorag.chat import store as chat_store
+
+    history = asyncio.run(chat_store.get_history(session_id))
+    if not history:
+        console.print(f"[red]Error:[/] 대화 ID '{session_id}'를 찾을 수 없습니다.")
+        raise typer.Exit(1)
+
+    messages = chat_store.extract_display_messages(history)
+    console.print(f"\n[dim]대화 ID: {session_id} — {len(messages)}개 메시지[/]\n")
+
+    for m in messages:
+        if m["role"] == "user":
+            console.print(f"[bold blue]>[/] {escape(m['text'])}")
+        else:
+            console.print(f"[bold green]AI[/] {escape(m['text'])}")
+        console.print()
+
+
+@history_app.command("delete")
+def history_delete(
+    session_id: str = typer.Argument(..., help="삭제할 대화 ID"),
+) -> None:
+    """특정 대화를 삭제합니다."""
+    from ontorag.chat import store as chat_store
+
+    history = asyncio.run(chat_store.get_history(session_id))
+    if not history:
+        console.print(f"[red]Error:[/] 대화 ID '{session_id}'를 찾을 수 없습니다.")
+        raise typer.Exit(1)
+
+    confirmed = typer.confirm(f"대화 '{session_id}'를 삭제합니까?")
+    if not confirmed:
+        console.print("[dim]취소했습니다.[/]")
+        raise typer.Exit(0)
+
+    asyncio.run(chat_store.delete_session(session_id))
+    console.print(f"[green]✓[/] 대화 '{session_id}' 삭제 완료")
+
+
+@history_app.command("clear")
+def history_clear() -> None:
+    """저장된 모든 대화를 삭제합니다."""
+    from ontorag.chat import store as chat_store
+
+    sessions = asyncio.run(chat_store.list_sessions())
+    if not sessions:
+        console.print("[dim]삭제할 대화 없음[/]")
+        return
+
+    confirmed = typer.confirm(f"저장된 대화 {len(sessions)}개를 모두 삭제합니까?")
+    if not confirmed:
+        console.print("[dim]취소했습니다.[/]")
+        raise typer.Exit(0)
+
+    async def _delete_all() -> None:
+        import asyncio as _asyncio
+        await _asyncio.gather(*[chat_store.delete_session(s["id"]) for s in sessions])
+
+    asyncio.run(_delete_all())
+    console.print(f"[green]✓[/] {len(sessions)}개 대화를 삭제했습니다.")
 
 
 # ── init command ─────────────────────────────────────────────────────────────

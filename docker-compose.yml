@@ -23,12 +23,14 @@ services:
     environment:
       GRAPH_STORE: fuseki
       FUSEKI_URL: http://fuseki:3030
-      FUSEKI_DATASET: ${FUSEKI_DATASET:-ontology}
+      FUSEKI_DATASET: ${FUSEKI_DATASET:-ontorag}
       FUSEKI_USER: admin
       FUSEKI_PASSWORD: ${FUSEKI_PASSWORD:-admin}
       LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ./chat.db:/app/chat.db
     depends_on:
       fuseki:
         condition: service_healthy
@@ -38,4 +40,3 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
-

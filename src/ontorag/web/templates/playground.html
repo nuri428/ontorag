@@ -2,87 +2,127 @@
 {% block title %}Playground{% endblock %}
 
 {% block content %}
-<div class="flex items-center gap-3 mb-5">
+<div class="flex items-center gap-3 mb-4">
     <h1 class="text-indigo-400 font-bold text-lg">Playground</h1>
     <span class="text-gray-600 text-xs">온톨로지 데이터를 자연어로 조회하세요</span>
 </div>
 
-<div class="flex gap-4" style="height: calc(100vh - 160px); min-height: 600px;">
+<div class="flex gap-4" style="height: calc(100vh - 148px); min-height: 600px;">
 
-    <!-- Left: LLM Config -->
-    <div class="w-72 shrink-0 flex flex-col gap-4">
-        <div class="bg-gray-900 rounded-xl border border-gray-800 p-5 flex-1 flex flex-col">
-            <div class="flex items-center justify-between mb-4">
-                <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">LLM 설정</span>
-                <span class="text-xs text-gray-700">.env</span>
-            </div>
+    <!-- ── Left sidebar: sessions + config ──────────────────────────────────── -->
+    <div class="w-60 shrink-0 flex flex-col gap-3">
 
-            <form hx-post="/ui/playground/config"
-                  hx-target="#config-result"
-                  hx-swap="innerHTML"
-                  class="space-y-4 flex-1">
-
-                <div>
-                    <label class="text-xs text-gray-500 block mb-1.5">Provider</label>
-                    <select name="LLM_PROVIDER"
-                        class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2
-                               focus:outline-none focus:border-indigo-500">
-                        {% for opt in ['anthropic', 'openai', 'ollama'] %}
-                        <option value="{{ opt }}" {% if config.get('LLM_PROVIDER', 'anthropic') == opt %}selected{% endif %}>
-                            {{ opt }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div>
-                    <label class="text-xs text-gray-500 block mb-1.5">Anthropic API Key</label>
-                    <input type="password" name="ANTHROPIC_API_KEY"
-                        value="{{ config.get('ANTHROPIC_API_KEY', '') }}"
-                        class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2
-                               focus:outline-none focus:border-indigo-500 font-mono"
-                        placeholder="sk-ant-...">
-                </div>
-
-                <div>
-                    <label class="text-xs text-gray-500 block mb-1.5">OpenAI API Key</label>
-                    <input type="password" name="OPENAI_API_KEY"
-                        value="{{ config.get('OPENAI_API_KEY', '') }}"
-                        class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2
-                               focus:outline-none focus:border-indigo-500 font-mono"
-                        placeholder="sk-...">
-                </div>
-
-                <div>
-                    <label class="text-xs text-gray-500 block mb-1.5">Ollama URL</label>
-                    <input type="text" name="OLLAMA_BASE_URL"
-                        value="{{ config.get('OLLAMA_BASE_URL', '') }}"
-                        class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2
-                               focus:outline-none focus:border-indigo-500 font-mono"
-                        placeholder="http://localhost:11434">
-                </div>
-
-                <div>
-                    <label class="text-xs text-gray-500 block mb-1.5">Ollama Model</label>
-                    <input type="text" name="OLLAMA_MODEL"
-                        value="{{ config.get('OLLAMA_MODEL', '') }}"
-                        class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2
-                               focus:outline-none focus:border-indigo-500 font-mono"
-                        placeholder="llama3.2">
-                </div>
-
-                <button type="submit"
-                    class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium
-                           rounded-lg transition-colors">
-                    💾 .env 저장
+        <!-- Session list panel -->
+        <div class="bg-gray-900 rounded-xl border border-gray-800 flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-800 flex items-center justify-between shrink-0">
+                <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">대화 기록</span>
+                <button onclick="newChat()"
+                    class="text-xs px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors">
+                    + 새 대화
                 </button>
-            </form>
-
-            <div id="config-result" class="mt-3 text-xs"></div>
+            </div>
+            <div id="session-list" class="flex-1 overflow-y-auto p-2">
+                {% include "partials/session_list.html" %}
+            </div>
         </div>
+
+        <!-- LLM config (collapsible) -->
+        <details class="bg-gray-900 rounded-xl border border-gray-800 shrink-0 group"
+                 id="llm-config-panel">
+            <summary class="px-4 py-3 text-xs text-gray-500 font-bold uppercase tracking-wider
+                            cursor-pointer hover:text-gray-300 transition-colors select-none
+                            flex items-center justify-between">
+                <span>⚙ LLM 설정</span>
+                <span class="text-gray-700 group-open:rotate-180 transition-transform text-xs">▼</span>
+            </summary>
+            <div class="px-4 pb-4 border-t border-gray-800 pt-4">
+                <form hx-post="/ui/playground/config"
+                      hx-target="#config-result"
+                      hx-swap="innerHTML"
+                      class="space-y-3">
+
+                    <!-- Provider (always visible) -->
+                    <div>
+                        <label class="text-xs text-gray-500 block mb-1">Provider</label>
+                        <select id="llm-provider-select" name="LLM_PROVIDER"
+                            onchange="changeProvider(this.value)"
+                            class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2
+                                   focus:outline-none focus:border-indigo-500">
+                            {% for opt in ['anthropic', 'openai', 'ollama'] %}
+                            <option value="{{ opt }}"
+                                {% if config.get('LLM_PROVIDER', 'anthropic') == opt %}selected{% endif %}>
+                                {{ opt }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Anthropic only -->
+                    <div data-llm-group="anthropic" class="space-y-3">
+                        <div>
+                            <label class="text-xs text-gray-500 block mb-1">Anthropic API Key</label>
+                            <input type="password" name="ANTHROPIC_API_KEY"
+                                value="{{ config.get('ANTHROPIC_API_KEY', '') }}"
+                                class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2
+                                       focus:outline-none focus:border-indigo-500 font-mono"
+                                placeholder="sk-ant-...">
+                        </div>
+                    </div>
+
+                    <!-- OpenAI only -->
+                    <div data-llm-group="openai" class="space-y-3">
+                        <div>
+                            <label class="text-xs text-gray-500 block mb-1">OpenAI API Key</label>
+                            <input type="password" name="OPENAI_API_KEY"
+                                value="{{ config.get('OPENAI_API_KEY', '') }}"
+                                class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2
+                                       focus:outline-none focus:border-indigo-500 font-mono"
+                                placeholder="sk-...">
+                        </div>
+                    </div>
+
+                    <!-- Ollama only -->
+                    <div data-llm-group="ollama" class="space-y-3">
+                        <div>
+                            <label class="text-xs text-gray-500 block mb-1">Ollama Base URL</label>
+                            <input type="text" name="OLLAMA_BASE_URL"
+                                value="{{ config.get('OLLAMA_BASE_URL', 'http://localhost:11434') }}"
+                                class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2
+                                       focus:outline-none focus:border-indigo-500 font-mono"
+                                placeholder="http://localhost:11434">
+                        </div>
+                    </div>
+
+                    <!-- Model (always visible, dynamically populated) -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="text-xs text-gray-500">Model</label>
+                            <button type="button" onclick="refreshModels()"
+                                class="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+                                title="목록 새로고침">↻</button>
+                        </div>
+                        <select id="llm-model-select" name="LLM_MODEL"
+                            data-current="{{ config.get('LLM_MODEL', '') }}"
+                            class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded-lg px-3 py-2
+                                   focus:outline-none focus:border-indigo-500 font-mono">
+                            <option value="">로딩 중...</option>
+                        </select>
+                        <p id="model-error" class="text-xs text-yellow-600 mt-1 hidden"></p>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium
+                               rounded-lg transition-colors">
+                        💾 .env 저장
+                    </button>
+                </form>
+                <div id="config-result" class="mt-2 text-xs"></div>
+            </div>
+        </details>
+
     </div>
 
-    <!-- Right: Chat + Result Graph -->
+    <!-- ── Right: chat + result graph ──────────────────────────────────────── -->
     <div class="flex-1 flex flex-col gap-4 min-h-0">
 
         <!-- Chat window -->
@@ -90,8 +130,8 @@
 
             <!-- Chat header -->
             <div class="px-5 py-3 border-b border-gray-800 flex items-center justify-between shrink-0">
-                <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">Chat</span>
-                <button onclick="clearChat()"
+                <span id="chat-session-label" class="text-xs text-gray-500 font-bold uppercase tracking-wider">Chat</span>
+                <button onclick="clearChatUI()"
                     class="text-gray-600 hover:text-gray-400 text-xs transition-colors">
                     지우기
                 </button>
@@ -100,7 +140,7 @@
             <!-- Messages -->
             <div id="chat-messages" class="flex-1 overflow-y-auto p-5 space-y-3">
                 <p class="text-gray-700 text-xs text-center py-8">
-                    온톨로지에 대해 자연어로 질문하세요.<br>
+                    ← 새 대화를 시작하거나 기존 대화를 선택하세요.<br>
                     <span class="text-gray-800">예: "모든 포켓몬 목록을 알려줘"</span>
                 </p>
             </div>
@@ -140,27 +180,187 @@
 
 {% block scripts %}
 <script>
+// ── LLM Config: dynamic provider fields + model dropdown ──────────────────────
+
+const _PROVIDER_DEFAULTS = {
+    anthropic: 'claude-sonnet-4-6',
+    openai: 'gpt-4o',
+    ollama: null,
+};
+
+async function changeProvider(provider) {
+    // Show only the field group matching the selected provider
+    document.querySelectorAll('[data-llm-group]').forEach(el => {
+        el.style.display = el.dataset.llmGroup === provider ? '' : 'none';
+    });
+    await _fetchModels(provider);
+}
+
+async function refreshModels() {
+    const provider = document.getElementById('llm-provider-select').value;
+    await _fetchModels(provider);
+}
+
+async function _fetchModels(provider) {
+    const sel = document.getElementById('llm-model-select');
+    const errEl = document.getElementById('model-error');
+    // envModel: what .env currently has (server-rendered, stays constant)
+    const envModel = sel.dataset.current || '';
+    const defaultModel = _PROVIDER_DEFAULTS[provider] || '';
+
+    sel.disabled = true;
+    sel.innerHTML = '<option value="">로딩 중...</option>';
+    errEl.classList.add('hidden');
+
+    try {
+        const resp = await fetch(`/ui/playground/models?provider=${encodeURIComponent(provider)}`);
+        const data = await resp.json();
+
+        if (data.error) {
+            errEl.textContent = data.error;
+            errEl.classList.remove('hidden');
+        }
+
+        const models = data.models || [];
+        if (models.length === 0) {
+            sel.innerHTML = '<option value="">(모델 없음)</option>';
+        } else {
+            sel.innerHTML = models
+                .map(m => `<option value="${escHtml(m)}">${escHtml(m)}</option>`)
+                .join('');
+            // Priority: 1) .env model if valid for this provider
+            //           2) provider default model
+            //           3) first model in list
+            if (envModel && models.includes(envModel)) {
+                sel.value = envModel;
+            } else if (defaultModel && models.includes(defaultModel)) {
+                sel.value = defaultModel;
+            } else {
+                sel.value = models[0];
+            }
+        }
+    } catch {
+        sel.innerHTML = '<option value="">(조회 실패)</option>';
+    }
+
+    sel.disabled = false;
+}
+
+// Script is at bottom of <body> — DOM is already parsed, call directly.
+changeProvider(document.getElementById('llm-provider-select').value);
+
+// Re-apply when the collapsible config panel is opened.
+document.getElementById('llm-config-panel').addEventListener('toggle', function () {
+    if (this.open) {
+        changeProvider(document.getElementById('llm-provider-select').value);
+    }
+});
+
+// ── State ──────────────────────────────────────────────────────────────────────
 let _streaming = false;
 let _pendingGraphData = null;
+let currentSessionId = null;
 
-function clearChat() {
-    document.getElementById('chat-messages').innerHTML = `
-        <p class="text-gray-700 text-xs text-center py-8">
-            온톨로지에 대해 자연어로 질문하세요.
-        </p>`;
+// ── Session management ─────────────────────────────────────────────────────────
+
+async function loadSessionList() {
+    const resp = await fetch('/ui/playground/sessions');
+    const html = await resp.text();
+    document.getElementById('session-list').innerHTML = html;
+    updateActiveSessions(currentSessionId);
+}
+
+async function newChat() {
+    const resp = await fetch('/ui/playground/sessions', { method: 'POST' });
+    const data = await resp.json();
+    currentSessionId = data.session_id;
+    localStorage.setItem('ontorag_session_id', currentSessionId);
+    clearChatUI();
+    showPlaceholder('새 대화를 시작하세요. 무엇이 궁금하신가요?');
+    await loadSessionList();
+    document.getElementById('chat-input').focus();
+}
+
+async function loadSession(id) {
+    if (_streaming) return;
+    currentSessionId = id;
+    localStorage.setItem('ontorag_session_id', id);
+    updateActiveSessions(id);
+
+    const resp = await fetch(`/ui/playground/sessions/${id}/messages`);
+    const data = await resp.json();
+
+    const msgs = document.getElementById('chat-messages');
+    msgs.innerHTML = '';
+    document.getElementById('result-graph-panel').classList.add('hidden');
+    _pendingGraphData = null;
+
+    if (!data.messages || data.messages.length === 0) {
+        showPlaceholder('새 대화를 시작하세요. 무엇이 궁금하신가요?');
+    } else {
+        for (const m of data.messages) {
+            if (m.role === 'user') _appendUserBubble(m.text);
+            else _appendAiBubble(m.text);
+        }
+        msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    document.getElementById('chat-input').focus();
+}
+
+async function deleteSession(id) {
+    if (!confirm('이 대화를 삭제할까요?')) return;
+    await fetch(`/ui/playground/sessions/${id}`, { method: 'DELETE' });
+    if (currentSessionId === id) {
+        currentSessionId = null;
+        localStorage.removeItem('ontorag_session_id');
+        clearChatUI();
+    }
+    await loadSessionList();
+}
+
+function updateActiveSessions(activeId) {
+    document.querySelectorAll('.session-item').forEach(el => {
+        if (el.dataset.sessionId === activeId) {
+            el.classList.add('bg-indigo-900', 'border', 'border-indigo-700');
+        } else {
+            el.classList.remove('bg-indigo-900', 'border', 'border-indigo-700');
+        }
+    });
+}
+
+// ── Message rendering ──────────────────────────────────────────────────────────
+
+function showPlaceholder(text) {
+    document.getElementById('chat-messages').innerHTML =
+        `<p class="text-gray-700 text-xs text-center py-8">${escHtml(text)}</p>`;
+}
+
+function clearChatUI() {
+    showPlaceholder('← 새 대화를 시작하거나 기존 대화를 선택하세요.');
     document.getElementById('result-graph-panel').classList.add('hidden');
     _pendingGraphData = null;
 }
 
-// ── Message rendering ──────────────────────────────────────────────────────────
-function addUserMsg(text) {
+function _appendUserBubble(text) {
     const msgs = document.getElementById('chat-messages');
-    clearPlaceholder(msgs);
+    _clearPlaceholder(msgs);
     const d = document.createElement('div');
     d.className = 'flex justify-end';
-    d.innerHTML = `<div class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl max-w-[80%] text-sm">${escHtml(text)}</div>`;
+    d.innerHTML = `<div class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl max-w-[80%] text-sm whitespace-pre-wrap">${escHtml(text)}</div>`;
     msgs.appendChild(d);
-    msgs.scrollTop = msgs.scrollHeight;
+}
+
+function _appendAiBubble(text) {
+    const msgs = document.getElementById('chat-messages');
+    const d = document.createElement('div');
+    d.className = 'flex justify-start';
+    const bubble = document.createElement('div');
+    bubble.className = 'bg-gray-800 text-gray-100 px-4 py-3 rounded-xl max-w-[88%] text-sm whitespace-pre-wrap leading-relaxed';
+    bubble.textContent = text;
+    d.appendChild(bubble);
+    msgs.appendChild(d);
+    return bubble;
 }
 
 function addToolEvent(type, event) {
@@ -197,7 +397,7 @@ function removeThinking() {
     if (el) el.remove();
 }
 
-function clearPlaceholder(container) {
+function _clearPlaceholder(container) {
     const placeholder = container.querySelector('p.text-center');
     if (placeholder) placeholder.remove();
 }
@@ -209,13 +409,22 @@ async function sendChat() {
     const message = input.value.trim();
     if (!message) return;
 
+    // Auto-create session if none active
+    if (!currentSessionId) {
+        const resp = await fetch('/ui/playground/sessions', { method: 'POST' });
+        const data = await resp.json();
+        currentSessionId = data.session_id;
+        localStorage.setItem('ontorag_session_id', currentSessionId);
+    }
+
     input.value = '';
     input.disabled = true;
     document.getElementById('send-btn').disabled = true;
     _streaming = true;
     _pendingGraphData = { nodes: [], edges: [] };
 
-    addUserMsg(message);
+    _appendUserBubble(message);
+    document.getElementById('chat-messages').scrollTop = 9999;
 
     let aiBubble = null;
     let aiText = '';
@@ -224,7 +433,7 @@ async function sendChat() {
         const resp = await fetch('/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message }),
+            body: JSON.stringify({ message, session_id: currentSessionId }),
         });
 
         if (!resp.ok) {
@@ -248,16 +457,10 @@ async function sendChat() {
                 if (!line.startsWith('data: ')) continue;
                 let event;
                 try { event = JSON.parse(line.slice(6)); } catch { continue; }
+
                 handleSseEvent(event, () => {
-                    // Lazy AI bubble creation on first text chunk
                     if (!aiBubble) {
-                        const msgs = document.getElementById('chat-messages');
-                        const d = document.createElement('div');
-                        d.className = 'flex justify-start';
-                        aiBubble = document.createElement('div');
-                        aiBubble.className = 'bg-gray-800 text-gray-100 px-4 py-3 rounded-xl max-w-[88%] text-sm whitespace-pre-wrap leading-relaxed';
-                        d.appendChild(aiBubble);
-                        msgs.appendChild(d);
+                        aiBubble = _appendAiBubble('');
                     }
                     aiBubble.textContent = aiText;
                     document.getElementById('chat-messages').scrollTop = 9999;
@@ -292,12 +495,10 @@ function handleSseEvent(event, onText, appendText) {
         addToolEvent('tool_result', event);
         const c = event.content;
         if (!c) { /* skip */ }
-        // traverse/find_path: {nodes, edges, start_uri, ...}
         else if (c.nodes && Array.isArray(c.nodes) && c.nodes.length > 0) {
             _pendingGraphData.nodes.push(...c.nodes);
             if (Array.isArray(c.edges)) _pendingGraphData.edges.push(...c.edges);
         }
-        // find_entities: [{uri, label, class_uri, properties}, ...]
         else if (Array.isArray(c) && c.length > 0 && c[0].uri) {
             c.forEach(e => _pendingGraphData.nodes.push({ uri: e.uri, label: e.label, depth: 0 }));
         }
@@ -310,6 +511,8 @@ function handleSseEvent(event, onText, appendText) {
         if (_pendingGraphData && _pendingGraphData.nodes.length > 0) {
             renderResultGraph(_pendingGraphData);
         }
+        // Refresh session list to update title and timestamp
+        loadSessionList();
     } else if (event.type === 'error') {
         removeThinking();
         const d = document.createElement('div');
@@ -328,7 +531,6 @@ function renderResultGraph(data) {
 
     if (window._cyRes) { window._cyRes.destroy(); window._cyRes = null; }
 
-    // Deduplicate nodes
     const seenIds = new Set();
     const cyNodes = data.nodes
         .filter(n => { const id = n.uri; if (seenIds.has(id)) return false; seenIds.add(id); return true; })
@@ -403,5 +605,17 @@ function renderResultGraph(data) {
         layout: { name: 'cose', padding: 20, nodeRepulsion: 4096, idealEdgeLength: 80 }
     });
 }
+
+// ── Restore last session on page load ─────────────────────────────────────────
+(async function restoreSession() {
+    const saved = localStorage.getItem('ontorag_session_id');
+    if (saved) {
+        try {
+            await loadSession(saved);
+        } catch {
+            localStorage.removeItem('ontorag_session_id');
+        }
+    }
+})();
 </script>
 {% endblock %}
