@@ -6,6 +6,8 @@ from typing import Any
 
 import anthropic
 
+from ontorag.llm.base import _CompletionMessage, _TextBlock, _ToolUseBlock
+
 logger = logging.getLogger(__name__)
 
 
@@ -42,8 +44,8 @@ class AnthropicProvider:
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
         system: str | None = None,
-    ) -> anthropic.types.Message:
-        """Send one API request and return the raw Message.
+    ) -> _CompletionMessage:
+        """Send one API request and return a normalized _CompletionMessage.
 
         Args:
             messages: Conversation history in Anthropic format.
@@ -51,7 +53,7 @@ class AnthropicProvider:
             system: System prompt (optional).
 
         Returns:
-            Anthropic Message object (may contain text and/or tool_use blocks).
+            Provider-agnostic _CompletionMessage (text and/or tool_use blocks).
         """
         kwargs: dict[str, Any] = dict(
             model=self._model,
@@ -62,4 +64,19 @@ class AnthropicProvider:
         if system:
             kwargs["system"] = system
         logger.debug("LLM request: model=%s turns=%d", self._model, len(messages))
-        return await self._client.messages.create(**kwargs)
+        raw = await self._client.messages.create(**kwargs)
+
+        content: list[_TextBlock | _ToolUseBlock] = []
+        for block in raw.content:
+            if block.type == "text":
+                content.append(_TextBlock(text=block.text))
+            elif block.type == "tool_use":
+                content.append(_ToolUseBlock(
+                    id=block.id,
+                    name=block.name,
+                    input=dict(block.input) if block.input else {},
+                ))
+        return _CompletionMessage(
+            content=content,
+            stop_reason=raw.stop_reason or "end_turn",
+        )

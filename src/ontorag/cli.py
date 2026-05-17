@@ -180,16 +180,12 @@ def status() -> None:
         "[green]✓ connected[/]" if s.connected else "[red]✗ disconnected[/]",
     )
     if s.connected:
-        schema_str = (
-            f"[green]loaded[/] ({s.triple_count} total)"
-            if s.schema_loaded
-            else "[yellow]not loaded[/]"
-        )
-        data_str = (
-            "[green]loaded[/]" if s.data_loaded else "[yellow]not loaded[/]"
-        )
+        schema_str = "[green]loaded[/]" if s.schema_loaded else "[yellow]not loaded[/]"
+        data_str = "[green]loaded[/]" if s.data_loaded else "[yellow]not loaded[/]"
         table.add_row("Schema (TBox)", schema_str)
         table.add_row("Data (ABox)", data_str)
+        if s.triple_count is not None:
+            table.add_row("Total triples", str(s.triple_count))
 
     console.print(table)
     if s.connected and not s.schema_loaded:
@@ -247,7 +243,8 @@ def config_set(
         changes.append(f"LLM_PROVIDER={provider}")
 
     if api_key is not None:
-        effective_provider = provider or _current_provider(env_file)
+        from dotenv import dotenv_values
+        effective_provider = provider or dotenv_values(str(env_file)).get("LLM_PROVIDER", "anthropic")
         key_name = "ANTHROPIC_API_KEY" if effective_provider == "anthropic" else "OPENAI_API_KEY"
         set_key(str(env_file), key_name, api_key)
         changes.append(f"{key_name}=***")
@@ -271,12 +268,6 @@ def config_set(
     for change in changes:
         console.print(f"[green]✓[/] {change}")
     console.print(f"[dim].env 파일에 저장했습니다: {env_file.resolve()}[/]")
-
-
-def _current_provider(env_file: Path) -> str:
-    from dotenv import dotenv_values
-    vals = dotenv_values(str(env_file))
-    return vals.get("LLM_PROVIDER", "anthropic")
 
 
 @config_app.command("show")
@@ -364,8 +355,10 @@ def chat(
         except Exception as exc:
             console.print(f"[yellow]경고:[/] 스키마 로드 실패 — {exc}")
 
+        # Create the agent once so conversation history persists across turns
+        agent = AgentLoop(store, llm, schema_context=schema_ctx)
+
         async def run_turn(msg: str) -> None:
-            agent = AgentLoop(store, llm, schema_context=schema_ctx)
             async for event in agent.run(msg):
                 _render_event(event)
 

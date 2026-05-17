@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from ontorag.stores.fuseki import DATA_GRAPH_URI, SCHEMA_GRAPH_URI, FusekiStore
@@ -124,7 +125,7 @@ async def test_status_connected(store):
 @pytest.mark.asyncio
 async def test_status_disconnected(store):
     mock_client = AsyncMock()
-    mock_client.get.side_effect = Exception("Connection refused")
+    mock_client.get.side_effect = httpx.ConnectError("Connection refused")
 
     with patch.object(store, "_http", return_value=mock_client):
         s = await store.status()

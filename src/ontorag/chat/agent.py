@@ -5,10 +5,9 @@ import logging
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from ontorag.llm.anthropic import AnthropicProvider
+from ontorag.llm.base import _CompletionMessage  # noqa: F401 — re-exported for type hints
 from ontorag.llm.factory import LLMProvider
 from ontorag.stores.base import PatternQuery, PatternTriple
-from ontorag.stores.fuseki import FusekiStore
 
 logger = logging.getLogger(__name__)
 
@@ -40,13 +39,20 @@ _SYSTEM_BASE = """\
 - 사용자 메시지가 한국어면 한국어로, 영어면 영어로 답변하세요."""
 
 
+def _local_name(uri: str) -> str:
+    """Extract local name from a URI (handles both # and / separators)."""
+    if "#" in uri:
+        return uri.split("#")[-1]
+    return uri.rstrip("/").split("/")[-1]
+
+
 def _format_schema_for_prompt(schema: Any) -> str:
     """SchemaResult를 시스템 프롬프트용 compact 텍스트로 변환."""
     lines = ["## 현재 온톨로지 스키마 (세션 고정 — get_schema 재호출 불필요)", ""]
     lines.append("### 클래스 (URI | label | 속성수 | 인스턴스수)")
     for cls in schema.classes:
         label = cls.label or "-"
-        parent = f" ← {cls.parent_uri.split('#')[-1]}" if cls.parent_uri else ""
+        parent = f" ← {_local_name(cls.parent_uri)}" if cls.parent_uri else ""
         lines.append(f"- {cls.uri} | {label}{parent} | 속성:{cls.property_count} | 인스턴스:{cls.instance_count}")
 
     ns_relevant = {k: v for k, v in schema.namespaces.items() if k not in ("rdf", "rdfs", "owl", "xsd")}
@@ -226,14 +232,15 @@ class AgentLoop:
 
     Drives multi-turn tool-use iteration until the LLM returns end_turn.
     All events are yielded as dicts that the /chat route converts to SSE.
+    Conversation history is preserved across calls to run() for REPL sessions.
     """
 
     MAX_TURNS = 12
 
     def __init__(
         self,
-        store: FusekiStore,
-        llm: LLMProvider,
+        store: Any,  # GraphStore Protocol — avoid circular import
+        llm: Any,    # LLMProvider Protocol
         schema_context: str | None = None,
     ) -> None:
         self._store = store
@@ -241,12 +248,16 @@ class AgentLoop:
         self._system = (
             f"{_SYSTEM_BASE}\n\n{schema_context}" if schema_context else _SYSTEM_BASE
         )
+        self._history: list[dict[str, Any]] = []  # persistent across run() calls
 
     async def run(self, user_message: str) -> AsyncGenerator[dict[str, Any], None]:
-        """Run one user turn and yield SSE event dicts until done."""
-        messages: list[dict[str, Any]] = [
-            {"role": "user", "content": user_message}
-        ]
+        """Run one user turn and yield SSE event dicts until done.
+
+        History is accumulated in self._history so consecutive calls build
+        on prior conversation context.
+        """
+        messages: list[dict[str, Any]] = list(self._history)
+        messages.append({"role": "user", "content": user_message})
 
         for turn in range(self.MAX_TURNS):
             logger.debug("Agent turn %d", turn + 1)
@@ -291,6 +302,15 @@ class AgentLoop:
 
             if tool_results:
                 messages.append({"role": "user", "content": tool_results})
+        else:
+            # MAX_TURNS reached without end_turn — notify the user
+            yield {
+                "type": "text",
+                "content": "\n\n⚠️ 분석이 최대 턴 수에 도달했습니다. 질문을 더 구체적으로 작성해 보세요.",
+            }
+
+        # Persist history for the next run() call
+        self._history = messages
 
         yield {"type": "done"}
 

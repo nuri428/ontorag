@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from typing import Any, Literal
@@ -8,7 +9,7 @@ import httpx
 from rdflib import Graph
 
 from ontorag.core.loader import detect_mode, parse_rdf
-from ontorag.core.sparql import STANDARD_PREFIXES, pattern_to_sparql
+from ontorag.core.sparql import STANDARD_PREFIXES, pattern_to_sparql, uri_ref
 from ontorag.stores._entity_mixin import _EntityMixin
 from ontorag.stores._traversal_mixin import _TraversalMixin
 from ontorag.stores.base import (
@@ -49,8 +50,6 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
         user: str,
         password: str,
     ) -> None:
-        # Extra namespace prefixes captured from loaded RDF files
-        self._namespaces: dict[str, str] = {}
         """Initialize the Fuseki store adapter.
 
         Args:
@@ -59,10 +58,13 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
             user: HTTP Basic auth username.
             password: HTTP Basic auth password.
         """
+        # Extra namespace prefixes captured from loaded RDF files
+        self._namespaces: dict[str, str] = {}
         self._base = url.rstrip("/")
         self._dataset = dataset
         self._auth = httpx.BasicAuth(user, password)
         self._client: httpx.AsyncClient | None = None
+        self._dataset_ensured: bool = False
 
     @classmethod
     def from_env(cls) -> FusekiStore:
@@ -85,6 +87,12 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
             self._client = httpx.AsyncClient(auth=self._auth, timeout=60.0)
         return self._client
 
+    async def aclose(self) -> None:
+        """Close the underlying HTTP client and release connections."""
+        if self._client is not None and not self._client.is_closed:
+            await self._client.aclose()
+            self._client = None
+
     async def _ensure_dataset(self) -> None:
         """Create the dataset via the admin API if it does not exist.
 
@@ -92,6 +100,8 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
         environment variable — explicit creation via POST /$/datasets is required.
         This is a no-op if the dataset already exists (409 Conflict is silently ignored).
         """
+        if self._dataset_ensured:
+            return
         client = await self._http()
         response = await client.post(
             f"{self._base}/$/datasets",
@@ -102,6 +112,7 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
         # dataset was pre-created by --mem flag — both are safe to ignore.
         if response.status_code not in (200, 201, 403, 409):
             response.raise_for_status()
+        self._dataset_ensured = True
 
     async def _gsp_put(self, graph: Graph, named_graph: str) -> None:
         """Replace a named graph via GSP PUT (idempotent)."""
@@ -250,7 +261,7 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
             client = await self._http()
             response = await client.get(f"{self._base}/$/ping")
             response.raise_for_status()
-        except Exception as exc:
+        except httpx.HTTPError as exc:
             logger.warning("Fuseki ping failed: %s", exc)
             return StoreStatus(
                 connected=False,
@@ -281,13 +292,13 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
             "PREFIX owl:  <http://www.w3.org/2002/07/owl#>\n"
         )
 
-        # 1. All classes with optional label + parent
-        cls_result = await self._sparql_select(
+        # 1. All classes with optional label + parent (owl:Class + rdfs:Class)
+        cls_query = (
             prefixes + f"""
 SELECT DISTINCT ?class ?label ?parent
 WHERE {{
   GRAPH <{SCHEMA_GRAPH_URI}> {{
-    ?class a owl:Class .
+    {{ ?class a owl:Class . }} UNION {{ ?class a rdfs:Class . }}
     OPTIONAL {{
       ?class rdfs:label ?label .
       FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "en"))
@@ -303,7 +314,7 @@ ORDER BY STR(?class)
         )
 
         # 2. Property count per domain class
-        prop_result = await self._sparql_select(
+        prop_query = (
             prefixes + f"""
 SELECT DISTINCT ?prop ?domain ?propType ?label ?range
 WHERE {{
@@ -321,14 +332,19 @@ ORDER BY STR(?prop)
         )
 
         # 3. Instance count per class
-        inst_result = await self._sparql_select(
-            f"""
+        inst_query = f"""
 SELECT ?class (COUNT(DISTINCT ?inst) AS ?count)
 WHERE {{
   GRAPH <{DATA_GRAPH_URI}> {{ ?inst a ?class . }}
 }}
 GROUP BY ?class
 """
+
+        # Execute all three queries in parallel
+        cls_result, prop_result, inst_result = await asyncio.gather(
+            self._sparql_select(cls_query),
+            self._sparql_select(prop_query),
+            self._sparql_select(inst_query),
         )
 
         # Build lookup maps
@@ -377,25 +393,41 @@ GROUP BY ?class
         )
 
     async def get_class_detail(self, class_uri: str) -> ClassDetail:
-        """Return full TBox detail for one class (properties, hierarchy, instances)."""
+        """Return full TBox detail for one class (properties, hierarchy, instances).
+
+        Args:
+            class_uri: Full URI of the class (e.g. http://xmlns.com/foaf/0.1/Person).
+
+        Raises:
+            ValueError: If class_uri contains characters that would enable SPARQL injection.
+        """
+        # Fix 1: Injection guard — reject URIs containing angle brackets.
+        # uri_ref() from sparql module wraps bare URIs, but does not strip >.
+        # An attacker could pass "http://x.org/C> } INJECT {" to break out of
+        # the SPARQL template. We validate before wrapping.
+        if ">" in class_uri or "<" in class_uri:
+            raise ValueError(
+                f"class_uri contains illegal characters for SPARQL: {class_uri!r}"
+            )
+        safe_uri = uri_ref(class_uri)
+
         prefixes = (
             "PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
             "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
             "PREFIX owl:  <http://www.w3.org/2002/07/owl#>\n"
         )
-        uri_ref = f"<{class_uri}>" if not class_uri.startswith("<") else class_uri
 
         # Class label and description
-        meta_result = await self._sparql_select(
+        meta_query = (
             prefixes + f"""
 SELECT ?label ?description ?parent
 WHERE {{
   GRAPH <{SCHEMA_GRAPH_URI}> {{
-    OPTIONAL {{ {uri_ref} rdfs:label ?label .
+    OPTIONAL {{ {safe_uri} rdfs:label ?label .
                FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "en")) }}
-    OPTIONAL {{ {uri_ref} rdfs:comment ?description .
+    OPTIONAL {{ {safe_uri} rdfs:comment ?description .
                FILTER(LANG(?description) = "" || LANGMATCHES(LANG(?description), "en")) }}
-    OPTIONAL {{ {uri_ref} rdfs:subClassOf ?parent .
+    OPTIONAL {{ {safe_uri} rdfs:subClassOf ?parent .
                FILTER(!isBlank(?parent) && ?parent != owl:Thing) }}
   }}
 }}
@@ -403,13 +435,13 @@ WHERE {{
         )
 
         # Properties with this class as domain
-        prop_result = await self._sparql_select(
+        prop_query = (
             prefixes + f"""
 SELECT DISTINCT ?prop ?propType ?label ?range
 WHERE {{
   GRAPH <{SCHEMA_GRAPH_URI}> {{
     VALUES ?propType {{ owl:ObjectProperty owl:DatatypeProperty owl:AnnotationProperty }}
-    ?prop a ?propType ; rdfs:domain {uri_ref} .
+    ?prop a ?propType ; rdfs:domain {safe_uri} .
     OPTIONAL {{ ?prop rdfs:label ?label .
                FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "en")) }}
     OPTIONAL {{ ?prop rdfs:range ?range . FILTER(!isBlank(?range)) }}
@@ -420,35 +452,46 @@ ORDER BY STR(?prop)
         )
 
         # Child classes
-        children_result = await self._sparql_select(
+        children_query = (
             prefixes + f"""
 SELECT DISTINCT ?child
 WHERE {{
   GRAPH <{SCHEMA_GRAPH_URI}> {{
-    ?child rdfs:subClassOf {uri_ref} .
-    FILTER(?child != {uri_ref})
+    ?child rdfs:subClassOf {safe_uri} .
+    FILTER(?child != {safe_uri})
   }}
 }}
 """
         )
 
         # Instance count + sample URIs
-        inst_result = await self._sparql_select(
-            f"""
+        inst_query = f"""
 SELECT DISTINCT ?inst
 WHERE {{
-  GRAPH <{DATA_GRAPH_URI}> {{ ?inst a {uri_ref} . }}
+  GRAPH <{DATA_GRAPH_URI}> {{ ?inst a {safe_uri} . }}
 }}
 LIMIT 3
 """
-        )
-        inst_count_result = await self._sparql_select(
-            f"""
+        inst_count_query = f"""
 SELECT (COUNT(DISTINCT ?inst) AS ?n)
 WHERE {{
-  GRAPH <{DATA_GRAPH_URI}> {{ ?inst a {uri_ref} . }}
+  GRAPH <{DATA_GRAPH_URI}> {{ ?inst a {safe_uri} . }}
 }}
 """
+
+        # Execute all five queries in parallel
+        (
+            meta_result,
+            prop_result,
+            children_result,
+            inst_result,
+            inst_count_result,
+        ) = await asyncio.gather(
+            self._sparql_select(meta_query),
+            self._sparql_select(prop_query),
+            self._sparql_select(children_query),
+            self._sparql_select(inst_query),
+            self._sparql_select(inst_count_query),
         )
 
         meta_bindings = meta_result.get("results", {}).get("bindings", [])

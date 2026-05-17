@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import re
+
 from ontorag.stores.base import PatternFilter, PatternQuery
+
+DATA_GRAPH_URI = "urn:ontorag:data"
+
+_SAFE_URI_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9+\-.]*:[^\s<>"{}|\\^`\[\]]*$')
 
 STANDARD_PREFIXES: dict[str, str] = {
     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
@@ -50,6 +56,10 @@ def pattern_to_sparql(
     where_body = triple_lines
     if filter_lines:
         where_body = f"{triple_lines}\n{filter_lines}"
+
+    # Wrap the entire WHERE body in GRAPH <urn:ontorag:data> { ... } so that
+    # queries hit the named data graph instead of the (empty) default graph.
+    where_body = f"  GRAPH <{DATA_GRAPH_URI}> {{\n{where_body}\n  }}"
 
     parts = []
     if prefix_block:
@@ -103,8 +113,20 @@ def build_prefix_block(all_prefixes: dict[str, str]) -> str:
 
 
 def uri_ref(uri: str) -> str:
-    """Wrap a full URI in angle brackets; leave prefixed names and ?variables as-is."""
+    """Wrap a full URI in angle brackets; leave prefixed names and ?variables as-is.
+
+    Args:
+        uri: A full URI, prefixed name, or SPARQL variable.
+
+    Returns:
+        The URI wrapped in angle brackets, or the input unchanged.
+
+    Raises:
+        ValueError: If the URI contains characters that could enable SPARQL injection.
+    """
     if "://" in uri and not uri.startswith("<"):
+        if not _SAFE_URI_RE.match(uri):
+            raise ValueError(f"Invalid or potentially unsafe URI: {uri!r}")
         return f"<{uri}>"
     return uri
 

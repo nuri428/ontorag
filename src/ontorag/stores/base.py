@@ -14,7 +14,7 @@ class LoadResult(BaseModel):
 
     triples_loaded: int
     source: str
-    mode: Literal["schema", "data", "auto"]
+    mode: Literal["schema", "data"]
 
 
 class ClassSummary(BaseModel):

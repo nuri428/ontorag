@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from ontorag.api.deps import get_store
-from ontorag.chat.agent import AgentLoop
+from ontorag.chat.agent import AgentLoop, _format_schema_for_prompt
 from ontorag.llm.factory import get_llm_provider
 from ontorag.stores.fuseki import FusekiStore
 
@@ -56,7 +56,18 @@ async def chat(
         text/event-stream — Server-Sent Events.
     """
     llm = _get_llm()
-    agent = AgentLoop(store, llm)
+
+    # Load schema once per request and inject into the agent's system prompt.
+    # If the store is unavailable or has no schema yet, proceed without context
+    # — the LLM will call get_schema on its first turn instead.
+    schema_context: str | None = None
+    try:
+        schema = await store.get_schema()
+        schema_context = _format_schema_for_prompt(schema)
+    except Exception:
+        logger.warning("Schema load failed for chat request — proceeding without schema context")
+
+    agent = AgentLoop(store, llm, schema_context=schema_context)
 
     async def event_stream() -> AsyncGenerator[str, None]:
         try:
