@@ -1,18 +1,19 @@
 """Tests for OpenAI provider format conversion and factory."""
+
 from __future__ import annotations
 
-import os
-from dataclasses import dataclass, field
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from ontorag.llm.base import _CompletionMessage, _TextBlock, _ToolUseBlock, openai_response_to_message
+from ontorag.llm.base import (
+    openai_response_to_message,
+)
 from ontorag.llm.openai import _anthropic_messages_to_openai, _anthropic_tools_to_openai
 
 
 # ── _anthropic_tools_to_openai ───────────────────────────────────────────────
+
 
 def test_tools_to_openai_basic():
     tools = [
@@ -27,7 +28,11 @@ def test_tools_to_openai_basic():
     assert result[0]["type"] == "function"
     assert result[0]["function"]["name"] == "get_schema"
     assert result[0]["function"]["description"] == "Returns schema"
-    assert result[0]["function"]["parameters"] == {"type": "object", "properties": {}, "required": []}
+    assert result[0]["function"]["parameters"] == {
+        "type": "object",
+        "properties": {},
+        "required": [],
+    }
 
 
 def test_tools_to_openai_missing_description():
@@ -37,6 +42,7 @@ def test_tools_to_openai_missing_description():
 
 
 # ── _anthropic_messages_to_openai ───────────────────────────────────────────
+
 
 def test_messages_to_openai_user_string():
     messages = [{"role": "user", "content": "Hello"}]
@@ -113,6 +119,7 @@ def test_messages_to_openai_tool_result():
 
 # ── openai_response_to_message ───────────────────────────────────────────────
 
+
 def _make_openai_response(content: str | None, tool_calls=None, finish_reason="stop"):
     """Build a minimal mock OpenAI ChatCompletion response."""
     message = MagicMock()
@@ -165,11 +172,13 @@ def test_openai_response_empty():
 
 # ── LLM factory ─────────────────────────────────────────────────────────────
 
+
 def test_factory_anthropic(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "anthropic")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
     from ontorag.llm.factory import get_llm_provider
     from ontorag.llm.anthropic import AnthropicProvider
+
     provider = get_llm_provider()
     assert isinstance(provider, AnthropicProvider)
 
@@ -179,6 +188,7 @@ def test_factory_openai(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     from ontorag.llm.factory import get_llm_provider
     from ontorag.llm.openai import OpenAIProvider
+
     provider = get_llm_provider()
     assert isinstance(provider, OpenAIProvider)
 
@@ -187,6 +197,7 @@ def test_factory_ollama(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "ollama")
     from ontorag.llm.factory import get_llm_provider
     from ontorag.llm.ollama import OllamaProvider
+
     provider = get_llm_provider()
     assert isinstance(provider, OllamaProvider)
 
@@ -194,5 +205,6 @@ def test_factory_ollama(monkeypatch):
 def test_factory_unknown_raises(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "foobar")
     from ontorag.llm.factory import get_llm_provider
+
     with pytest.raises(ValueError, match="Unknown LLM_PROVIDER"):
         get_llm_provider()

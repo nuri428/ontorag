@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 
 # ── Result types ─────────────────────────────────────────────────────────────
 
+
 class LoadResult(BaseModel):
     """Result of loading an RDF file into the store."""
 
@@ -72,6 +73,10 @@ class SchemaResult(BaseModel):
     total_properties: int
     namespaces: dict[str, str]
     classes: list[ClassSummary]
+    properties: list[PropertySummary] = Field(
+        default_factory=list,
+        description="All TBox properties. Populated when the store supports it.",
+    )
 
 
 class QueryResult(BaseModel):
@@ -121,6 +126,7 @@ class StoreStatus(BaseModel):
 
 # ── Layer 1 input types ───────────────────────────────────────────────────────
 
+
 class FilterOp(str, Enum):
     """Comparison operators for entity filters."""
 
@@ -168,13 +174,13 @@ class AggFunc(str, Enum):
 
 _VAR_RE = re.compile(r"^\?[a-zA-Z][a-zA-Z0-9_]*$")
 _SAFE_TERM_RE = re.compile(
-    r"^(\?[a-zA-Z][a-zA-Z0-9_]*"   # ?variable
-    r"|<[^<>\"{}|\\^`\s]+>"         # <URI>
+    r"^(\?[a-zA-Z][a-zA-Z0-9_]*"  # ?variable
+    r"|<[^<>\"{}|\\^`\s]+>"  # <URI>
     r"|[a-zA-Z_][a-zA-Z0-9_\-]*:[^\s\"{}|\\^`]+"  # prefixed:name
-    r"|\"[^\"]*\"(@[a-zA-Z\-]+)?"   # "literal" or "literal"@lang
-    r"|\"[^\"]*\"\^\^<[^<>]+>"      # "literal"^^<type>
-    r"|-?[0-9]+(\.[0-9]+)?"         # numeric literal
-    r"|true|false)$"                 # boolean
+    r"|\"[^\"]*\"(@[a-zA-Z\-]+)?"  # "literal" or "literal"@lang
+    r"|\"[^\"]*\"\^\^<[^<>]+>"  # "literal"^^<type>
+    r"|-?[0-9]+(\.[0-9]+)?"  # numeric literal
+    r"|true|false)$"  # boolean
 )
 
 
@@ -235,7 +241,9 @@ class PatternQuery(BaseModel):
         )
     """
 
-    select: list[str] = Field(description="Variables to return, e.g. ['?person', '?name'].")
+    select: list[str] = Field(
+        description="Variables to return, e.g. ['?person', '?name']."
+    )
     where: list[PatternTriple] = Field(min_length=1)
     filters: list[PatternFilter] = Field(default_factory=list)
     limit: int = Field(default=100, ge=1, le=10_000)
@@ -252,6 +260,7 @@ class PatternQuery(BaseModel):
 
 
 # ── GraphStore Protocol ───────────────────────────────────────────────────────
+
 
 @runtime_checkable
 class GraphStore(Protocol):

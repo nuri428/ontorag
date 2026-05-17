@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.3.0 — 2026-05-18
+
+### Added — LLMs4OL Ontology Learning pipeline
+
+- **`ontorag learn` CLI** — four commands for LLMs4OL tasks (A/B/C + full pipeline):
+  - `type-term` — map a text mention to the most likely TBox class (Task A)
+  - `taxonomy` — propose `rdfs:subClassOf` relations from text evidence (Task B)
+  - `extract` — extract RDF triples with schema-validated predicate URIs (Task C)
+  - `populate` — run A+B+C, preview results in a Rich table, confirm before loading
+- **`POST /tools/learn/type-term`** and **`POST /tools/learn/extract-triples`** — two new MCP-exposed API endpoints (L1, `fastapi-mcp` auto-converts to MCP tools)
+- **`LLMOntologyLearner`** — concrete `OntologyLearner` protocol implementation backed by an LLM provider + GraphStore; fetches live TBox at call time — no stale schema cache
+- **`SchemaResult.properties`** — new field on `SchemaResult` populated by `FusekiStore.get_schema()`; enables Task C predicate validation without N+1 `get_class_detail()` calls
+- **`force_tool_name` parameter** on `AnthropicProvider.complete()` and `OpenAIProvider.complete()` — maps to `tool_choice={"type":"tool","name":"..."}` / `{"type":"function","function":{"name":"..."}}`, guarantees structured JSON output for all LLMs4OL prompts
+- **Tech Stack ontology example** (`examples/techstack/`) — demonstrates `owl:TransitiveProperty` inference on a dependency chain (Next.js → React → Node.js) and LLMs4OL extension from `corpus.txt`
+- **`cli_learn.py`** — learn command group extracted from `cli.py` into a dedicated module
+
+### Fixed
+- `populate_from_text` called LLM pipeline twice when `auto_load=True`; now runs once and reuses the stored result for the load step
+- `PopulationResult` was mutated after construction; now constructed immutably in a single call
+- `str(exc)` leaked internal exception details through HTTP 500 responses in learning routes; replaced with `logger.exception` + generic message
+
 ## v0.2.0 — 2026-05-17
 
 ### Added

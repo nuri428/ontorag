@@ -9,23 +9,27 @@ from rdflib import OWL, RDF, RDFS, Graph, URIRef
 logger = logging.getLogger(__name__)
 
 # rdf:type 목적어로 나타나면 TBox 선언으로 간주
-_SCHEMA_TYPES: frozenset[URIRef] = frozenset({
-    OWL.Class,
-    OWL.ObjectProperty,
-    OWL.DatatypeProperty,
-    OWL.AnnotationProperty,
-    OWL.Ontology,
-})
+_SCHEMA_TYPES: frozenset[URIRef] = frozenset(
+    {
+        OWL.Class,
+        OWL.ObjectProperty,
+        OWL.DatatypeProperty,
+        OWL.AnnotationProperty,
+        OWL.Ontology,
+    }
+)
 
 # 이 술어가 존재하면 TBox 구조
-_SCHEMA_PREDICATES: frozenset[URIRef] = frozenset({
-    RDFS.subClassOf,
-    RDFS.subPropertyOf,
-    RDFS.domain,
-    RDFS.range,
-    OWL.equivalentClass,
-    OWL.disjointWith,
-})
+_SCHEMA_PREDICATES: frozenset[URIRef] = frozenset(
+    {
+        RDFS.subClassOf,
+        RDFS.subPropertyOf,
+        RDFS.domain,
+        RDFS.range,
+        OWL.equivalentClass,
+        OWL.disjointWith,
+    }
+)
 
 
 def detect_mode(graph: Graph) -> Literal["schema", "data"]:

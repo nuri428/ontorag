@@ -15,7 +15,6 @@ from ontorag.stores._traversal_mixin import _TraversalMixin
 from ontorag.stores.base import (
     ClassDetail,
     ClassSummary,
-    EntityFilter,
     LoadResult,
     PatternQuery,
     PropertySummary,
@@ -147,7 +146,9 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
         if response.status_code != 404:
             response.raise_for_status()
 
-    async def clear_graph(self, target: Literal["schema", "data", "all"]) -> dict[str, int]:
+    async def clear_graph(
+        self, target: Literal["schema", "data", "all"]
+    ) -> dict[str, int]:
         """Drop one or both named graphs and return how many triples were removed.
 
         Args:
@@ -189,8 +190,7 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
 
     async def _count_graph(self, named_graph: str) -> int:
         result = await self._sparql_select(
-            f"SELECT (COUNT(*) AS ?n) WHERE "
-            f"{{ GRAPH <{named_graph}> {{ ?s ?p ?o }} }}"
+            f"SELECT (COUNT(*) AS ?n) WHERE {{ GRAPH <{named_graph}> {{ ?s ?p ?o }} }}"
         )
         bindings = result.get("results", {}).get("bindings", [])
         return int(bindings[0]["n"]["value"]) if bindings else 0
@@ -222,7 +222,7 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
             FileNotFoundError: If the file does not exist.
             httpx.HTTPStatusError: If Fuseki returns an error.
         """
-        graph = parse_rdf(path)   # raises FileNotFoundError early if missing
+        graph = parse_rdf(path)  # raises FileNotFoundError early if missing
         triple_count = len(graph)
         await self._ensure_dataset()
 
@@ -237,7 +237,9 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
         )
 
         if resolved_mode == "schema" or replace:
-            await self._gsp_put(graph, SCHEMA_GRAPH_URI if resolved_mode == "schema" else DATA_GRAPH_URI)
+            await self._gsp_put(
+                graph, SCHEMA_GRAPH_URI if resolved_mode == "schema" else DATA_GRAPH_URI
+            )
         else:
             await self._gsp_post(graph, DATA_GRAPH_URI)
 
@@ -294,7 +296,8 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
 
         # 1. All classes with optional label + parent (owl:Class + rdfs:Class)
         cls_query = (
-            prefixes + f"""
+            prefixes
+            + f"""
 SELECT DISTINCT ?class ?label ?parent
 WHERE {{
   GRAPH <{SCHEMA_GRAPH_URI}> {{
@@ -315,7 +318,8 @@ ORDER BY STR(?class)
 
         # 2. Property count per domain class
         prop_query = (
-            prefixes + f"""
+            prefixes
+            + f"""
 SELECT DISTINCT ?prop ?domain ?propType ?label ?range
 WHERE {{
   GRAPH <{SCHEMA_GRAPH_URI}> {{
@@ -347,12 +351,32 @@ GROUP BY ?class
             self._sparql_select(inst_query),
         )
 
-        # Build lookup maps
+        # Build lookup maps + collect all PropertySummary objects
         prop_count: dict[str, int] = {}
+        all_properties: list[PropertySummary] = []
+        seen_prop_uris: set[str] = set()
+        _OWL_TYPE_MAP = {
+            "http://www.w3.org/2002/07/owl#ObjectProperty": "object",
+            "http://www.w3.org/2002/07/owl#DatatypeProperty": "datatype",
+            "http://www.w3.org/2002/07/owl#AnnotationProperty": "annotation",
+        }
         for b in prop_result.get("results", {}).get("bindings", []):
             domain = b.get("domain", {}).get("value")
             if domain:
                 prop_count[domain] = prop_count.get(domain, 0) + 1
+            prop_uri = b.get("prop", {}).get("value")
+            if prop_uri and prop_uri not in seen_prop_uris:
+                seen_prop_uris.add(prop_uri)
+                raw_type = b.get("propType", {}).get("value", "")
+                all_properties.append(
+                    PropertySummary(
+                        uri=prop_uri,
+                        label=b.get("label", {}).get("value"),
+                        prop_type=_OWL_TYPE_MAP.get(raw_type, "annotation"),
+                        domain_uri=domain,
+                        range_uri=b.get("range", {}).get("value"),
+                    )
+                )
 
         inst_count: dict[str, int] = {
             b["class"]["value"]: int(b["count"]["value"])
@@ -364,13 +388,15 @@ GROUP BY ?class
         classes: list[ClassSummary] = []
         for b in cls_result.get("results", {}).get("bindings", []):
             uri = b["class"]["value"]
-            classes.append(ClassSummary(
-                uri=uri,
-                label=b.get("label", {}).get("value"),
-                parent_uri=b.get("parent", {}).get("value"),
-                property_count=prop_count.get(uri, 0),
-                instance_count=inst_count.get(uri, 0),
-            ))
+            classes.append(
+                ClassSummary(
+                    uri=uri,
+                    label=b.get("label", {}).get("value"),
+                    parent_uri=b.get("parent", {}).get("value"),
+                    property_count=prop_count.get(uri, 0),
+                    instance_count=inst_count.get(uri, 0),
+                )
+            )
 
         # Deduplicate (a class may appear multiple times if it has multiple parents)
         seen: set[str] = set()
@@ -380,16 +406,19 @@ GROUP BY ?class
                 seen.add(c.uri)
                 unique_classes.append(c)
 
-        total_props = len({
-            b["prop"]["value"]
-            for b in prop_result.get("results", {}).get("bindings", [])
-        })
+        total_props = len(
+            {
+                b["prop"]["value"]
+                for b in prop_result.get("results", {}).get("bindings", [])
+            }
+        )
 
         return SchemaResult(
             total_classes=len(unique_classes),
             total_properties=total_props,
             namespaces={**STANDARD_PREFIXES, **self._namespaces},
             classes=unique_classes,
+            properties=all_properties,
         )
 
     async def get_class_detail(self, class_uri: str) -> ClassDetail:
@@ -416,7 +445,8 @@ GROUP BY ?class
 
         # Class label and description
         meta_query = (
-            prefixes + f"""
+            prefixes
+            + f"""
 SELECT ?label ?description ?parent
 WHERE {{
   GRAPH <{SCHEMA_GRAPH_URI}> {{
@@ -433,7 +463,8 @@ WHERE {{
 
         # Properties with this class as domain
         prop_query = (
-            prefixes + f"""
+            prefixes
+            + f"""
 SELECT DISTINCT ?prop ?propType ?label ?range
 WHERE {{
   GRAPH <{SCHEMA_GRAPH_URI}> {{
@@ -450,7 +481,8 @@ ORDER BY STR(?prop)
 
         # Child classes
         children_query = (
-            prefixes + f"""
+            prefixes
+            + f"""
 SELECT DISTINCT ?child
 WHERE {{
   GRAPH <{SCHEMA_GRAPH_URI}> {{
@@ -492,18 +524,14 @@ WHERE {{
         )
 
         meta_bindings = meta_result.get("results", {}).get("bindings", [])
-        label = next(
-            (b["label"]["value"] for b in meta_bindings if "label" in b), None
-        )
+        label = next((b["label"]["value"] for b in meta_bindings if "label" in b), None)
         description = next(
             (b["description"]["value"] for b in meta_bindings if "description" in b),
             None,
         )
-        parent_uris = list({
-            b["parent"]["value"]
-            for b in meta_bindings
-            if "parent" in b
-        })
+        parent_uris = list(
+            {b["parent"]["value"] for b in meta_bindings if "parent" in b}
+        )
 
         _prop_type_map = {
             "http://www.w3.org/2002/07/owl#ObjectProperty": "object",
@@ -514,7 +542,9 @@ WHERE {{
             PropertySummary(
                 uri=b["prop"]["value"],
                 label=b.get("label", {}).get("value"),
-                prop_type=_prop_type_map.get(b.get("propType", {}).get("value", ""), "annotation"),  # type: ignore[arg-type]
+                prop_type=_prop_type_map.get(
+                    b.get("propType", {}).get("value", ""), "annotation"
+                ),  # type: ignore[arg-type]
                 domain_uri=class_uri,
                 range_uri=b.get("range", {}).get("value"),
             )
@@ -530,7 +560,9 @@ WHERE {{
             for b in inst_result.get("results", {}).get("bindings", [])
         ]
         inst_count_bindings = inst_count_result.get("results", {}).get("bindings", [])
-        inst_count = int(inst_count_bindings[0]["n"]["value"]) if inst_count_bindings else 0
+        inst_count = (
+            int(inst_count_bindings[0]["n"]["value"]) if inst_count_bindings else 0
+        )
 
         return ClassDetail(
             uri=class_uri,
@@ -556,8 +588,7 @@ WHERE {{
         bindings = raw.get("results", {}).get("bindings", [])
 
         rows: list[dict[str, Any]] = [
-            {var: b[var]["value"] for var in vars_list if var in b}
-            for b in bindings
+            {var: b[var]["value"] for var in vars_list if var in b} for b in bindings
         ]
 
         return QueryResult(columns=vars_list, rows=rows, total=len(rows))

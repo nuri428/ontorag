@@ -1,10 +1,10 @@
 """Tests for AgentLoop SSE event generation."""
+
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 
 from ontorag.chat.agent import AgentLoop
 from ontorag.llm.base import _CompletionMessage, _TextBlock, _ToolUseBlock
@@ -16,15 +16,25 @@ def _make_llm_response(stop_reason: str, blocks: list) -> _CompletionMessage:
 
 def _make_store():
     store = AsyncMock()
-    store.get_schema = AsyncMock(return_value=MagicMock(model_dump=lambda: {"classes": []}))
-    store.get_class_detail = AsyncMock(return_value=MagicMock(model_dump=lambda: {"class_uri": "pk:Pokemon"}))
-    store.find_entities = AsyncMock(return_value=[MagicMock(model_dump=lambda: {"uri": "pk:Pikachu"})])
-    store.describe_entity = AsyncMock(return_value=MagicMock(model_dump=lambda: {"uri": "pk:Pikachu"}))
+    store.get_schema = AsyncMock(
+        return_value=MagicMock(model_dump=lambda: {"classes": []})
+    )
+    store.get_class_detail = AsyncMock(
+        return_value=MagicMock(model_dump=lambda: {"class_uri": "pk:Pokemon"})
+    )
+    store.find_entities = AsyncMock(
+        return_value=[MagicMock(model_dump=lambda: {"uri": "pk:Pikachu"})]
+    )
+    store.describe_entity = AsyncMock(
+        return_value=MagicMock(model_dump=lambda: {"uri": "pk:Pikachu"})
+    )
     store.count_entities = AsyncMock(return_value=3)
     store.traverse = AsyncMock(return_value=MagicMock(model_dump=lambda: {"nodes": []}))
     store.find_path = AsyncMock(return_value=MagicMock(model_dump=lambda: {"path": []}))
     store.find_related = AsyncMock(return_value=[])
-    store.query_pattern = AsyncMock(return_value=MagicMock(model_dump=lambda: {"rows": []}))
+    store.query_pattern = AsyncMock(
+        return_value=MagicMock(model_dump=lambda: {"rows": []})
+    )
     return store
 
 
@@ -37,12 +47,15 @@ async def _collect(gen) -> list[dict[str, Any]]:
 
 # ── basic text response ──────────────────────────────────────────────────────
 
+
 async def test_agent_text_only_response():
     store = _make_store()
     llm = AsyncMock()
-    llm.complete = AsyncMock(return_value=_make_llm_response(
-        "end_turn", [_TextBlock(text="포켓몬은 12종입니다.")]
-    ))
+    llm.complete = AsyncMock(
+        return_value=_make_llm_response(
+            "end_turn", [_TextBlock(text="포켓몬은 12종입니다.")]
+        )
+    )
 
     agent = AgentLoop(store, llm)
     events = await _collect(agent.run("포켓몬 개수?"))
@@ -58,6 +71,7 @@ async def test_agent_text_only_response():
 
 # ── tool call and result ─────────────────────────────────────────────────────
 
+
 async def test_agent_tool_call_then_text():
     store = _make_store()
     llm = AsyncMock()
@@ -65,10 +79,12 @@ async def test_agent_tool_call_then_text():
     tool_block = _ToolUseBlock(id="call_1", name="get_schema", input={})
     text_block = _TextBlock(text="스키마 확인 완료")
 
-    llm.complete = AsyncMock(side_effect=[
-        _make_llm_response("tool_use", [tool_block]),
-        _make_llm_response("end_turn", [text_block]),
-    ])
+    llm.complete = AsyncMock(
+        side_effect=[
+            _make_llm_response("tool_use", [tool_block]),
+            _make_llm_response("end_turn", [text_block]),
+        ]
+    )
 
     agent = AgentLoop(store, llm)
     events = await _collect(agent.run("스키마 보여줘"))
@@ -86,20 +102,29 @@ async def test_agent_tool_call_then_text():
 
 # ── tool dispatch ────────────────────────────────────────────────────────────
 
+
 async def test_agent_find_entities_tool():
     store = _make_store()
     llm = AsyncMock()
 
-    tool_block = _ToolUseBlock(id="call_2", name="find_entities", input={"class_uri": "pk:Pokemon", "limit": 10})
-    llm.complete = AsyncMock(side_effect=[
-        _make_llm_response("tool_use", [tool_block]),
-        _make_llm_response("end_turn", [_TextBlock(text="찾았습니다")]),
-    ])
+    tool_block = _ToolUseBlock(
+        id="call_2",
+        name="find_entities",
+        input={"class_uri": "pk:Pokemon", "limit": 10},
+    )
+    llm.complete = AsyncMock(
+        side_effect=[
+            _make_llm_response("tool_use", [tool_block]),
+            _make_llm_response("end_turn", [_TextBlock(text="찾았습니다")]),
+        ]
+    )
 
     agent = AgentLoop(store, llm)
     events = await _collect(agent.run("포켓몬 목록"))
 
-    store.find_entities.assert_awaited_once_with(class_uri="pk:Pokemon", filters=None, limit=10)
+    store.find_entities.assert_awaited_once_with(
+        class_uri="pk:Pokemon", filters=None, limit=10
+    )
     result_events = [e for e in events if e["type"] == "tool_result"]
     assert len(result_events) == 1
     assert result_events[0]["tool"] == "find_entities"
@@ -109,14 +134,18 @@ async def test_agent_count_entities_tool():
     store = _make_store()
     llm = AsyncMock()
 
-    tool_block = _ToolUseBlock(id="c3", name="count_entities", input={"class_uri": "pk:Pokemon"})
-    llm.complete = AsyncMock(side_effect=[
-        _make_llm_response("tool_use", [tool_block]),
-        _make_llm_response("end_turn", [_TextBlock(text="3개입니다")]),
-    ])
+    tool_block = _ToolUseBlock(
+        id="c3", name="count_entities", input={"class_uri": "pk:Pokemon"}
+    )
+    llm.complete = AsyncMock(
+        side_effect=[
+            _make_llm_response("tool_use", [tool_block]),
+            _make_llm_response("end_turn", [_TextBlock(text="3개입니다")]),
+        ]
+    )
 
     agent = AgentLoop(store, llm)
-    events = await _collect(agent.run("몇 개야?"))
+    await _collect(agent.run("몇 개야?"))
 
     store.count_entities.assert_awaited_once_with("pk:Pokemon")
 
@@ -126,16 +155,19 @@ async def test_agent_traverse_tool():
     llm = AsyncMock()
 
     tool_block = _ToolUseBlock(
-        id="c4", name="traverse_graph",
+        id="c4",
+        name="traverse_graph",
         input={"start_uri": "pk:Venusaur", "max_depth": 2, "direction": "outgoing"},
     )
-    llm.complete = AsyncMock(side_effect=[
-        _make_llm_response("tool_use", [tool_block]),
-        _make_llm_response("end_turn", [_TextBlock(text="순회 완료")]),
-    ])
+    llm.complete = AsyncMock(
+        side_effect=[
+            _make_llm_response("tool_use", [tool_block]),
+            _make_llm_response("end_turn", [_TextBlock(text="순회 완료")]),
+        ]
+    )
 
     agent = AgentLoop(store, llm)
-    events = await _collect(agent.run("진화 체인?"))
+    await _collect(agent.run("진화 체인?"))
 
     store.traverse.assert_awaited_once()
 
@@ -145,10 +177,12 @@ async def test_agent_unknown_tool_returns_error():
     llm = AsyncMock()
 
     tool_block = _ToolUseBlock(id="c5", name="nonexistent_tool", input={})
-    llm.complete = AsyncMock(side_effect=[
-        _make_llm_response("tool_use", [tool_block]),
-        _make_llm_response("end_turn", [_TextBlock(text="처리함")]),
-    ])
+    llm.complete = AsyncMock(
+        side_effect=[
+            _make_llm_response("tool_use", [tool_block]),
+            _make_llm_response("end_turn", [_TextBlock(text="처리함")]),
+        ]
+    )
 
     agent = AgentLoop(store, llm)
     events = await _collect(agent.run("존재하지 않는 툴"))
@@ -159,12 +193,13 @@ async def test_agent_unknown_tool_returns_error():
 
 # ── done event always last ───────────────────────────────────────────────────
 
+
 async def test_agent_done_is_last_event():
     store = _make_store()
     llm = AsyncMock()
-    llm.complete = AsyncMock(return_value=_make_llm_response(
-        "end_turn", [_TextBlock(text="ok")]
-    ))
+    llm.complete = AsyncMock(
+        return_value=_make_llm_response("end_turn", [_TextBlock(text="ok")])
+    )
 
     agent = AgentLoop(store, llm)
     events = await _collect(agent.run("test"))

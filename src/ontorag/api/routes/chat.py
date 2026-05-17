@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -75,10 +74,13 @@ async def chat(
         schema_context = _format_schema_for_prompt(schema)
         has_ontology_data = any(cls.instance_count > 0 for cls in schema.classes)
     except Exception:
-        logger.warning("Schema load failed for chat request — proceeding without schema context")
+        logger.warning(
+            "Schema load failed for chat request — proceeding without schema context"
+        )
 
     agent = AgentLoop(
-        store, llm,
+        store,
+        llm,
         schema_context=schema_context,
         initial_history=initial_history,
         has_ontology_data=has_ontology_data,
@@ -97,6 +99,8 @@ async def chat(
             # Persist history after the stream completes (including on error/disconnect)
             if body.session_id:
                 title = body.message[:40] if is_first_message else None
-                await chat_store.save_session(body.session_id, agent._history, title=title)
+                await chat_store.save_session(
+                    body.session_id, agent._history, title=title
+                )
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

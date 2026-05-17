@@ -5,7 +5,6 @@ import logging
 from typing import Any
 
 from ontorag.core.sparql import (
-    STANDARD_PREFIXES,
     build_filter_sparql,
     uri_ref,
 )
@@ -33,9 +32,7 @@ class _TraversalMixin:
         """BFS traversal from a starting node up to max_depth hops."""
         max_depth = min(max_depth, _MAX_DEPTH_HARD)
         pfx = self._pfx()
-        pred_filter = (
-            f"    FILTER(?pred = {uri_ref(predicate)})" if predicate else ""
-        )
+        pred_filter = f"    FILTER(?pred = {uri_ref(predicate)})" if predicate else ""
 
         visited: set[str] = {start_uri}
         frontier: list[str] = [start_uri]
@@ -61,8 +58,16 @@ WHERE {{
 {pred_filter}
   }}
 }}"""
-                for b in (await self._sparql_select(out_q)).get("results", {}).get("bindings", []):
-                    src, pred_uri, tgt = b["src"]["value"], b["pred"]["value"], b["tgt"]["value"]
+                for b in (
+                    (await self._sparql_select(out_q))
+                    .get("results", {})
+                    .get("bindings", [])
+                ):
+                    src, pred_uri, tgt = (
+                        b["src"]["value"],
+                        b["pred"]["value"],
+                        b["tgt"]["value"],
+                    )
                     edges.append({"from": src, "to": tgt, "predicate": pred_uri})
                     if tgt not in visited:
                         visited.add(tgt)
@@ -80,8 +85,16 @@ WHERE {{
 {pred_filter}
   }}
 }}"""
-                for b in (await self._sparql_select(in_q)).get("results", {}).get("bindings", []):
-                    src, pred_uri, tgt = b["src"]["value"], b["pred"]["value"], b["tgt"]["value"]
+                for b in (
+                    (await self._sparql_select(in_q))
+                    .get("results", {})
+                    .get("bindings", [])
+                ):
+                    src, pred_uri, tgt = (
+                        b["src"]["value"],
+                        b["pred"]["value"],
+                        b["tgt"]["value"],
+                    )
                     edges.append({"from": src, "to": tgt, "predicate": pred_uri})
                     if src not in visited:
                         visited.add(src)
@@ -94,8 +107,16 @@ WHERE {{
         if nodes:
             uris_block = " ".join(f"<{n['uri']}>" for n in nodes)
             lbl_q = f"{pfx}\nSELECT ?uri ?label WHERE {{ VALUES ?uri {{ {uris_block} }} GRAPH <{_DATA}> {{ ?uri rdfs:label ?label . }} }}"
-            lbl_bindings = (await self._sparql_select(lbl_q)).get("results", {}).get("bindings", [])
-            uri_labels = {b["uri"]["value"]: b["label"]["value"] for b in lbl_bindings if "uri" in b and "label" in b}
+            lbl_bindings = (
+                (await self._sparql_select(lbl_q))
+                .get("results", {})
+                .get("bindings", [])
+            )
+            uri_labels = {
+                b["uri"]["value"]: b["label"]["value"]
+                for b in lbl_bindings
+                if "uri" in b and "label" in b
+            }
             for node in nodes:
                 node["label"] = uri_labels.get(node["uri"])
 
@@ -154,7 +175,11 @@ WHERE {{
 
             # Process outgoing edges: ?src → ?tgt
             for b in out_rows_result.get("results", {}).get("bindings", []):
-                src, pred_uri, tgt = b["src"]["value"], b["pred"]["value"], b["tgt"]["value"]
+                src, pred_uri, tgt = (
+                    b["src"]["value"],
+                    b["pred"]["value"],
+                    b["tgt"]["value"],
+                )
                 if tgt not in visited:
                     visited.add(tgt)
                     parent[tgt] = (src, pred_uri)
@@ -167,7 +192,11 @@ WHERE {{
 
             # Process incoming edges: ?src ← ?tgt (frontier nodes are the ?tgt end)
             for b in in_rows_result.get("results", {}).get("bindings", []):
-                src, pred_uri, tgt = b["src"]["value"], b["pred"]["value"], b["tgt"]["value"]
+                src, pred_uri, tgt = (
+                    b["src"]["value"],
+                    b["pred"]["value"],
+                    b["tgt"]["value"],
+                )
                 # src is the new node discovered; tgt is already in frontier/visited
                 if src not in visited:
                     visited.add(src)
@@ -182,7 +211,9 @@ WHERE {{
             frontier = new_frontier
 
         if uri_b not in parent:
-            return TraversalResult(start_uri=uri_a, end_uri=uri_b, nodes=[], edges=[], depth_reached=0)
+            return TraversalResult(
+                start_uri=uri_a, end_uri=uri_b, nodes=[], edges=[], depth_reached=0
+            )
 
         # Reconstruct path
         path_nodes: list[dict[str, Any]] = []
@@ -199,8 +230,16 @@ WHERE {{
         if path_nodes:
             uris_block = " ".join(f"<{n['uri']}>" for n in path_nodes)
             lbl_q = f"{pfx}\nSELECT ?uri ?label WHERE {{ VALUES ?uri {{ {uris_block} }} GRAPH <{_DATA}> {{ ?uri rdfs:label ?label . }} }}"
-            lbl_bindings = (await self._sparql_select(lbl_q)).get("results", {}).get("bindings", [])
-            uri_labels = {b["uri"]["value"]: b["label"]["value"] for b in lbl_bindings if "uri" in b and "label" in b}
+            lbl_bindings = (
+                (await self._sparql_select(lbl_q))
+                .get("results", {})
+                .get("bindings", [])
+            )
+            uri_labels = {
+                b["uri"]["value"]: b["label"]["value"]
+                for b in lbl_bindings
+                if "uri" in b and "label" in b
+            }
             for node in path_nodes:
                 node["label"] = uri_labels.get(node["uri"])
 
@@ -227,8 +266,12 @@ WHERE {{
         cls_b = uri_ref(class_uri_b)
         pred = uri_ref(predicate)
 
-        ft_a, fl_a = build_filter_sparql(filters_a or [], subject_var="?a", var_prefix="fa")
-        ft_b, fl_b = build_filter_sparql(filters_b or [], subject_var="?b", var_prefix="fb")
+        ft_a, fl_a = build_filter_sparql(
+            filters_a or [], subject_var="?a", var_prefix="fa"
+        )
+        ft_b, fl_b = build_filter_sparql(
+            filters_b or [], subject_var="?b", var_prefix="fb"
+        )
 
         query = f"""{pfx}
 SELECT DISTINCT ?a ?aLabel ?b ?bLabel
@@ -249,16 +292,18 @@ LIMIT {limit}"""
         result = await self._sparql_select(query)
         out: list[dict[str, Any]] = []
         for b in result.get("results", {}).get("bindings", []):
-            out.append({
-                "entity_a": {
-                    "uri": b["a"]["value"],
-                    "label": b.get("aLabel", {}).get("value"),
-                    "class_uri": class_uri_a,
-                },
-                "entity_b": {
-                    "uri": b["b"]["value"],
-                    "label": b.get("bLabel", {}).get("value"),
-                    "class_uri": class_uri_b,
-                },
-            })
+            out.append(
+                {
+                    "entity_a": {
+                        "uri": b["a"]["value"],
+                        "label": b.get("aLabel", {}).get("value"),
+                        "class_uri": class_uri_a,
+                    },
+                    "entity_b": {
+                        "uri": b["b"]["value"],
+                        "label": b.get("bLabel", {}).get("value"),
+                        "class_uri": class_uri_b,
+                    },
+                }
+            )
         return out

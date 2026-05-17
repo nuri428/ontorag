@@ -57,12 +57,14 @@ def test_parse_rdf_raises_for_missing_file():
 
 def test_detect_mode_schema(schema_file):
     from ontorag.core.loader import parse_rdf
+
     graph = parse_rdf(schema_file)
     assert detect_mode(graph) == "schema"
 
 
 def test_detect_mode_data(data_file):
     from ontorag.core.loader import parse_rdf
+
     graph = parse_rdf(data_file)
     assert detect_mode(graph) == "data"
 

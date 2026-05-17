@@ -1,0 +1,42 @@
+The Modern JavaScript Ecosystem: Key Technologies and Their Relationships
+
+SvelteKit is a fullstack web framework built with TypeScript and maintained by Vercel. It uses Svelte
+as its UI component library and depends on Vite as its build tool and on Node.js as the runtime
+environment. SvelteKit was first released in 2021 and is licensed under MIT.
+
+Svelte is a frontend framework created by Rich Harris. It is written in TypeScript and compiles
+components to vanilla JavaScript at build time, eliminating the need for a virtual DOM. Svelte
+depends on Node.js and is maintained by Vercel since 2021.
+
+Astro is a fullstack framework designed for content-heavy websites. It is built with TypeScript and
+depends on Node.js and Vite. Astro supports multiple UI frameworks as renderers, including React and
+Svelte. It was released in 2021 and is licensed under MIT.
+
+TanStack Query (formerly React Query) is a library for server-state management in frontend
+applications. It is built with TypeScript and depends on React for its React adapter. It is
+maintained by the TanStack organization and first released in 2019.
+
+Turborepo is a build tool for JavaScript and TypeScript monorepos. It is written in Go and Rust but
+depends on Node.js for its CLI interface. It was acquired by Vercel in 2022 and is licensed under
+MIT.
+
+Deno is a runtime environment for JavaScript and TypeScript, created by Ryan Dahl, the original
+creator of Node.js. Deno is built with Rust and TypeScript and is designed as a more secure
+alternative to Node.js. It was first released in 2018 and is maintained by the Deno Land
+organization.
+
+Fresh is a fullstack web framework that runs on the Deno runtime. It uses Preact as its UI
+component library and depends on Deno. Fresh was created by the Deno Land team and released in
+2022 under MIT license.
+
+Preact is a frontend framework that serves as a lightweight alternative to React. It is built with
+TypeScript and depends on Node.js. Preact is API-compatible with React and maintained by Jason
+Miller.
+
+Biome is a build tool and linter for JavaScript and TypeScript projects. It is written in Rust and
+depends on Node.js for integration. Biome was designed to supersede both ESLint and Prettier, and
+is maintained by the Biomejs organization.
+
+Oxc (Oxidation Compiler) is a set of JavaScript tools written in Rust. It depends on Node.js and
+is designed to supersede Babel. The project is maintained by the void(0) organization and released
+under MIT license.

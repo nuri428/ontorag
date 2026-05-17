@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from ontorag.api.deps import get_store
@@ -45,8 +45,5 @@ async def query_sparql_raw(
         return QueryResult(columns=[], rows=[], total=0)
 
     columns = list(bindings[0].keys())
-    rows = [
-        {col: b[col]["value"] for col in columns if col in b}
-        for b in bindings
-    ]
+    rows = [{col: b[col]["value"] for col in columns if col in b} for b in bindings]
     return QueryResult(columns=columns, rows=rows, total=len(rows))

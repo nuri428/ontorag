@@ -12,6 +12,7 @@ from ontorag.api.routes import chat, health, load, status
 from ontorag.api.routes.tools import (
     _sparql,
     entities,
+    learning,
     pattern,
     schema,
     traversal,
@@ -31,11 +32,13 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown."""
     from ontorag.chat import store as chat_store
+
     await chat_store.init_db()
     logger.info("ontorag API starting")
     yield
     # Close the HTTP client held by the singleton store
     from ontorag.api.deps import get_store
+
     store = get_store()
     await store.aclose()
     logger.info("ontorag API stopped")
@@ -59,6 +62,9 @@ app.include_router(schema.router)
 app.include_router(entities.router)
 app.include_router(traversal.router)
 app.include_router(pattern.router)
+
+# v0.3 LLMs4OL learning tools (exposed via MCP)
+app.include_router(learning.router)
 
 # Debug route — Layer 3 (NOT exposed via MCP)
 app.include_router(_sparql.router)

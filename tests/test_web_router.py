@@ -98,7 +98,9 @@ def test_schema_check_syntax_valid_ttl(client):
         data={"check_type": "syntax", "ttl_content": ttl},
     )
     assert response.status_code == 200
-    assert "triple_count" not in response.text or response.text  # success partial rendered
+    assert (
+        "triple_count" not in response.text or response.text
+    )  # success partial rendered
 
 
 def test_schema_check_syntax_invalid_ttl(client):

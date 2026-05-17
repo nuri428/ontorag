@@ -107,7 +107,9 @@ async def schema_graph_data(store: FusekiStore = Depends(get_store)) -> JSONResp
                 }
             )
 
-    return JSONResponse({"nodes": nodes, "edges": edges, "namespaces": schema.namespaces})
+    return JSONResponse(
+        {"nodes": nodes, "edges": edges, "namespaces": schema.namespaces}
+    )
 
 
 _MAX_TTL_BYTES = 500_000  # ~5k triples; prevents rdflib OOM on huge payloads
@@ -159,7 +161,9 @@ async def schema_check(
                 result = {"ok": False, "message": str(exc)}
 
     return templates.TemplateResponse(
-        request, "partials/validate_result.html", {"result": result, "check_type": check_type}
+        request,
+        "partials/validate_result.html",
+        {"result": result, "check_type": check_type},
     )
 
 
@@ -195,9 +199,13 @@ async def data_instances(
     try:
         entities = await store.find_entities(class_uri, limit=limit)
     except Exception as exc:
-        return HTMLResponse(f"<p class='text-red-400 text-sm p-4'>오류: {_html.escape(str(exc))}</p>")
+        return HTMLResponse(
+            f"<p class='text-red-400 text-sm p-4'>오류: {_html.escape(str(exc))}</p>"
+        )
     return templates.TemplateResponse(
-        request, "partials/instances_grid.html", {"entities": entities, "class_uri": class_uri}
+        request,
+        "partials/instances_grid.html",
+        {"entities": entities, "class_uri": class_uri},
     )
 
 
@@ -239,14 +247,21 @@ async def schema_upload(
     content = await file.read()
     tmp_path: str | None = None
     try:
-        with tempfile.NamedTemporaryFile(suffix=_web_suffix(file.filename), delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(
+            suffix=_web_suffix(file.filename), delete=False
+        ) as tmp:
             tmp.write(content)
             tmp_path = tmp.name
         result = await store.load_rdf(tmp_path, mode="schema")
         return templates.TemplateResponse(
             request,
             "partials/upload_result.html",
-            {"ok": True, "triples": result.triples_loaded, "mode": "schema", "replaced": True},
+            {
+                "ok": True,
+                "triples": result.triples_loaded,
+                "mode": "schema",
+                "replaced": True,
+            },
         )
     except Exception as exc:
         return templates.TemplateResponse(
@@ -271,14 +286,21 @@ async def data_upload(
     content = await file.read()
     tmp_path: str | None = None
     try:
-        with tempfile.NamedTemporaryFile(suffix=_web_suffix(file.filename), delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(
+            suffix=_web_suffix(file.filename), delete=False
+        ) as tmp:
             tmp.write(content)
             tmp_path = tmp.name
         result = await store.load_rdf(tmp_path, mode="data", replace=should_replace)
         return templates.TemplateResponse(
             request,
             "partials/upload_result.html",
-            {"ok": True, "triples": result.triples_loaded, "mode": "data", "replaced": should_replace},
+            {
+                "ok": True,
+                "triples": result.triples_loaded,
+                "mode": "data",
+                "replaced": should_replace,
+            },
         )
     except Exception as exc:
         return templates.TemplateResponse(
@@ -302,7 +324,9 @@ def _load_config() -> dict[str, str]:
     real system env vars and values set by save_config().
     """
     env_path = Path(".env")
-    file_vals: dict[str, str] = dict(dotenv_values(str(env_path))) if env_path.exists() else {}
+    file_vals: dict[str, str] = (
+        dict(dotenv_values(str(env_path))) if env_path.exists() else {}
+    )
     config: dict[str, str] = {}
     for k in _CONFIG_KEYS:
         env_val = os.environ.get(k)
@@ -358,9 +382,12 @@ async def playground_models(provider: str) -> dict:
         return {"models": _OPENAI_MODELS}
 
     if provider == "ollama":
-        base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+        base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip(
+            "/"
+        )
         try:
             import httpx
+
             async with httpx.AsyncClient() as client:
                 resp = await client.get(f"{base_url}/api/tags", timeout=5.0)
                 resp.raise_for_status()
@@ -369,7 +396,10 @@ async def playground_models(provider: str) -> dict:
             return {"models": models}
         except Exception as exc:
             logger.warning("Ollama model list failed: %s", exc)
-            return {"models": [], "error": "Ollama에 연결할 수 없습니다 — URL을 먼저 저장하세요"}
+            return {
+                "models": [],
+                "error": "Ollama에 연결할 수 없습니다 — URL을 먼저 저장하세요",
+            }
 
     return {"models": []}
 

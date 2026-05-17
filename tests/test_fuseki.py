@@ -49,7 +49,7 @@ def _ok_response(status_code: int = 200):
 async def test_load_rdf_schema_uses_put(store, schema_file):
     mock_client = AsyncMock()
     mock_client.post.return_value = _ok_response(201)  # _ensure_dataset
-    mock_client.put.return_value = _ok_response(200)   # GSP PUT
+    mock_client.put.return_value = _ok_response(200)  # GSP PUT
 
     with patch.object(store, "_http", return_value=mock_client):
         result = await store.load_rdf(schema_file, "schema")
@@ -81,7 +81,7 @@ async def test_load_rdf_data_uses_post(store, data_file):
 async def test_load_rdf_auto_detects_schema(store, schema_file):
     mock_client = AsyncMock()
     mock_client.post.return_value = _ok_response(201)  # _ensure_dataset
-    mock_client.put.return_value = _ok_response(200)   # GSP PUT
+    mock_client.put.return_value = _ok_response(200)  # GSP PUT
 
     with patch.object(store, "_http", return_value=mock_client):
         result = await store.load_rdf(schema_file, "auto")
@@ -103,7 +103,7 @@ async def test_status_connected(store):
     sparql_resp.status_code = 200
     sparql_resp.raise_for_status = MagicMock()
     sparql_resp.json.side_effect = [
-        {"results": {"bindings": [{"n": {"value": "5"}}]}},   # schema count
+        {"results": {"bindings": [{"n": {"value": "5"}}]}},  # schema count
         {"results": {"bindings": [{"n": {"value": "10"}}]}},  # data count
     ]
 

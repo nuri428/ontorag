@@ -248,6 +248,77 @@ MCP (Model Context Protocol) endpoint. Any MCP-compatible client can connect and
 
 ---
 
+## v0.3 — LLMs4OL: Ontology Learning from Text
+
+v0.3 adds the **LLMs4OL pipeline** — an LLM reads plain text and proposes RDF triples that extend the live ontology. No manual authoring required.
+
+### CLI commands
+
+![learn --help](assets/learn_help.png)
+
+### Task A — Term Typing (`type-term`)
+
+Maps a text mention to the best-matching TBox class, with confidence scores and reasoning.
+
+```bash
+ontorag learn type-term "Pikachu" --context "evolved Pokémon"
+ontorag learn type-term "React"
+```
+
+![learn type-term output](assets/learn_type_term.png)
+
+### A+B+C Pipeline (`populate`)
+
+Runs all three tasks in sequence — Term Typing → Taxonomy Discovery → Relation Extraction — then optionally loads the accepted triples into Fuseki.
+
+```bash
+ontorag learn populate examples/techstack/corpus.txt
+```
+
+![learn populate output](assets/learn_populate.png)
+
+### Test suite — v0.3 learn module (48 tests)
+
+![v0.3 test results](assets/learn_tests.png)
+
+---
+
+## Example: Tech Stack ontology (v0.3 — LLMs4OL)
+
+This example shows what a plain vector-search RAG cannot do.
+
+**Step 1 — load a seed ontology** (15 technologies: React, Next.js, Node.js, TypeScript, …)
+
+```bash
+uv run ontorag load schema examples/techstack/schema.ttl
+uv run ontorag load data   examples/techstack/data.ttl
+```
+
+**Step 2 — extend it from plain text** using the v0.3 LLMs4OL pipeline
+
+```bash
+# Feed a text corpus → LLM extracts types + relations → propose RDF triples
+uv run ontorag learn populate examples/techstack/corpus.txt
+```
+
+**Step 3 — query the expanded graph** — OWL transitive reasoning included
+
+```
+> What does Next.js depend on?
+```
+Answer: Next.js → React → Node.js  
+*(Next.js dependsOn Node.js was never written — Fuseki infers it via `owl:TransitiveProperty`.)*
+
+```
+> List all fullstack frameworks that depend on Vite
+> Which tools supersede an existing technology?
+> What technologies are maintained by Vercel?
+```
+
+See [`examples/techstack/README.md`](examples/techstack/README.md) for the full walkthrough.
+
+---
+
 ## Example: Pokémon ontology
 
 The bundled example exercises every feature of the framework.
@@ -317,9 +388,9 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 ## Roadmap
 
-- **v0.1** — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE streaming
-- **v0.2** (current) — Web UI (Schema/Data/Playground) · RDF upload from browser · Rate-limit UX · Forced tool-use when ontology has data
-- **v0.3** — LLMs4OL: text → ontology learning (Term Typing · Taxonomy Discovery · Relation Extraction) · `ontorag learn` CLI · `type_term` + `extract_triples` MCP tools
+- **v0.1** — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE streaming ✅
+- **v0.2** — Web UI (Schema/Data/Playground) · RDF upload from browser · Rate-limit UX · Forced tool-use when ontology has data ✅
+- **v0.3** (current) — LLMs4OL: `ontorag learn` CLI (Term Typing · Taxonomy Discovery · Relation Extraction) · `type_term` + `extract_triples` MCP tools · Tech Stack example ✅
 - **v0.5** — Neo4j + n10s adapter · `GRAPH_STORE` env var · Vector similarity tool (`find_similar`) · Multi-ontology support
 
 ---
