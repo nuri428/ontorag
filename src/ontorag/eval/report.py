@@ -21,6 +21,134 @@ def _difficulty_order(diff: str) -> int:
     return {"easy": 0, "medium": 1, "hard": 2, "trap": 3}.get(diff, 99)
 
 
+def compare_reports(
+    report_a: dict[str, Any],
+    report_b: dict[str, Any],
+    *,
+    name_a: str | None = None,
+    name_b: str | None = None,
+) -> str:
+    """Generate a side-by-side Markdown comparison of two ``eval run`` reports.
+
+    Aligns the two reports by question ID (``Q001``…). Rows present in
+    one report but not the other are reported in the *Mismatched IDs*
+    section — this catches accidentally comparing reports from different
+    goldsets.
+
+    Args:
+        report_a: Dict loaded from JSON of the first baseline's run.
+        report_b: Dict loaded from the second baseline's run.
+        name_a: Display name of baseline A (default: stem of its
+            ``goldset`` path or ``"A"``).
+        name_b: Display name of baseline B (default: ``"B"``).
+
+    Returns:
+        Markdown string suitable for blog posts, PR comments, or
+        archived comparison artifacts.
+    """
+    name_a = name_a or _guess_name(report_a, "A")
+    name_b = name_b or _guess_name(report_b, "B")
+
+    results_a = {r["id"]: r for r in report_a.get("results", [])}
+    results_b = {r["id"]: r for r in report_b.get("results", [])}
+    common_ids = sorted(set(results_a) & set(results_b))
+    only_a = sorted(set(results_a) - set(results_b))
+    only_b = sorted(set(results_b) - set(results_a))
+
+    lines: list[str] = []
+    lines.append(f"# Comparison — {name_a} vs {name_b}")
+    lines.append("")
+    lines.append("## Summary")
+    lines.append("")
+    lines.append(f"- **{name_a}**: {report_a.get('total_questions', '?')} questions, {report_a.get('failures', '?')} failures")
+    lines.append(f"- **{name_b}**: {report_b.get('total_questions', '?')} questions, {report_b.get('failures', '?')} failures")
+    lines.append(f"- **Aligned by ID**: {len(common_ids)}")
+    if only_a or only_b:
+        lines.append(f"- **Mismatched IDs**: {len(only_a)} only in A, {len(only_b)} only in B")
+    lines.append("")
+
+    # Per-difficulty rollup of OK / error / empty for both sides
+    lines.append("## Per-difficulty rollup")
+    lines.append("")
+    lines.append(
+        f"| Difficulty | {name_a} OK | {name_a} err | {name_a} empty | "
+        f"{name_b} OK | {name_b} err | {name_b} empty |"
+    )
+    lines.append("|---|---:|---:|---:|---:|---:|---:|")
+
+    diffs = sorted(
+        {r["difficulty"] for r in (*results_a.values(), *results_b.values())},
+        key=_difficulty_order,
+    )
+    for diff in diffs:
+        a_rows = [r for r in results_a.values() if r["difficulty"] == diff]
+        b_rows = [r for r in results_b.values() if r["difficulty"] == diff]
+        a_ok = sum(1 for r in a_rows if r.get("status") == "ok")
+        a_err = sum(1 for r in a_rows if r.get("status") == "error")
+        a_empty = sum(
+            1 for r in a_rows if r.get("status") == "ok" and r.get("row_count") == 0
+        )
+        b_ok = sum(1 for r in b_rows if r.get("status") == "ok")
+        b_err = sum(1 for r in b_rows if r.get("status") == "error")
+        b_empty = sum(
+            1 for r in b_rows if r.get("status") == "ok" and r.get("row_count") == 0
+        )
+        lines.append(
+            f"| {diff} | {a_ok} | {a_err} | {a_empty} | {b_ok} | {b_err} | {b_empty} |"
+        )
+    lines.append("")
+
+    # Per-question side-by-side
+    lines.append("## Per-question side-by-side")
+    lines.append("")
+    lines.append(
+        f"| ID | Difficulty | Category | {name_a} rows | {name_b} rows | Δ |"
+    )
+    lines.append("|---|---|---|---:|---:|:---:|")
+    for qid in common_ids:
+        ra, rb = results_a[qid], results_b[qid]
+        na = ra.get("row_count", "?") if ra.get("status") == "ok" else "✗"
+        nb = rb.get("row_count", "?") if rb.get("status") == "ok" else "✗"
+        delta = ""
+        if isinstance(na, int) and isinstance(nb, int):
+            if na == nb:
+                delta = "="
+            elif na > nb:
+                delta = "▲"
+            else:
+                delta = "▼"
+        lines.append(
+            f"| {qid} | {ra.get('difficulty', '?')} | "
+            f"{ra.get('category', '?')} | {na} | {nb} | {delta} |"
+        )
+    lines.append("")
+
+    if only_a or only_b:
+        lines.append("## Mismatched IDs")
+        lines.append("")
+        if only_a:
+            lines.append(f"### Only in {name_a}")
+            lines.append("")
+            for qid in only_a:
+                lines.append(f"- `{qid}`")
+            lines.append("")
+        if only_b:
+            lines.append(f"### Only in {name_b}")
+            lines.append("")
+            for qid in only_b:
+                lines.append(f"- `{qid}`")
+            lines.append("")
+
+    return "\n".join(lines)
+
+
+def _guess_name(report: dict[str, Any], fallback: str) -> str:
+    goldset = report.get("goldset", "")
+    if goldset:
+        return Path(goldset).stem
+    return fallback
+
+
 def generate_markdown_report(report: dict[str, Any]) -> str:
     """Convert an ``eval run`` JSON report dict into Markdown.
 

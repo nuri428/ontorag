@@ -23,7 +23,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
 from ontorag.eval.goldset import Difficulty, Goldset, GoldsetValidationError
-from ontorag.eval.report import generate_markdown_report
+from ontorag.eval.report import compare_reports, generate_markdown_report
 
 console = Console()
 err_console = Console(stderr=True)
@@ -208,6 +208,51 @@ def eval_report(
         console.print(f"[green]✓ Markdown report written:[/green] {output}")
     else:
         print(md)  # stdout, no rich formatting so pipes work
+
+
+# ── compare ───────────────────────────────────────────────────────────────────
+
+
+@eval_app.command("compare")
+def eval_compare(
+    report_a: Path = typer.Argument(
+        ...,
+        exists=True,
+        dir_okay=False,
+        readable=True,
+        help="첫 번째 `eval run` JSON 리포트.",
+    ),
+    report_b: Path = typer.Argument(
+        ...,
+        exists=True,
+        dir_okay=False,
+        readable=True,
+        help="두 번째 `eval run` JSON 리포트.",
+    ),
+    name_a: str | None = typer.Option(
+        None, "--name-a", help="A 측 표시 이름 (생략 시 파일명에서 추측)."
+    ),
+    name_b: str | None = typer.Option(
+        None, "--name-b", help="B 측 표시 이름."
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        dir_okay=False,
+        writable=True,
+        help="비교 Markdown을 저장할 파일 (생략 시 stdout).",
+    ),
+) -> None:
+    """두 `eval run` JSON 리포트를 나란히 비교하는 Markdown을 생성합니다."""
+    data_a = json.loads(report_a.read_text(encoding="utf-8"))
+    data_b = json.loads(report_b.read_text(encoding="utf-8"))
+    md = compare_reports(data_a, data_b, name_a=name_a, name_b=name_b)
+    if output:
+        output.write_text(md, encoding="utf-8")
+        console.print(f"[green]✓ Comparison written:[/green] {output}")
+    else:
+        print(md)
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
