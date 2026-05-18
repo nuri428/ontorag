@@ -20,15 +20,24 @@ Combined: 4 bench runs (2 domains × 2 baselines) + 2 comparison files.
 
 ### Pure Land (50 questions, 948 triples)
 
-| Metric | ontorag_mock | vector_rag_mock |
-|---|---:|---:|
-| Avg latency (ms) | 180 | 420 |
-| Avg tool calls | 1.06 | 0.00 |
-| Avg hallucination rate | **0.000** | *(N/A — no triples)* |
-| Avg citation coverage | 0.010 | *(N/A)* |
-| Citation provided (count / rate) | **21 / 50 (42 %)** | **0 / 50 (0 %)** |
-| Total prompt tokens | 26 040 | 26 000 |
-| Total completion tokens | 4 000 | 3 000 |
+| Metric | ontorag_mock | vector_rag_mock | **langchain (real, +RAGAS)** |
+|---|---:|---:|---:|
+| Avg latency (ms) | 180 | 420 | **1 317** |
+| Avg tool calls | 1.06 | 0.00 | 0.00 |
+| Avg hallucination rate | **0.000** | *(N/A)* | *(N/A — vector RAG)* |
+| Avg citation coverage | 0.010 | *(N/A)* | *(N/A)* |
+| Citation provided (count / rate) | **21 / 50 (42 %)** | **0 / 50 (0 %)** | **0 / 50 (0 %)** |
+| **Avg RAGAS Faithfulness** | — | — | **0.58** |
+| **Avg RAGAS Answer Correctness** | — | — | **0.36** |
+| **Avg RAGAS Answer Relevancy** | — | — | **0.54** |
+
+**Real LangChain qualitative findings** (`gpt-4o-mini`, k=5, 90 indexed ABox chunks):
+
+* **Transitive inference (Q008, Q039, Q040)**: LangChain produces *partial* answers. For "All places where the peacock is located": gold says **"Jeweled Tree, Sukhāvatī"** (transitive closure over `pl:locatedIn`); LangChain answers **"the Jeweled tree"** only — never makes the second hop. Faithfulness 0.67–1.0 (what it says *is* in the context) but Answer Correctness 0.14–0.63 (misses the second entity). **This is the structural inference gap that mocks could not surface.**
+* **Trap questions (5 total)**: LangChain answered all 5 with "I don't know" — surface-correct but RAGAS Answer Correctness scores them ~0.03–0.06 because the gold answer is the longer phrase "No information in this ontology (0). This dataset models only…". RAGAS LLM-as-judge treats the texts as low-similarity even though both refuse to answer.
+* **Avg Answer Correctness 0.36** is dragged down by traps + partial inference answers, not by easy questions. Easy single-entity questions score high individually.
+
+**This is the real ontorag-vs-vector-RAG result**: LangChain handles direct lookups well but cannot follow OWL transitive closures, and produces no triple-level citation that an enterprise auditor could click. The mock simulation underestimated LangChain's accuracy on easy questions but missed the inference gap entirely.
 
 ### Commerce (20 questions, 297 triples)
 
@@ -146,8 +155,10 @@ JSON output.
 | Vector RAG cannot produce triple-level citations | **Proven (real run)** — LangChain returned 0 / 20 cited triples on Commerce |
 | ontorag beats vector RAG on accuracy on small clean Commerce domain | **Disproven** — LangChain answered easy + trap questions correctly |
 | LangChain hallucinates on KG-absent facts | **Disproven for Commerce** — returned "I don't know" on all 3 trap questions |
-| Pure Land (multilingual, 50 questions, inference-heavy) real run | **Unknown** — pending (~$0.25 estimated) |
-| RAGAS Faithfulness / Answer Correctness numbers | **Unknown** — pending (`--with-ragas` flag, ~+$0.40) |
+| Pure Land (multilingual, 50 questions, inference-heavy) real run | **Proven** — LangChain answer accuracy collapses on transitive inference (Answer Correctness 0.14–0.63 on hard inference tier) |
+| RAGAS Faithfulness / Answer Correctness numbers | **Proven** — Pure Land Faithfulness 0.58, Answer Correctness 0.36, Answer Relevancy 0.54 |
+| Vector RAG handles single-entity lookups well | **Proven** — Commerce easy 5/5, Pure Land easy single-entity scores high |
+| Vector RAG cannot do OWL transitive inference | **Proven** — Q008/Q039/Q040 (`pl:locatedIn+`) all answered with only the direct hop, missing Sukhāvatī |
 
 Open issues:
 - ~~`--baseline langchain` is not wired into the orchestrator CLI yet.~~

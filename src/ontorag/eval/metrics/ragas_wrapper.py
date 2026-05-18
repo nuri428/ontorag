@@ -172,20 +172,34 @@ def _call_ragas(
     """
     # Lazy-import the metrics module (RAGAS sub-packages can vary by
     # version; keep imports tight to the call site).
+    from langchain_openai import ChatOpenAI, OpenAIEmbeddings  # noqa: PLC0415
     from ragas import evaluate  # noqa: PLC0415
+    from ragas.embeddings import LangchainEmbeddingsWrapper  # noqa: PLC0415
+    from ragas.llms import LangchainLLMWrapper  # noqa: PLC0415
     from ragas.metrics import (  # noqa: PLC0415
         AnswerCorrectness,
         AnswerRelevancy,
         Faithfulness,
     )
 
+    # Explicitly wrap LangChain components so RAGAS 0.2 + langchain 1.x
+    # don't fall back to internal client APIs that have moved.
+    wrapped_llm = LangchainLLMWrapper(ChatOpenAI(model=judge_model, temperature=0))
+    wrapped_emb = LangchainEmbeddingsWrapper(
+        OpenAIEmbeddings(model="text-embedding-3-small")
+    )
+
     metric_objs: list[Any] = []
     if "faithfulness" in computable:
-        metric_objs.append(Faithfulness())
+        metric_objs.append(Faithfulness(llm=wrapped_llm))
     if "answer_correctness" in computable:
-        metric_objs.append(AnswerCorrectness())
+        metric_objs.append(
+            AnswerCorrectness(llm=wrapped_llm, embeddings=wrapped_emb)
+        )
     if "answer_relevancy" in computable:
-        metric_objs.append(AnswerRelevancy())
+        metric_objs.append(
+            AnswerRelevancy(llm=wrapped_llm, embeddings=wrapped_emb)
+        )
 
     # RAGAS expects a Dataset-like dict. Single-row eval.
     try:
