@@ -2,6 +2,77 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.4.0 — 2026-05-19
+
+### Added — 4-domain RAGAS final benchmark + decision-grid guide
+
+- **4-domain head-to-head RAGAS benchmark** with `gpt-4o` as both agent
+  and judge — Pure Land (50q, ko), ODS (20q, en), Pokemon (20q, ko),
+  Techstack (20q, ko). Full result JSONs under each
+  `examples/<domain>/bench_results/`.
+- **New goldsets** — `examples/pokemon/goldset.jsonl` and
+  `examples/techstack/goldset.jsonl` (20q each, easy/medium/hard/trap
+  distribution, hard cases exercising the respective
+  TransitiveProperty closures).
+- **`examples/pokemon/README.md`** — new domain README (rationale,
+  TBox/ABox summary, evolution chains, RAGAS table).
+- **`RAGAS_JUDGE_MODEL` env-var fallback** in
+  `src/ontorag/eval/metrics/ragas_wrapper.py` for opt-in judge model
+  selection (default remains `gpt-4o-mini`).
+- **2×2 decision grid** (OWL richness × LLM contamination) in
+  top-level `README.md` / `README.ko.md`, plotting all four domains
+  with their qualitative outcomes.
+- **Standardized `## Disclaimer` policy** across all five example
+  READMEs (Pokemon · Techstack · ODS · Pure Land · Commerce) with
+  uniform 4-item structure: Rights / Nature / No affiliation /
+  Takedown commitment. Pokemon disclaimer is bilingual EN+KO due to
+  trademark sensitivity.
+- **BENCHMARK_RESULTS.md v9 section** — 4-domain cross-comparison
+  with OWL-feature-richness × RAGAS-win correlation analysis.
+
+### Changed — README structure and disclaimers
+
+- Top-level READMEs now include a "Benchmark results — 4-domain RAGAS
+  final (2026-05)" section between "Evaluation Harness" and "Roadmap",
+  with three findings explained in plain prose: (1) RAGAS Faithfulness
+  has a chunk-quote style bias; (2) ontorag's edge grows with OWL
+  feature richness; (3) Hallucination 0% and Citation 45-66% are
+  ontorag-exclusive — and the "—" entries for LangChain mean
+  "not measurable", not "zero".
+- Pure Land's existing "Disclaimer / 면책 조항" section renamed to
+  "Doctrinal Disclaimer / 교리적 면책 조항" to separate religious
+  doctrinal scope from copyright/attribution; new standard
+  "## Disclaimer" section added separately.
+- Cross-domain attribution footnote now describes the **policy**
+  (4 items, uniform location) rather than enumerating ad hoc per-domain
+  notices.
+
+### Fixed — merged accumulated v2-v8 surgical fixes from eval-harness
+
+- `src/ontorag/core/sparql.py` — case-insensitive `rdfs:label`
+  equality with lang-literal support.
+- `src/ontorag/stores/base.py` — `PropertySummary` / `ClassSummary`
+  extended with `description`, `is_transitive`, `inverse_of_uri`.
+- `src/ontorag/stores/fuseki.py` — `get_schema` now extracts
+  `owl:TransitiveProperty`, `owl:inverseOf`, `rdfs:comment`,
+  `skos:definition`.
+- `src/ontorag/chat/agent.py` — TBox-driven prompt generation
+  (`rdfs:comment` + OWL flags rendered into the system prompt); system
+  prompt reduced from ~60 to ~25 lines; `property_path_query` tool
+  added with three modes (start_uri / start_label / start_class_uri).
+
+### Notes
+
+- During the eval-harness → main merge, 4 files in `src/` had conflicts
+  with main's `ae3c308 fix(core): multilingual label equality +
+  TBox-driven prompt generalisation`. Resolution chose eval-harness
+  versions throughout — all `bench_results/*.json` in this release were
+  produced against that code; `ae3c308`'s parallel approach to the
+  same OWL semantics surface is subsumed by the broader eval-harness
+  treatment.
+
+---
+
 ## v0.3.2 — 2026-05-18
 
 ### Added — TBox/ABox Dump

@@ -677,7 +677,7 @@ uv run ontorag eval bench examples/pokemon/goldset.jsonl \
 - **v0.3** — LLMs4OL: `ontorag learn` CLI (용어 타이핑 · 분류 발견 · 관계 추출) · `type_term` + `extract_triples` MCP 툴 · 기술 스택 예제 ✅
 - **v0.3.1** — 구조화 ABox 확장: `populate-structured`로 CSV/JSON/JSONL 읽기 → LLM으로 컬럼을 TBox에 매핑 → RDF 트리플 → Fuseki; 매핑 캐시, uuid5 멱등 URI, 배치 체크포인팅 ✅
 - **v0.3.2** — TBox/ABox 덤프: `ontorag dump schema|data|all` · `GET /dump` REST 엔드포인트 · Web UI 다운로드 버튼 · TTL / JSON / JSONL / XLSX 포맷 ✅
-- **v0.4 (eval-harness 브랜치, 현재)** — Phase B 평가 하네스: 2개 벤치마크 도메인 (Pure Land 50q + Commerce 20q) · Goldset JSONL + Pydantic loader · 4개 결정론적 메트릭 + RAGAS wrapper · LangChain 벡터 baseline · `ontorag eval` CLI (validate/run/bench/compare/report) · GitHub Actions matrix CI · BenchRunner orchestrator ✅
+- **v0.4** — 평가 하네스: 5개 벤치마크 도메인 (Pure Land 50q · Commerce 20q · ODS 20q · Pokemon 20q · Techstack 20q) · Goldset JSONL + Pydantic loader · 4개 결정론적 메트릭 + RAGAS wrapper · LangChain + ontorag_native baseline · `ontorag eval` CLI (validate/run/bench/compare/report) · GitHub Actions matrix CI · `BenchRunner` orchestrator · 4-도메인 `gpt-4o` agent + `gpt-4o` judge 측정 결과 · 2×2 OWL 풍부도 × contamination 결정 격자 · 모든 example README에 표준화된 `## Disclaimer` 정책 ✅
 - **v0.5** — Neo4j + n10s 어댑터 · `GRAPH_STORE` 환경 변수 · 벡터 유사도 툴 (`find_similar`) · 멀티 온톨로지 지원
 
 ---
