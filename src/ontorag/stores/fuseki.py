@@ -388,11 +388,11 @@ ORDER BY STR(?class)
 """
         )
 
-        # 2. Property count per domain class
+        # 2. Property count per domain class + OWL metadata (transitive / inverse)
         prop_query = (
             prefixes
             + f"""
-SELECT DISTINCT ?prop ?domain ?propType ?label ?range
+SELECT DISTINCT ?prop ?domain ?propType ?label ?range ?isTransitive ?inverse
 WHERE {{
   GRAPH <{SCHEMA_GRAPH_URI}> {{
     VALUES ?propType {{ owl:ObjectProperty owl:DatatypeProperty owl:AnnotationProperty }}
@@ -401,6 +401,8 @@ WHERE {{
     OPTIONAL {{ ?prop rdfs:label ?label .
                FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "en")) }}
     OPTIONAL {{ ?prop rdfs:range ?range . FILTER(!isBlank(?range)) }}
+    OPTIONAL {{ ?prop a owl:TransitiveProperty . BIND(true AS ?isTransitive) }}
+    OPTIONAL {{ ?prop owl:inverseOf ?inverse . FILTER(!isBlank(?inverse)) }}
   }}
 }}
 ORDER BY STR(?prop)
@@ -432,23 +434,57 @@ GROUP BY ?class
             "http://www.w3.org/2002/07/owl#DatatypeProperty": "datatype",
             "http://www.w3.org/2002/07/owl#AnnotationProperty": "annotation",
         }
+        # The same prop URI may appear multiple times across (propType × domain ×
+        # transitive × inverse) row combinations. We aggregate per-prop so
+        # is_transitive / inverse_of_uri are sticky once observed.
+        prop_meta: dict[str, dict] = {}
         for b in prop_result.get("results", {}).get("bindings", []):
             domain = b.get("domain", {}).get("value")
             if domain:
                 prop_count[domain] = prop_count.get(domain, 0) + 1
             prop_uri = b.get("prop", {}).get("value")
-            if prop_uri and prop_uri not in seen_prop_uris:
-                seen_prop_uris.add(prop_uri)
-                raw_type = b.get("propType", {}).get("value", "")
-                all_properties.append(
-                    PropertySummary(
-                        uri=prop_uri,
-                        label=b.get("label", {}).get("value"),
-                        prop_type=_OWL_TYPE_MAP.get(raw_type, "annotation"),
-                        domain_uri=domain,
-                        range_uri=b.get("range", {}).get("value"),
-                    )
+            if not prop_uri:
+                continue
+            meta = prop_meta.setdefault(
+                prop_uri,
+                {
+                    "label": None,
+                    "prop_type": "annotation",
+                    "domain": None,
+                    "range": None,
+                    "is_transitive": False,
+                    "inverse": None,
+                },
+            )
+            if b.get("label"):
+                meta["label"] = b["label"].get("value") or meta["label"]
+            raw_type = b.get("propType", {}).get("value", "")
+            if raw_type in _OWL_TYPE_MAP:
+                meta["prop_type"] = _OWL_TYPE_MAP[raw_type]
+            if not meta["domain"]:
+                meta["domain"] = domain
+            if not meta["range"]:
+                meta["range"] = b.get("range", {}).get("value")
+            if b.get("isTransitive", {}).get("value") == "true":
+                meta["is_transitive"] = True
+            if not meta["inverse"]:
+                meta["inverse"] = b.get("inverse", {}).get("value")
+
+        for prop_uri, meta in prop_meta.items():
+            if prop_uri in seen_prop_uris:
+                continue
+            seen_prop_uris.add(prop_uri)
+            all_properties.append(
+                PropertySummary(
+                    uri=prop_uri,
+                    label=meta["label"],
+                    prop_type=meta["prop_type"],
+                    domain_uri=meta["domain"],
+                    range_uri=meta["range"],
+                    is_transitive=meta["is_transitive"],
+                    inverse_of_uri=meta["inverse"],
                 )
+            )
 
         inst_count: dict[str, int] = {
             b["class"]["value"]: int(b["count"]["value"])

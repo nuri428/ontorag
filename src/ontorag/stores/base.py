@@ -40,6 +40,8 @@ class PropertySummary(BaseModel):
     prop_type: Literal["object", "datatype", "annotation"] = "annotation"
     domain_uri: str | None = None
     range_uri: str | None = None
+    is_transitive: bool = False
+    inverse_of_uri: str | None = None
 
 
 class ClassDetail(BaseModel):
