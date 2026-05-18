@@ -224,7 +224,7 @@ def eval_bench(
         "ontorag_mock",
         "--baseline",
         "-b",
-        help="실행할 baseline: ontorag_mock | vector_rag_mock | langchain (langchain은 OPENAI_API_KEY + bench extra 필요).",
+        help="실행할 baseline: ontorag_mock | vector_rag_mock | langchain | ontorag_native (langchain·ontorag_native는 OPENAI_API_KEY 또는 LLM provider 설정 필요).",
     ),
     schema: Path = typer.Option(
         ..., "--schema", "-s", exists=True, dir_okay=False, readable=True,
@@ -354,9 +354,27 @@ def _build_baseline(
             raise typer.BadParameter(str(e)) from e
         except BaselineError as e:
             raise typer.BadParameter(str(e)) from e
+    if name == "ontorag_native":
+        from ontorag.eval.baselines.ontorag_native import (  # noqa: PLC0415
+            OntoragNativeBaseline,
+        )
+        from ontorag.llm.factory import get_llm_provider  # noqa: PLC0415
+        from ontorag.stores.fuseki import FusekiStore  # noqa: PLC0415
+
+        try:
+            llm = get_llm_provider()
+        except ValueError as e:
+            raise typer.BadParameter(
+                f"ontorag_native baseline requires LLM provider config: {e}"
+            ) from e
+        store = FusekiStore.from_env()
+        # Synchronous construction — schema is fetched lazily inside the
+        # BenchRunner's asyncio loop on the first answer() call, so the
+        # store's httpx client is bound to the right loop.
+        return OntoragNativeBaseline(store, llm, graph)
     raise typer.BadParameter(
         f"Unknown baseline: {name!r}. "
-        "Valid: ontorag_mock | vector_rag_mock | langchain"
+        "Valid: ontorag_mock | vector_rag_mock | langchain | ontorag_native"
     )
 
 
