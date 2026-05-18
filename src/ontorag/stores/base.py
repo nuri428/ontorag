@@ -30,6 +30,12 @@ class ClassSummary(BaseModel):
     parent_uri: str | None = None
     property_count: int = 0
     instance_count: int = 0
+    description: str | None = Field(
+        default=None,
+        description="rdfs:comment or skos:definition — natural-language "
+        "meaning authored on the TBox. Surfaced into the LLM's "
+        "system prompt so prompt logic stays domain-agnostic.",
+    )
 
 
 class PropertySummary(BaseModel):
@@ -42,6 +48,10 @@ class PropertySummary(BaseModel):
     range_uri: str | None = None
     is_transitive: bool = False
     inverse_of_uri: str | None = None
+    description: str | None = Field(
+        default=None,
+        description="rdfs:comment or skos:definition for this property.",
+    )
 
 
 class ClassDetail(BaseModel):

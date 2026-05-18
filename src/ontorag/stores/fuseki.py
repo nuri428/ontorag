@@ -370,7 +370,8 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
         cls_query = (
             prefixes
             + f"""
-SELECT DISTINCT ?class ?label ?parent
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+SELECT DISTINCT ?class ?label ?parent ?comment
 WHERE {{
   GRAPH <{SCHEMA_GRAPH_URI}> {{
     {{ ?class a owl:Class . }} UNION {{ ?class a rdfs:Class . }}
@@ -382,6 +383,12 @@ WHERE {{
       ?class rdfs:subClassOf ?parent .
       FILTER(!isBlank(?parent) && ?parent != owl:Thing)
     }}
+    OPTIONAL {{
+      {{ ?class rdfs:comment ?comment . }}
+      UNION
+      {{ ?class skos:definition ?comment . }}
+      FILTER(LANG(?comment) = "" || LANGMATCHES(LANG(?comment), "en"))
+    }}
   }}
 }}
 ORDER BY STR(?class)
@@ -392,7 +399,7 @@ ORDER BY STR(?class)
         prop_query = (
             prefixes
             + f"""
-SELECT DISTINCT ?prop ?domain ?propType ?label ?range ?isTransitive ?inverse
+SELECT DISTINCT ?prop ?domain ?propType ?label ?range ?isTransitive ?inverse ?comment
 WHERE {{
   GRAPH <{SCHEMA_GRAPH_URI}> {{
     VALUES ?propType {{ owl:ObjectProperty owl:DatatypeProperty owl:AnnotationProperty }}
@@ -401,6 +408,12 @@ WHERE {{
     OPTIONAL {{ ?prop rdfs:label ?label .
                FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "en")) }}
     OPTIONAL {{ ?prop rdfs:range ?range . FILTER(!isBlank(?range)) }}
+    OPTIONAL {{
+      {{ ?prop rdfs:comment ?comment . }}
+      UNION
+      {{ ?prop <http://www.w3.org/2004/02/skos/core#definition> ?comment . }}
+      FILTER(LANG(?comment) = "" || LANGMATCHES(LANG(?comment), "en"))
+    }}
     OPTIONAL {{ ?prop a owl:TransitiveProperty . BIND(true AS ?isTransitive) }}
     OPTIONAL {{ ?prop owl:inverseOf ?inverse . FILTER(!isBlank(?inverse)) }}
   }}
@@ -454,6 +467,7 @@ GROUP BY ?class
                     "range": None,
                     "is_transitive": False,
                     "inverse": None,
+                    "description": None,
                 },
             )
             if b.get("label"):
@@ -469,6 +483,8 @@ GROUP BY ?class
                 meta["is_transitive"] = True
             if not meta["inverse"]:
                 meta["inverse"] = b.get("inverse", {}).get("value")
+            if not meta["description"] and b.get("comment"):
+                meta["description"] = b["comment"].get("value")
 
         for prop_uri, meta in prop_meta.items():
             if prop_uri in seen_prop_uris:
@@ -483,6 +499,7 @@ GROUP BY ?class
                     range_uri=meta["range"],
                     is_transitive=meta["is_transitive"],
                     inverse_of_uri=meta["inverse"],
+                    description=meta["description"],
                 )
             )
 
@@ -492,19 +509,32 @@ GROUP BY ?class
             if "class" in b and "count" in b
         }
 
-        # Build ClassSummary list
-        classes: list[ClassSummary] = []
+        # Build ClassSummary list — same URI may appear in multiple rows
+        # (label × parent × comment combinations); merge first-non-null wins.
+        class_meta: dict[str, dict] = {}
         for b in cls_result.get("results", {}).get("bindings", []):
             uri = b["class"]["value"]
-            classes.append(
-                ClassSummary(
-                    uri=uri,
-                    label=b.get("label", {}).get("value"),
-                    parent_uri=b.get("parent", {}).get("value"),
-                    property_count=prop_count.get(uri, 0),
-                    instance_count=inst_count.get(uri, 0),
-                )
+            meta_c = class_meta.setdefault(
+                uri, {"label": None, "parent": None, "description": None}
             )
+            if not meta_c["label"]:
+                meta_c["label"] = b.get("label", {}).get("value")
+            if not meta_c["parent"]:
+                meta_c["parent"] = b.get("parent", {}).get("value")
+            if not meta_c["description"]:
+                meta_c["description"] = b.get("comment", {}).get("value")
+
+        classes: list[ClassSummary] = [
+            ClassSummary(
+                uri=uri,
+                label=meta_c["label"],
+                parent_uri=meta_c["parent"],
+                property_count=prop_count.get(uri, 0),
+                instance_count=inst_count.get(uri, 0),
+                description=meta_c["description"],
+            )
+            for uri, meta_c in class_meta.items()
+        ]
 
         # Deduplicate (a class may appear multiple times if it has multiple parents)
         seen: set[str] = set()
