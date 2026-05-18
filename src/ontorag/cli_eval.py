@@ -23,6 +23,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
 from ontorag.eval.goldset import Difficulty, Goldset, GoldsetValidationError
+from ontorag.eval.orchestrator import BenchRunner
 from ontorag.eval.report import compare_reports, generate_markdown_report
 
 console = Console()
@@ -208,6 +209,139 @@ def eval_report(
         console.print(f"[green]✓ Markdown report written:[/green] {output}")
     else:
         print(md)  # stdout, no rich formatting so pipes work
+
+
+# ── bench (run a baseline against the goldset + compute metrics) ─────────────
+
+
+@eval_app.command("bench")
+def eval_bench(
+    goldset_path: Path = typer.Argument(
+        ..., exists=True, dir_okay=False, readable=True,
+        help="실행할 goldset JSONL 파일 경로.",
+    ),
+    baseline_name: str = typer.Option(
+        "ontorag_mock",
+        "--baseline",
+        "-b",
+        help="실행할 baseline: ontorag_mock | vector_rag_mock | langchain (langchain은 OPENAI_API_KEY + bench extra 필요).",
+    ),
+    schema: Path = typer.Option(
+        ..., "--schema", "-s", exists=True, dir_okay=False, readable=True,
+        help="TBox TTL 파일.",
+    ),
+    data: Path = typer.Option(
+        ..., "--data", "-d", exists=True, dir_okay=False, readable=True,
+        help="ABox TTL 파일.",
+    ),
+    language: str = typer.Option(
+        "en", "--lang", "-l", help="질문 언어: en | ko.",
+    ),
+    output: Path | None = typer.Option(
+        None, "--output", "-o", dir_okay=False, writable=True,
+        help="bench result JSON 파일 (생략 시 stdout 요약만).",
+    ),
+) -> None:
+    """Goldset × baseline × 메트릭을 일괄 실행하여 BenchResult를 생성합니다."""
+    import asyncio  # noqa: PLC0415
+
+    try:
+        gs = Goldset.load(goldset_path)
+    except GoldsetValidationError as e:
+        err_console.print(f"[red]✗ Goldset validation failed:[/red] {e}")
+        raise typer.Exit(code=1) from e
+
+    graph = Graph()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Loading TBox + ABox…", total=None)
+        graph.parse(schema, format="turtle")
+        graph.parse(data, format="turtle")
+        progress.update(task, description=f"Loaded {len(graph)} triples")
+
+    baseline = _build_baseline(baseline_name, gs, graph, language)
+
+    async def _run():
+        runner = BenchRunner(
+            gs, baseline, graph,
+            language=language, goldset_path=str(goldset_path),
+        )
+        return await runner.run()
+
+    bench_result = asyncio.run(_run())
+
+    _print_bench_summary(bench_result)
+
+    if output:
+        output.write_text(
+            json.dumps(bench_result.to_dict(), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        console.print(f"\n[green]✓ Bench result written:[/green] {output}")
+
+
+def _build_baseline(name: str, goldset: Goldset, graph: Graph, language: str):
+    """Construct a baseline instance by name. Mocks have no external deps."""
+    if name == "ontorag_mock":
+        from ontorag.eval.baselines.mocks import OntoragMockBaseline  # noqa: PLC0415
+
+        return OntoragMockBaseline(goldset, graph, language=language)
+    if name == "vector_rag_mock":
+        from ontorag.eval.baselines.mocks import VectorRAGMockBaseline  # noqa: PLC0415
+
+        return VectorRAGMockBaseline(goldset, language=language)
+    if name == "langchain":
+        # LangChain baseline path is not yet wired through this CLI helper
+        # because it requires schema+data paths and OPENAI_API_KEY. See
+        # `src/ontorag/eval/baselines/langchain_vector.py` and the test
+        # `test_live_answer_on_commerce` for direct programmatic use.
+        raise typer.BadParameter(
+            "langchain baseline is not yet wired into the CLI. Use the "
+            "mock baselines (ontorag_mock | vector_rag_mock) or call "
+            "LangChainVectorBaseline directly with OPENAI_API_KEY set "
+            "and `uv sync --extra bench` installed."
+        )
+    raise typer.BadParameter(
+        f"Unknown baseline: {name!r}. "
+        "Valid: ontorag_mock | vector_rag_mock | langchain"
+    )
+
+
+def _print_bench_summary(result) -> None:
+    table = Table(title=f"Bench result — {result.baseline_name}")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", justify="right")
+
+    agg = result.aggregate
+    table.add_row("Total questions", str(result.total_questions))
+    table.add_row("Avg latency (ms)", f"{agg.get('avg_latency_ms', 0):.1f}")
+    table.add_row("Avg tool calls", f"{agg.get('avg_tool_calls') or 0:.2f}")
+    table.add_row(
+        "Avg hallucination rate",
+        _fmt_opt(agg.get("avg_hallucination_rate")),
+    )
+    table.add_row(
+        "Avg citation coverage",
+        _fmt_opt(agg.get("avg_citation_coverage")),
+    )
+    table.add_row(
+        "Citation provided (count / rate)",
+        f"{agg.get('citation_provided_count', 0)} "
+        f"({agg.get('citation_provided_rate', 0):.0%})",
+    )
+    table.add_row("Total prompt tokens", str(agg.get("total_prompt_tokens", 0)))
+    table.add_row(
+        "Total completion tokens", str(agg.get("total_completion_tokens", 0))
+    )
+    console.print(table)
+
+
+def _fmt_opt(v) -> str:
+    return f"{v:.3f}" if isinstance(v, (int, float)) else "—"
 
 
 # ── compare ───────────────────────────────────────────────────────────────────

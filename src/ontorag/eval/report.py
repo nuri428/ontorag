@@ -49,8 +49,13 @@ def compare_reports(
     name_a = name_a or _guess_name(report_a, "A")
     name_b = name_b or _guess_name(report_b, "B")
 
-    results_a = {r["id"]: r for r in report_a.get("results", [])}
-    results_b = {r["id"]: r for r in report_b.get("results", [])}
+    # Support both `eval run` JSON (id / row_count / status) and
+    # `eval bench` JSON (question_id / baseline_answer / aggregate).
+    def _row_id(r: dict) -> str:
+        return str(r.get("id") or r.get("question_id") or "")
+
+    results_a = {_row_id(r): r for r in report_a.get("results", []) if _row_id(r)}
+    results_b = {_row_id(r): r for r in report_b.get("results", []) if _row_id(r)}
     common_ids = sorted(set(results_a) & set(results_b))
     only_a = sorted(set(results_a) - set(results_b))
     only_b = sorted(set(results_b) - set(results_a))
@@ -83,16 +88,20 @@ def compare_reports(
     for diff in diffs:
         a_rows = [r for r in results_a.values() if r["difficulty"] == diff]
         b_rows = [r for r in results_b.values() if r["difficulty"] == diff]
-        a_ok = sum(1 for r in a_rows if r.get("status") == "ok")
+        # Treat absent status as 'ok' (eval-bench JSON has no status field).
+        def _ok(r):
+            return r.get("status", "ok") == "ok"
+        def _empty(r):
+            cnt = r.get("row_count")
+            if cnt is None:
+                cnt = r.get("baseline_cited_triple_count", 0)
+            return _ok(r) and cnt == 0
+        a_ok = sum(1 for r in a_rows if _ok(r))
         a_err = sum(1 for r in a_rows if r.get("status") == "error")
-        a_empty = sum(
-            1 for r in a_rows if r.get("status") == "ok" and r.get("row_count") == 0
-        )
-        b_ok = sum(1 for r in b_rows if r.get("status") == "ok")
+        a_empty = sum(1 for r in a_rows if _empty(r))
+        b_ok = sum(1 for r in b_rows if _ok(r))
         b_err = sum(1 for r in b_rows if r.get("status") == "error")
-        b_empty = sum(
-            1 for r in b_rows if r.get("status") == "ok" and r.get("row_count") == 0
-        )
+        b_empty = sum(1 for r in b_rows if _empty(r))
         lines.append(
             f"| {diff} | {a_ok} | {a_err} | {a_empty} | {b_ok} | {b_err} | {b_empty} |"
         )
@@ -107,8 +116,9 @@ def compare_reports(
     lines.append("|---|---|---|---:|---:|:---:|")
     for qid in common_ids:
         ra, rb = results_a[qid], results_b[qid]
-        na = ra.get("row_count", "?") if ra.get("status") == "ok" else "✗"
-        nb = rb.get("row_count", "?") if rb.get("status") == "ok" else "✗"
+        # eval-run JSON: row_count + status; eval-bench JSON: baseline_cited_triple_count
+        na = _row_metric(ra)
+        nb = _row_metric(rb)
         delta = ""
         if isinstance(na, int) and isinstance(nb, int):
             if na == nb:
@@ -143,10 +153,29 @@ def compare_reports(
 
 
 def _guess_name(report: dict[str, Any], fallback: str) -> str:
-    goldset = report.get("goldset", "")
+    goldset = report.get("goldset") or report.get("goldset_path") or ""
     if goldset:
         return Path(goldset).stem
+    baseline = report.get("baseline_name")
+    if baseline:
+        return str(baseline)
     return fallback
+
+
+def _row_metric(row: dict[str, Any]) -> int | str:
+    """Pick the best 'count' to show in a side-by-side row.
+
+    eval-run JSON has ``row_count`` + ``status``. eval-bench JSON has
+    ``baseline_cited_triple_count``. Returns the int when present,
+    or ``'✗'`` for error rows, or ``'?'`` if neither field is present.
+    """
+    if row.get("status") == "error":
+        return "✗"
+    if "row_count" in row:
+        return int(row["row_count"])
+    if "baseline_cited_triple_count" in row:
+        return int(row["baseline_cited_triple_count"])
+    return "?"
 
 
 def generate_markdown_report(report: dict[str, Any]) -> str:
