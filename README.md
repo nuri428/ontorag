@@ -589,6 +589,47 @@ Because the question and the gold answer can be in different
 languages, and the URI links them — but the vector index sees them as
 unrelated chunks.
 
+##### Decision grid — where each domain sits
+
+Plotting the four domains on a 2×2 of *OWL richness* × *LLM
+contamination* makes the trade-off visible at a glance:
+
+```
+                           OWL richness  →
+                      low                       high
+                  ┌──────────────────┬──────────────────┐
+                  │                  │                  │
+        low       │                  │   ★ Pure Land    │
+                  │                  │   ★ ODS          │
+                  │                  │                  │
+  contamination   ├──────────────────┼──────────────────┤
+                  │                  │                  │
+        high      │   ★ Pokemon     │   ★ Techstack   │
+                  │                  │                  │
+                  └──────────────────┴──────────────────┘
+                  ontorag             ontorag wins every
+                  Correctness/        RAGAS metric +
+                  Relevancy ↑,        always wins
+                  LangChain           Hallucination 0%
+                  Faithfulness ↑      and Citation 45-66%
+```
+
+Pure Land sits in the **upper-right** alongside ODS — its TransProp +
+inverseOf + multilingual labels make it OWL-rich, and its
+fictional+religious cosmology makes it the least-contaminated of the
+four. That cell is where ontorag's advantage is largest (Pure Land
+AnswerRelevancy +98% relative; ODS Relevancy +17% absolute).
+
+The **lower-right** (Techstack) is the *adversarial* cell for ontorag
+on RAGAS scores — high contamination plus a small ABox plays directly
+to the chunk-quote style bias. The **lower-left** (Pokemon) is the
+*split decision* cell: LangChain wins style metrics, ontorag wins
+factual metrics. The **upper-left** is intentionally empty — that
+combination (low OWL features + low contamination) is rare in
+practice; if you're not exercising graph reasoning *and* the LLM
+hasn't memorized your domain, you probably just need a Q&A bot, not a
+RAG stack.
+
 #### Finding 3. Hallucination 0% and Citation 45-66% — only ontorag
 
 Look at the rightmost two columns: across **all four domains**,
