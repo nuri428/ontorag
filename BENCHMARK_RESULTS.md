@@ -95,22 +95,43 @@ uv run ontorag eval compare \
 
 ### With real LangChain + OpenAI (~$1)
 
+LangChain is now wired through the CLI (`--baseline langchain`) and
+RAGAS LLM-as-judge metrics are integrated into the orchestrator
+(`--with-ragas`):
+
 ```bash
 uv sync --extra bench
 export OPENAI_API_KEY=sk-...
 
-# Wire LangChainVectorBaseline into the orchestrator (one of the
-# remaining tasks — currently the CLI helper rejects --baseline
-# langchain with a TODO message). Once wired:
+# Commerce domain — 20 questions, real LangChain + RAGAS, ~$0.30
 uv run ontorag eval bench examples/commerce/goldset.jsonl \
     --baseline langchain \
     --schema examples/commerce/schema.ttl \
     --data examples/commerce/data.ttl \
+    --with-ragas \
     --output examples/commerce/bench_results/langchain_real.json
+
+# Pure Land domain — 50 questions, real LangChain + RAGAS, ~$0.75
+uv run ontorag eval bench examples/pure_land/goldset.jsonl \
+    --baseline langchain \
+    --schema examples/pure_land/schema.ttl \
+    --data examples/pure_land/data.ttl \
+    --with-ragas \
+    --output examples/pure_land/bench_results/langchain_real.json
+
+# Compare against the ontorag_mock (perfect-retrieval upper bound)
+uv run ontorag eval compare \
+    examples/commerce/bench_results/ontorag_mock.json \
+    examples/commerce/bench_results/langchain_real.json \
+    --name-a ontorag --name-b langchain \
+    --output examples/commerce/bench_results/comparison_vs_real.md
 ```
 
-Real numbers will replace the mock columns and the narrative becomes
-provable rather than illustrative.
+Real numbers replace the mock columns and the narrative becomes
+provable rather than illustrative. The orchestrator's
+`avg_ragas_faithfulness` / `avg_ragas_answer_correctness` /
+`avg_ragas_answer_relevancy` aggregates carry RAGAS scores in the
+JSON output.
 
 ---
 
@@ -126,13 +147,21 @@ provable rather than illustrative.
 | Real RAGAS Faithfulness numbers | **Unknown** — would require RAGAS LLM judge calls |
 
 Open issues:
-- `--baseline langchain` is not wired into the orchestrator CLI yet (the
-  helper rejects it with a clear message).
-- RAGAS metric integration into the orchestrator pipeline is also
-  pending — the wrapper module exists but the runner does not yet
-  call it.
+- ~~`--baseline langchain` is not wired into the orchestrator CLI yet.~~
+  **Resolved** — wired in commit 20: `_build_baseline` accepts schema/data
+  paths and constructs `LangChainVectorBaseline`. Errors degrade to
+  `typer.BadParameter` with actionable messages (no traceback).
+- ~~RAGAS metric integration into the orchestrator pipeline is pending.~~
+  **Resolved** — `BenchRunner(with_ragas=True)` calls
+  `evaluate_with_ragas` per question; aggregate carries
+  `avg_ragas_faithfulness` / `avg_ragas_answer_correctness` /
+  `avg_ragas_answer_relevancy`. Failure modes (missing key, missing
+  ragas package, ragas runtime error) degrade silently to None — no
+  partial result is lost.
 
-Both are small follow-up tasks of <1 hour each.
+Only remaining gap: **actual API spend has not been authorized**. The
+single command above produces real numbers as soon as a user runs it
+with their OpenAI key.
 
 ---
 

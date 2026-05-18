@@ -19,7 +19,7 @@ from typing import Any
 
 from rdflib import Graph
 
-from ontorag.eval.baselines.protocol import BaselineAnswer, RAGBaseline
+from ontorag.eval.baselines.protocol import BaselineAnswer, RAGBaseline  # noqa: F401
 from ontorag.eval.goldset import Difficulty, Goldset, GoldsetQuestion
 from ontorag.eval.metrics.citation import citation_coverage
 from ontorag.eval.metrics.hallucination import hallucination_rate
@@ -46,6 +46,10 @@ class QuestionResult:
     hallucination_rate: float | None = None
     citation_coverage: float | None = None
     uses_property_path: bool | None = None
+    # RAGAS LLM-as-judge metrics (only set when with_ragas=True)
+    ragas_faithfulness: float | None = None
+    ragas_answer_correctness: float | None = None
+    ragas_answer_relevancy: float | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
 
@@ -95,12 +99,14 @@ class BenchRunner:
         *,
         language: str = "en",
         goldset_path: str = "",
+        with_ragas: bool = False,
     ) -> None:
         self.goldset = goldset
         self.baseline = baseline
         self.graph = graph
         self.language = language
         self.goldset_path = goldset_path
+        self.with_ragas = with_ragas
 
     async def run(self) -> BenchResult:
         """Execute the benchmark and return the aggregated result."""
@@ -151,6 +157,16 @@ class BenchRunner:
         if "sparql_query" in answer.extra:
             uses_pp = system_uses_inference_features(answer.extra["sparql_query"])
 
+        # Optional RAGAS LLM-as-judge (only if explicitly requested + answer present)
+        ragas_f, ragas_c, ragas_r = None, None, None
+        if self.with_ragas and answer.text:
+            ragas_f, ragas_c, ragas_r = self._ragas_scores(
+                question_text=question_text,
+                baseline_answer=answer.text,
+                gold_answer=gold_answer,
+                contexts=self._extract_contexts(answer),
+            )
+
         return QuestionResult(
             question_id=q.id,
             difficulty=q.difficulty.value,
@@ -167,7 +183,58 @@ class BenchRunner:
             hallucination_rate=hall_rate,
             citation_coverage=cite_cov,
             uses_property_path=uses_pp,
+            ragas_faithfulness=ragas_f,
+            ragas_answer_correctness=ragas_c,
+            ragas_answer_relevancy=ragas_r,
             extra={k: v for k, v in answer.extra.items() if k != "sparql_query"},
+        )
+
+    @staticmethod
+    def _extract_contexts(answer: BaselineAnswer) -> list[str]:
+        """Pull retrieval context strings out of the baseline's extra dict.
+
+        Vector baselines surface their retrieved chunks under
+        ``extra["retrieved_chunks"]``. Ontology baselines may not have a
+        natural context payload; in that case we synthesise one from
+        cited triples so RAGAS Faithfulness has something to judge against.
+        """
+        chunks = answer.extra.get("retrieved_chunks")
+        if isinstance(chunks, list) and chunks:
+            return [str(c) for c in chunks]
+        if answer.cited_triples:
+            return [
+                f"{s} {p} {o}" for (s, p, o) in answer.cited_triples
+            ]
+        return []
+
+    def _ragas_scores(
+        self,
+        *,
+        question_text: str,
+        baseline_answer: str,
+        gold_answer: str,
+        contexts: list[str],
+    ) -> tuple[float | None, float | None, float | None]:
+        """Call RAGAS wrapper; degrade gracefully if it errors / is missing."""
+        try:
+            from ontorag.eval.metrics.ragas_wrapper import (  # noqa: PLC0415
+                evaluate_with_ragas,
+            )
+        except ImportError:
+            return None, None, None
+        try:
+            score = evaluate_with_ragas(
+                question=question_text,
+                answer=baseline_answer,
+                reference_answer=gold_answer,
+                contexts=contexts,
+            )
+        except Exception:  # noqa: BLE001 — non-fatal; record None
+            return None, None, None
+        return (
+            score.faithfulness,
+            score.answer_correctness,
+            score.answer_relevancy,
         )
 
     def _aggregate(self, results: list[QuestionResult]) -> dict[str, Any]:
@@ -197,6 +264,15 @@ class BenchRunner:
                 / len(results)
                 if results
                 else 0.0
+            ),
+            "avg_ragas_faithfulness": _safe_mean(
+                [r.ragas_faithfulness for r in results]
+            ),
+            "avg_ragas_answer_correctness": _safe_mean(
+                [r.ragas_answer_correctness for r in results]
+            ),
+            "avg_ragas_answer_relevancy": _safe_mean(
+                [r.ragas_answer_relevancy for r in results]
             ),
         }
 

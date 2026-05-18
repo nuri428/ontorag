@@ -198,3 +198,82 @@ class TestEvalBenchCLI:
             ],
         )
         assert result.exit_code != 0
+
+
+# ── BenchRunner + with_ragas (mocked, no real RAGAS call) ────────────────────
+
+
+class TestBenchRunnerWithRagas:
+    """RAGAS integration is enabled via with_ragas=True. We don't make
+    real API calls here — we mock evaluate_with_ragas at its import site
+    inside the orchestrator."""
+
+    async def test_with_ragas_populates_score_fields(
+        self, commerce_goldset, commerce_graph, monkeypatch
+    ):
+        from ontorag.eval.metrics.ragas_wrapper import RagasScore
+
+        def fake_eval(question, answer, reference_answer=None, contexts=None,
+                      metrics=None, judge_model="gpt-4o-mini"):
+            return RagasScore(
+                faithfulness=0.92,
+                answer_correctness=0.88,
+                answer_relevancy=0.91,
+                judge_model=judge_model,
+            )
+
+        # The orchestrator imports inside _ragas_scores, so patch the
+        # module attribute used at call time.
+        import ontorag.eval.metrics.ragas_wrapper as rw
+        monkeypatch.setattr(rw, "evaluate_with_ragas", fake_eval)
+
+        baseline = OntoragMockBaseline(commerce_goldset, commerce_graph)
+        result = await BenchRunner(
+            commerce_goldset, baseline, commerce_graph, with_ragas=True
+        ).run()
+        assert result.aggregate["avg_ragas_faithfulness"] == pytest.approx(0.92)
+        assert result.aggregate["avg_ragas_answer_correctness"] == pytest.approx(0.88)
+        # All per-question rows should have RAGAS scores
+        assert all(r.ragas_faithfulness is not None for r in result.results)
+
+    async def test_with_ragas_disabled_by_default(
+        self, commerce_goldset, commerce_graph
+    ):
+        baseline = OntoragMockBaseline(commerce_goldset, commerce_graph)
+        result = await BenchRunner(
+            commerce_goldset, baseline, commerce_graph
+        ).run()
+        assert all(r.ragas_faithfulness is None for r in result.results)
+        assert result.aggregate["avg_ragas_faithfulness"] is None
+
+
+# ── LangChain baseline wiring via the CLI ─────────────────────────────────────
+
+
+class TestLangChainCLIWiring:
+    """Verifies the CLI's --baseline langchain path produces a clear,
+    actionable error when prerequisites are missing — not a stack trace."""
+
+    def test_langchain_without_api_key_exits_cleanly(self, monkeypatch):
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        result = runner.invoke(
+            app,
+            [
+                "eval", "bench",
+                str(COMMERCE / "goldset.jsonl"),
+                "--baseline", "langchain",
+                "--schema", str(COMMERCE / "schema.ttl"),
+                "--data", str(COMMERCE / "data.ttl"),
+            ],
+        )
+        assert result.exit_code != 0
+        # Either a typer BadParameter (preferred) or surfaced error;
+        # in any case, no Python traceback in user-visible output.
+        combined = result.stdout + (result.stderr or "")
+        # Heuristic: the word OPENAI_API_KEY or "bench" should appear
+        # so the user knows what to fix.
+        assert (
+            "OPENAI_API_KEY" in combined
+            or "bench" in combined
+            or "langchain" in combined.lower()
+        )

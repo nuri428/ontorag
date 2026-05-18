@@ -241,6 +241,12 @@ def eval_bench(
         None, "--output", "-o", dir_okay=False, writable=True,
         help="bench result JSON 파일 (생략 시 stdout 요약만).",
     ),
+    with_ragas: bool = typer.Option(
+        False, "--with-ragas",
+        help="각 질문에 대해 RAGAS LLM-as-judge 메트릭(Faithfulness, "
+             "AnswerCorrectness, AnswerRelevancy)을 추가로 계산합니다. "
+             "OPENAI_API_KEY + `uv sync --extra bench` 필요. ~$0.50/50질문.",
+    ),
 ) -> None:
     """Goldset × baseline × 메트릭을 일괄 실행하여 BenchResult를 생성합니다."""
     import asyncio  # noqa: PLC0415
@@ -263,14 +269,22 @@ def eval_bench(
         graph.parse(data, format="turtle")
         progress.update(task, description=f"Loaded {len(graph)} triples")
 
-    baseline = _build_baseline(baseline_name, gs, graph, language)
+    baseline = _build_baseline(
+        baseline_name, gs, graph, language,
+        schema_path=schema, data_path=data,
+    )
 
     async def _run():
         runner = BenchRunner(
             gs, baseline, graph,
-            language=language, goldset_path=str(goldset_path),
+            language=language,
+            goldset_path=str(goldset_path),
+            with_ragas=with_ragas,
         )
-        return await runner.run()
+        try:
+            return await runner.run()
+        finally:
+            await baseline.close()
 
     bench_result = asyncio.run(_run())
 
@@ -284,8 +298,29 @@ def eval_bench(
         console.print(f"\n[green]✓ Bench result written:[/green] {output}")
 
 
-def _build_baseline(name: str, goldset: Goldset, graph: Graph, language: str):
-    """Construct a baseline instance by name. Mocks have no external deps."""
+def _build_baseline(
+    name: str,
+    goldset: Goldset,
+    graph: Graph,
+    language: str,
+    *,
+    schema_path: Path | None = None,
+    data_path: Path | None = None,
+):
+    """Construct a baseline instance by name.
+
+    Mocks (``ontorag_mock``, ``vector_rag_mock``) have no external
+    dependencies. ``langchain`` requires:
+
+    * ``schema_path`` and ``data_path`` (the same TTL files the
+      orchestrator loaded — passed through so the baseline can
+      build its own chunks/index)
+    * ``OPENAI_API_KEY`` environment variable
+    * The ``bench`` extras installed (``uv sync --extra bench``)
+
+    Errors map to ``typer.BadParameter`` so the CLI exits with a clear
+    actionable message instead of a stack trace.
+    """
     if name == "ontorag_mock":
         from ontorag.eval.baselines.mocks import OntoragMockBaseline  # noqa: PLC0415
 
@@ -295,16 +330,30 @@ def _build_baseline(name: str, goldset: Goldset, graph: Graph, language: str):
 
         return VectorRAGMockBaseline(goldset, language=language)
     if name == "langchain":
-        # LangChain baseline path is not yet wired through this CLI helper
-        # because it requires schema+data paths and OPENAI_API_KEY. See
-        # `src/ontorag/eval/baselines/langchain_vector.py` and the test
-        # `test_live_answer_on_commerce` for direct programmatic use.
-        raise typer.BadParameter(
-            "langchain baseline is not yet wired into the CLI. Use the "
-            "mock baselines (ontorag_mock | vector_rag_mock) or call "
-            "LangChainVectorBaseline directly with OPENAI_API_KEY set "
-            "and `uv sync --extra bench` installed."
-        )
+        if schema_path is None or data_path is None:
+            raise typer.BadParameter(
+                "langchain baseline requires both --schema and --data."
+            )
+        try:
+            from ontorag.eval.baselines.langchain_vector import (  # noqa: PLC0415
+                LangChainVectorBaseline,
+            )
+            from ontorag.eval.baselines.protocol import (  # noqa: PLC0415
+                BaselineError,
+                MissingBaselineDependencyError,
+            )
+        except ImportError as e:
+            raise typer.BadParameter(
+                f"Could not import LangChain baseline module: {e}"
+            ) from e
+        try:
+            return LangChainVectorBaseline(
+                schema_path=schema_path, data_path=data_path
+            )
+        except MissingBaselineDependencyError as e:
+            raise typer.BadParameter(str(e)) from e
+        except BaselineError as e:
+            raise typer.BadParameter(str(e)) from e
     raise typer.BadParameter(
         f"Unknown baseline: {name!r}. "
         "Valid: ontorag_mock | vector_rag_mock | langchain"
