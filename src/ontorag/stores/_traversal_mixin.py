@@ -103,7 +103,8 @@ WHERE {{
 
             frontier = new_frontier
 
-        # Batch-fetch labels for all discovered nodes
+        # Batch-fetch labels for all discovered nodes + predicate URIs (TBox)
+        # so LLM can read the result without needing extra describe_entity calls.
         if nodes:
             uris_block = " ".join(f"<{n['uri']}>" for n in nodes)
             lbl_q = f"{pfx}\nSELECT ?uri ?label WHERE {{ VALUES ?uri {{ {uris_block} }} GRAPH <{_DATA}> {{ ?uri rdfs:label ?label . }} }}"
@@ -119,6 +120,30 @@ WHERE {{
             }
             for node in nodes:
                 node["label"] = uri_labels.get(node["uri"])
+
+        # Predicate labels live in the schema graph, not the data graph
+        if edges:
+            pred_uris = list({e["predicate"] for e in edges})
+            pred_block = " ".join(f"<{u}>" for u in pred_uris)
+            pred_q = (
+                f"{pfx}\nSELECT ?p ?label WHERE {{ VALUES ?p {{ {pred_block} }} "
+                f"?p rdfs:label ?label . }}"
+            )
+            try:
+                pred_bindings = (
+                    (await self._sparql_select(pred_q))
+                    .get("results", {})
+                    .get("bindings", [])
+                )
+                pred_labels = {
+                    b["p"]["value"]: b["label"]["value"]
+                    for b in pred_bindings
+                    if "p" in b and "label" in b
+                }
+                for edge in edges:
+                    edge["predicate_label"] = pred_labels.get(edge["predicate"])
+            except Exception as exc:  # pragma: no cover — best-effort enrichment
+                logger.debug("predicate label enrichment skipped: %s", exc)
 
         return TraversalResult(
             start_uri=start_uri,
@@ -304,6 +329,44 @@ LIMIT {limit}"""
                         "label": b.get("bLabel", {}).get("value"),
                         "class_uri": class_uri_b,
                     },
+                }
+            )
+        return out
+
+    async def property_path_closure(
+        self,
+        start_uri: str,
+        predicate_uri: str,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """SPARQL property-path closure: <start> <pred>+ ?reached.
+
+        One round-trip closure (no BFS). Use this for owl:TransitiveProperty
+        questions — the result is unambiguous: an empty list means no
+        transitive path exists; otherwise every reachable entity is here
+        with its label attached.
+        """
+        pfx = self._pfx()
+        start = uri_ref(start_uri)
+        pred = uri_ref(predicate_uri)
+        query = f"""{pfx}
+SELECT DISTINCT ?reached (SAMPLE(?l) AS ?label)
+WHERE {{
+  GRAPH <{_DATA}> {{
+    {start} {pred}+ ?reached .
+    OPTIONAL {{ ?reached rdfs:label ?l . }}
+  }}
+}}
+GROUP BY ?reached
+ORDER BY STR(?reached)
+LIMIT {limit}"""
+        result = await self._sparql_select(query)
+        out: list[dict[str, Any]] = []
+        for b in result.get("results", {}).get("bindings", []):
+            out.append(
+                {
+                    "uri": b["reached"]["value"],
+                    "label": b.get("label", {}).get("value"),
                 }
             )
         return out

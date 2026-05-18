@@ -150,6 +150,7 @@ class OntoragNativeBaseline:
         text_parts: list[str] = []
         tool_calls = 0
         tool_call_sequence: list[str] = []
+        tool_trace: list[dict[str, Any]] = []
         uri_pool: list[str] = []
         rate_limit_hits = 0
         error: str | None = None
@@ -162,9 +163,33 @@ class OntoragNativeBaseline:
                     text_parts.append(event.get("content", ""))
                 elif t == "tool_call":
                     tool_calls += 1
-                    tool_call_sequence.append(event.get("tool", ""))
+                    name_ = event.get("tool", "")
+                    tool_call_sequence.append(name_)
+                    tool_trace.append(
+                        {
+                            "tool": name_,
+                            "args": event.get("content"),
+                            "result_summary": None,
+                        }
+                    )
                 elif t == "tool_result":
-                    _collect_uris(event.get("content"), uri_pool)
+                    content = event.get("content")
+                    _collect_uris(content, uri_pool)
+                    if tool_trace:
+                        # Pair with most recent tool_call for goldset triage
+                        if isinstance(content, list):
+                            summary: Any = {"kind": "list", "len": len(content)}
+                        elif isinstance(content, dict):
+                            summary = {
+                                "kind": "dict",
+                                "keys": list(content.keys())[:8],
+                                "nodes_len": len(content.get("nodes", []))
+                                if isinstance(content.get("nodes"), list)
+                                else None,
+                            }
+                        else:
+                            summary = {"kind": type(content).__name__}
+                        tool_trace[-1]["result_summary"] = summary
                 elif t == "rate_limit":
                     rate_limit_hits += 1
                 elif t == "error":
@@ -184,6 +209,7 @@ class OntoragNativeBaseline:
             extra={
                 "baseline_kind": "ontology_native",
                 "tool_call_sequence": tool_call_sequence,
+                "tool_trace": tool_trace,
                 "rate_limit_hits": rate_limit_hits,
                 "error": error,
             },

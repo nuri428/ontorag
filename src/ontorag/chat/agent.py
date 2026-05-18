@@ -31,12 +31,20 @@ _SYSTEM_BASE = """\
 
 | 질문 유형 | 추천 툴 |
 |-----------|---------|
-| "transitively/directly and indirectly/모든·전체 X" + 위 '속성/관계' 표에 `TRANSITIVE` 플래그 있는 property 매칭 | **traverse_graph** (predicate=해당 URI, max_depth=3) — 필수, find_entities/find_related로 대체 불가 |
+| "transitively/directly and indirectly/모든·전체 X" + 위 '속성/관계' 표에 `TRANSITIVE` 플래그 있는 property 매칭 | **property_path_query**(start_uri, predicate_uri=TRANSITIVE_URI) — 한 번에 closure 반환 |
+| 일반 multi-hop 관계 (예: depth-2 이상의 양방향 탐색) | traverse_graph (direction 주의) |
 | 단일 홉 관계 (X의 직속 P) | find_related 또는 traverse_graph(max_depth=1) |
 | 단일 엔티티의 전체 속성/관계 | describe_entity |
 | 클래스 + 필터로 인스턴스 검색 | find_entities (filters에 rdfs:label 권장) |
 | 두 엔티티 간 경로 | find_path |
 | 스키마/클래스 구조 파악 | get_schema, get_class_detail |
+
+## 도구 결과 해석 룰 (틀린 답 방지)
+
+- **property_path_query**: 결과는 list. **list 길이 > 0 이면 모든 항목이 답** (각 dict의 `label` 또는 local name을 답에 인용). 빈 list만 "no transitive path / 없음".
+- **traverse_graph**: 결과 `nodes` 배열에서 `depth > 0`인 노드들이 답 (depth=0은 시작 노드 자기 자신). `nodes`에 시작 노드만 있으면 (즉 `depth > 0` 노드가 없으면) 그때만 "no neighbours".
+- **find_entities**: list 빈 배열만 "없음". 0건이면 (a) label 다른 표기 (b) `contains` op (c) sub-class 순서로 fallback. 3회 실패 후에만 포기.
+- **find_related / property_path_query / traverse_graph 등 list 반환 도구**: list 안의 entity label을 **답 텍스트에 직접 인용**하세요 — "X is located in [label1], [label2]" 형식. URI는 답에 넣지 마세요.
 
 ## URI 처리 규칙
 
@@ -254,6 +262,28 @@ _TOOLS: list[dict[str, Any]] = [
                 "max_depth": {"type": "integer", "default": 4},
             },
             "required": ["uri_a", "uri_b"],
+        },
+    },
+    {
+        "name": "property_path_query",
+        "description": (
+            "한 시작 엔티티에서 특정 predicate를 **transitive closure**로 따라가 도달 가능한 "
+            "모든 엔티티를 한 번에 반환합니다 (SPARQL `predicate+` semantics). "
+            "schema의 '속성/관계' 표에서 `TRANSITIVE` 플래그가 붙은 predicate에 권장 — "
+            "BFS 기반 traverse_graph보다 명확한 결과 형식 (단일 list[{uri, label}]). "
+            "결과 list가 비어있으면 closure 없음, 비어있지 않으면 모든 항목이 답입니다."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "start_uri": {"type": "string", "description": "시작 엔티티 URI"},
+                "predicate_uri": {
+                    "type": "string",
+                    "description": "transitive하게 따라갈 predicate URI (TRANSITIVE 플래그 권장)",
+                },
+                "limit": {"type": "integer", "default": 100},
+            },
+            "required": ["start_uri", "predicate_uri"],
         },
     },
     {
@@ -497,6 +527,13 @@ class AgentLoop:
                 max_depth=args.get("max_depth", 4),
             )
             return result.model_dump()
+
+        if name == "property_path_query":
+            return await store.property_path_closure(
+                start_uri=args["start_uri"],
+                predicate_uri=args["predicate_uri"],
+                limit=args.get("limit", 100),
+            )
 
         if name == "find_related":
             return await store.find_related(
