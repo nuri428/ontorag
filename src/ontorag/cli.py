@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
+from ontorag.cli_eval import eval_app
 from ontorag.cli_learn import learn_app
 
 load_dotenv()  # load .env from cwd before any command runs (override=False keeps real env vars)
@@ -38,6 +39,8 @@ app.add_typer(learn_app, name="learn")
 
 dump_app = typer.Typer(help="그래프 스토어의 TBox/ABox를 파일로 덤프합니다.")
 app.add_typer(dump_app, name="dump")
+
+app.add_typer(eval_app, name="eval")
 
 
 # ── load subcommands ─────────────────────────────────────────────────────────
