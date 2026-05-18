@@ -15,6 +15,18 @@ system output) and returns a float in [0, 1] or a structured result dict.
 
 from __future__ import annotations
 
+from ontorag.eval.metrics.citation import (
+    citation_coverage,
+    triple_supports_answer,
+)
+from ontorag.eval.metrics.hallucination import (
+    hallucinated_triple_count,
+    hallucination_rate,
+)
+from ontorag.eval.metrics.inference import (
+    inference_utilization_score,
+    system_uses_inference_features,
+)
 from ontorag.eval.metrics.sparql_eq import (
     SparqlResultSet,
     sparql_result_equivalent,
@@ -23,6 +35,12 @@ from ontorag.eval.metrics.sparql_eq import (
 
 __all__ = [
     "SparqlResultSet",
+    "citation_coverage",
+    "hallucinated_triple_count",
+    "hallucination_rate",
+    "inference_utilization_score",
     "sparql_result_equivalent",
     "sparql_result_jaccard",
+    "system_uses_inference_features",
+    "triple_supports_answer",
 ]
