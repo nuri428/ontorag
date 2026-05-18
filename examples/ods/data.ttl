@@ -1,0 +1,284 @@
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix ods:   <https://ontorag.dev/ns/ods#> .
+
+# ── Complexity bands ───────────────────────────────────────────────────────
+
+ods:Constant a ods:Complexity ;
+    rdfs:label "constant"@en ; ods:bigO "O(1)" .
+ods:Logarithmic a ods:Complexity ;
+    rdfs:label "logarithmic"@en ; ods:bigO "O(log n)" .
+ods:Linear a ods:Complexity ;
+    rdfs:label "linear"@en ; ods:bigO "O(n)" .
+ods:Linearithmic a ods:Complexity ;
+    rdfs:label "linearithmic"@en ; ods:bigO "O(n log n)" .
+ods:Quadratic a ods:Complexity ;
+    rdfs:label "quadratic"@en ; ods:bigO "O(n^2)" .
+
+# ── Interfaces (ADTs) ─────────────────────────────────────────────────────
+
+ods:List a ods:Interface ; rdfs:label "List"@en .
+ods:Stack a ods:Interface ; rdfs:label "Stack"@en .
+ods:Queue a ods:Interface ; rdfs:label "Queue"@en .
+ods:Deque a ods:Interface ; rdfs:label "Deque"@en .
+ods:USet  a ods:Interface ; rdfs:label "USet"@en .
+ods:SSet  a ods:Interface ; rdfs:label "SSet"@en .
+ods:Graph a ods:Interface ; rdfs:label "Graph"@en .
+
+# ── Operations (one per (structure, op) pair, named compactly) ─────────────
+# Naming: op_<Structure>_<verb>. Worst-case complexity attached per book.
+
+# ArrayStack (Ch2): get/set O(1), add/remove O(n) (amortised)
+ods:op_ArrayStack_get   a ods:Operation ; rdfs:label "get"@en ;    ods:hasWorstCaseComplexity ods:Constant .
+ods:op_ArrayStack_set   a ods:Operation ; rdfs:label "set"@en ;    ods:hasWorstCaseComplexity ods:Constant .
+ods:op_ArrayStack_add   a ods:Operation ; rdfs:label "add"@en ;    ods:hasWorstCaseComplexity ods:Linear .
+ods:op_ArrayStack_remove a ods:Operation ; rdfs:label "remove"@en ; ods:hasWorstCaseComplexity ods:Linear .
+
+# ArrayDeque (Ch2): add/remove O(1+min(i, n-i)) worst-case Linear; get/set O(1)
+ods:op_ArrayDeque_get   a ods:Operation ; rdfs:label "get"@en ;    ods:hasWorstCaseComplexity ods:Constant .
+ods:op_ArrayDeque_add   a ods:Operation ; rdfs:label "add"@en ;    ods:hasWorstCaseComplexity ods:Linear .
+ods:op_ArrayDeque_remove a ods:Operation ; rdfs:label "remove"@en ; ods:hasWorstCaseComplexity ods:Linear .
+
+# DLList (Ch3): get/set O(min(i, n-i)) worst-case Linear; add/remove O(1) at endpoints
+ods:op_DLList_get       a ods:Operation ; rdfs:label "get"@en ;    ods:hasWorstCaseComplexity ods:Linear .
+ods:op_DLList_addFirst  a ods:Operation ; rdfs:label "addFirst"@en ; ods:hasWorstCaseComplexity ods:Constant .
+ods:op_DLList_removeFirst a ods:Operation ; rdfs:label "removeFirst"@en ; ods:hasWorstCaseComplexity ods:Constant .
+
+# SLList (Ch3): push/pop O(1) at head
+ods:op_SLList_push a ods:Operation ; rdfs:label "push"@en ; ods:hasWorstCaseComplexity ods:Constant .
+ods:op_SLList_pop  a ods:Operation ; rdfs:label "pop"@en ;  ods:hasWorstCaseComplexity ods:Constant .
+
+# SkiplistSSet (Ch4): expected O(log n) — we record worst-case Linear (degenerate)
+ods:op_SkiplistSSet_find   a ods:Operation ; rdfs:label "find"@en ;   ods:hasWorstCaseComplexity ods:Linear .
+ods:op_SkiplistSSet_add    a ods:Operation ; rdfs:label "add"@en ;    ods:hasWorstCaseComplexity ods:Linear .
+
+# ChainedHashTable (Ch5): expected O(1); worst-case Linear
+ods:op_ChainedHashTable_find a ods:Operation ; rdfs:label "find"@en ; ods:hasWorstCaseComplexity ods:Linear .
+ods:op_ChainedHashTable_add  a ods:Operation ; rdfs:label "add"@en ;  ods:hasWorstCaseComplexity ods:Linear .
+
+# BinarySearchTree (Ch6): worst-case O(n) (skewed)
+ods:op_BinarySearchTree_find a ods:Operation ; rdfs:label "find"@en ; ods:hasWorstCaseComplexity ods:Linear .
+ods:op_BinarySearchTree_add  a ods:Operation ; rdfs:label "add"@en ;  ods:hasWorstCaseComplexity ods:Linear .
+
+# RedBlackTree (Ch9): O(log n) worst-case
+ods:op_RedBlackTree_find a ods:Operation ; rdfs:label "find"@en ; ods:hasWorstCaseComplexity ods:Logarithmic .
+ods:op_RedBlackTree_add  a ods:Operation ; rdfs:label "add"@en ;  ods:hasWorstCaseComplexity ods:Logarithmic .
+
+# Treap (Ch7): expected O(log n); worst-case Linear (analysed in book)
+ods:op_Treap_find a ods:Operation ; rdfs:label "find"@en ; ods:hasWorstCaseComplexity ods:Linear .
+ods:op_Treap_add  a ods:Operation ; rdfs:label "add"@en ;  ods:hasWorstCaseComplexity ods:Linear .
+
+# ScapegoatTree (Ch8): O(log n) amortised; we use Linear for worst-case single op
+ods:op_ScapegoatTree_find a ods:Operation ; rdfs:label "find"@en ; ods:hasWorstCaseComplexity ods:Logarithmic .
+ods:op_ScapegoatTree_add  a ods:Operation ; rdfs:label "add"@en ;  ods:hasWorstCaseComplexity ods:Linear .
+
+# BinaryHeap (Ch10): add O(log n), remove (extract-min) O(log n)
+ods:op_BinaryHeap_add    a ods:Operation ; rdfs:label "add"@en ;    ods:hasWorstCaseComplexity ods:Logarithmic .
+ods:op_BinaryHeap_remove a ods:Operation ; rdfs:label "remove"@en ; ods:hasWorstCaseComplexity ods:Logarithmic .
+
+# MeldableHeap (Ch10): O(log n) expected, Linear worst-case (randomised)
+ods:op_MeldableHeap_add    a ods:Operation ; rdfs:label "add"@en ;    ods:hasWorstCaseComplexity ods:Linear .
+ods:op_MeldableHeap_remove a ods:Operation ; rdfs:label "remove"@en ; ods:hasWorstCaseComplexity ods:Linear .
+
+# BinaryTrie (Ch13): O(w) where w is word width — treat as Logarithmic for fixed w
+ods:op_BinaryTrie_find a ods:Operation ; rdfs:label "find"@en ; ods:hasWorstCaseComplexity ods:Logarithmic .
+
+# XFastTrie (Ch13): O(log w) ≈ Logarithmic
+ods:op_XFastTrie_find a ods:Operation ; rdfs:label "find"@en ; ods:hasWorstCaseComplexity ods:Logarithmic .
+
+# AdjacencyMatrix (Ch12)
+ods:op_AdjacencyMatrix_hasEdge a ods:Operation ; rdfs:label "hasEdge"@en ; ods:hasWorstCaseComplexity ods:Constant .
+
+# AdjacencyLists (Ch12)
+ods:op_AdjacencyLists_hasEdge a ods:Operation ; rdfs:label "hasEdge"@en ; ods:hasWorstCaseComplexity ods:Linear .
+
+# ── Array-based structures (Ch2) ──────────────────────────────────────────
+
+ods:ArrayStack a ods:ArrayBasedStructure ;
+    rdfs:label "ArrayStack"@en ;
+    ods:chapter 2 ;
+    ods:implements ods:List, ods:Stack ;
+    ods:supports ods:op_ArrayStack_get, ods:op_ArrayStack_set, ods:op_ArrayStack_add, ods:op_ArrayStack_remove .
+
+ods:ArrayQueue a ods:ArrayBasedStructure ;
+    rdfs:label "ArrayQueue"@en ;
+    ods:chapter 2 ;
+    ods:implements ods:Queue ;
+    ods:uses ods:ArrayStack .
+
+ods:ArrayDeque a ods:ArrayBasedStructure ;
+    rdfs:label "ArrayDeque"@en ;
+    ods:chapter 2 ;
+    ods:implements ods:List, ods:Deque ;
+    ods:supports ods:op_ArrayDeque_get, ods:op_ArrayDeque_add, ods:op_ArrayDeque_remove .
+
+ods:DualArrayDeque a ods:ArrayBasedStructure ;
+    rdfs:label "DualArrayDeque"@en ;
+    ods:chapter 2 ;
+    ods:implements ods:List, ods:Deque ;
+    ods:uses ods:ArrayStack .
+
+ods:RootishArrayStack a ods:ArrayBasedStructure ;
+    rdfs:label "RootishArrayStack"@en ;
+    ods:chapter 2 ;
+    ods:implements ods:List .
+
+# ── Linked-list structures (Ch3) ──────────────────────────────────────────
+
+ods:SLList a ods:LinkedListStructure ;
+    rdfs:label "SLList"@en ;
+    ods:chapter 3 ;
+    ods:implements ods:Stack, ods:Queue ;
+    ods:supports ods:op_SLList_push, ods:op_SLList_pop .
+
+ods:DLList a ods:LinkedListStructure ;
+    rdfs:label "DLList"@en ;
+    ods:chapter 3 ;
+    ods:implements ods:List, ods:Deque ;
+    ods:supports ods:op_DLList_get, ods:op_DLList_addFirst, ods:op_DLList_removeFirst .
+
+ods:SEList a ods:LinkedListStructure ;
+    rdfs:label "SEList"@en ;
+    rdfs:comment "Space-efficient linked list — DLList of small ArrayDeque blocks."@en ;
+    ods:chapter 3 ;
+    ods:implements ods:List, ods:Deque ;
+    ods:uses ods:DLList, ods:ArrayDeque .
+
+# ── Skiplist structures (Ch4) ─────────────────────────────────────────────
+
+ods:SkiplistSSet a ods:DataStructure ;
+    rdfs:label "SkiplistSSet"@en ;
+    ods:chapter 4 ;
+    ods:implements ods:SSet ;
+    ods:supports ods:op_SkiplistSSet_find, ods:op_SkiplistSSet_add .
+
+ods:SkiplistList a ods:DataStructure ;
+    rdfs:label "SkiplistList"@en ;
+    ods:chapter 4 ;
+    ods:implements ods:List .
+
+# ── Hash tables (Ch5) ─────────────────────────────────────────────────────
+
+ods:ChainedHashTable a ods:HashTableStructure ;
+    rdfs:label "ChainedHashTable"@en ;
+    ods:chapter 5 ;
+    ods:implements ods:USet ;
+    ods:supports ods:op_ChainedHashTable_find, ods:op_ChainedHashTable_add ;
+    ods:uses ods:ArrayStack .
+
+ods:LinearHashTable a ods:HashTableStructure ;
+    rdfs:label "LinearHashTable"@en ;
+    ods:chapter 5 ;
+    ods:implements ods:USet .
+
+# ── Trees (Ch6) ───────────────────────────────────────────────────────────
+
+ods:BinaryTree a ods:TreeStructure ;
+    rdfs:label "BinaryTree"@en ;
+    ods:chapter 6 .
+
+ods:BinarySearchTree a ods:TreeStructure ;
+    rdfs:label "BinarySearchTree"@en ;
+    ods:chapter 6 ;
+    ods:implements ods:SSet ;
+    ods:supports ods:op_BinarySearchTree_find, ods:op_BinarySearchTree_add ;
+    ods:specialises ods:BinaryTree .
+
+# ── Balanced BSTs (Ch7–9) ────────────────────────────────────────────────
+
+ods:Treap a ods:TreeStructure ;
+    rdfs:label "Treap"@en ;
+    ods:chapter 7 ;
+    ods:implements ods:SSet ;
+    ods:supports ods:op_Treap_find, ods:op_Treap_add ;
+    ods:specialises ods:BinarySearchTree .
+
+ods:ScapegoatTree a ods:TreeStructure ;
+    rdfs:label "ScapegoatTree"@en ;
+    ods:chapter 8 ;
+    ods:implements ods:SSet ;
+    ods:supports ods:op_ScapegoatTree_find, ods:op_ScapegoatTree_add ;
+    ods:specialises ods:BinarySearchTree .
+
+ods:RedBlackTree a ods:TreeStructure ;
+    rdfs:label "RedBlackTree"@en ;
+    ods:chapter 9 ;
+    ods:implements ods:SSet ;
+    ods:supports ods:op_RedBlackTree_find, ods:op_RedBlackTree_add ;
+    ods:specialises ods:BinarySearchTree .
+
+# ── Heaps (Ch10) ──────────────────────────────────────────────────────────
+
+ods:BinaryHeap a ods:HeapStructure ;
+    rdfs:label "BinaryHeap"@en ;
+    ods:chapter 10 ;
+    ods:supports ods:op_BinaryHeap_add, ods:op_BinaryHeap_remove ;
+    ods:uses ods:ArrayStack .
+
+ods:MeldableHeap a ods:HeapStructure ;
+    rdfs:label "MeldableHeap"@en ;
+    ods:chapter 10 ;
+    ods:supports ods:op_MeldableHeap_add, ods:op_MeldableHeap_remove .
+
+# ── Sort algorithms (Ch11) ────────────────────────────────────────────────
+
+ods:MergeSort a ods:SortAlgorithm ;
+    rdfs:label "MergeSort"@en ;
+    ods:chapter 11 .
+
+ods:QuickSort a ods:SortAlgorithm ;
+    rdfs:label "QuickSort"@en ;
+    ods:chapter 11 .
+
+ods:HeapSort a ods:SortAlgorithm ;
+    rdfs:label "HeapSort"@en ;
+    ods:chapter 11 ;
+    ods:uses ods:BinaryHeap .
+
+ods:CountingSort a ods:SortAlgorithm ;
+    rdfs:label "CountingSort"@en ;
+    ods:chapter 11 .
+
+ods:RadixSort a ods:SortAlgorithm ;
+    rdfs:label "RadixSort"@en ;
+    ods:chapter 11 ;
+    ods:uses ods:CountingSort .
+
+# ── Graphs (Ch12) ─────────────────────────────────────────────────────────
+
+ods:AdjacencyMatrix a ods:DataStructure ;
+    rdfs:label "AdjacencyMatrix"@en ;
+    ods:chapter 12 ;
+    ods:implements ods:Graph ;
+    ods:supports ods:op_AdjacencyMatrix_hasEdge .
+
+ods:AdjacencyLists a ods:DataStructure ;
+    rdfs:label "AdjacencyLists"@en ;
+    ods:chapter 12 ;
+    ods:implements ods:Graph ;
+    ods:supports ods:op_AdjacencyLists_hasEdge ;
+    ods:uses ods:DLList .
+
+# ── Tries (Ch13) ──────────────────────────────────────────────────────────
+
+ods:BinaryTrie a ods:TrieStructure ;
+    rdfs:label "BinaryTrie"@en ;
+    ods:chapter 13 ;
+    ods:implements ods:SSet ;
+    ods:supports ods:op_BinaryTrie_find .
+
+ods:XFastTrie a ods:TrieStructure ;
+    rdfs:label "XFastTrie"@en ;
+    ods:chapter 13 ;
+    ods:implements ods:SSet ;
+    ods:supports ods:op_XFastTrie_find ;
+    ods:specialises ods:BinaryTrie ;
+    ods:uses ods:ChainedHashTable .
+
+ods:YFastTrie a ods:TrieStructure ;
+    rdfs:label "YFastTrie"@en ;
+    ods:chapter 13 ;
+    ods:implements ods:SSet ;
+    ods:specialises ods:XFastTrie ;
+    ods:uses ods:Treap .

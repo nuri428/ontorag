@@ -1,0 +1,689 @@
+{
+  "baseline_name": "langchain_vector",
+  "baseline_version": "0.1.0",
+  "goldset_path": "examples/commerce/goldset.jsonl",
+  "graph_triples": 297,
+  "total_questions": 20,
+  "language": "en",
+  "results": [
+    {
+      "question_id": "Q001",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "Who is the CEO of Aurora Tech?",
+      "gold_answer": "Alice Kim",
+      "baseline_answer": "The CEO of Aurora Tech is Alice Kim.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1255.3187918383628,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Aurora Tech (Organization). foundedYear: 2008. employeeCount: 3500. subsidiaryOf: Nimbus Group. hasBrand: Aurora. hasCEO: Alice Kim. employs: Eric Cho.",
+          "Aurora Phone X1 (Smartphone). modelYear: 2024. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Aurora Phone X2 (Smartphone). modelYear: 2026. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Aurora (Brand).",
+          "Helios Robotics (Organization). foundedYear: 2015. employeeCount: 800. subsidiaryOf: Aurora Tech. hasBrand: Helios. hasCEO: Boris Lee. employs: Faith Jung."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q002",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "What is the price of the Aurora Phone X1?",
+      "gold_answer": "899.00 USD",
+      "baseline_answer": "The price of the Aurora Phone X1 is $899.00.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1069.4774170406163,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Offer: Aurora Phone X1 (Offer). offersFor: Aurora Phone X1. priceAmount: 899.00. inCurrency: US Dollar.",
+          "Aurora Phone X1 (Smartphone). modelYear: 2024. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Offer_AuroraPhoneX2 (Offer). offersFor: Aurora Phone X2. priceAmount: 1099.00. inCurrency: US Dollar.",
+          "Aurora Phone X2 (Smartphone). modelYear: 2026. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Offer_AuroraBookPro (Offer). offersFor: Aurora Book Pro. priceAmount: 2499.00. inCurrency: US Dollar."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q003",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "In which year was Nimbus Group founded?",
+      "gold_answer": "1998",
+      "baseline_answer": "Nimbus Group was founded in 1998.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1888.385333120823,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Nimbus Group (Organization). foundedYear: 1998. employeeCount: 12000. hasCEO: Diana Choi.",
+          "Aurora Tech (Organization). foundedYear: 2008. employeeCount: 3500. subsidiaryOf: Nimbus Group. hasBrand: Aurora. hasCEO: Alice Kim. employs: Eric Cho.",
+          "Orion Labs (Organization). foundedYear: 2020. employeeCount: 60.",
+          "Helios Robotics (Organization). foundedYear: 2015. employeeCount: 800. subsidiaryOf: Aurora Tech. hasBrand: Helios. hasCEO: Boris Lee. employs: Faith Jung.",
+          "Aurora Book Pro (Laptop). modelYear: 2025. manufacturedBy: Aurora Tech. soldUnder: Aurora."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q004",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "In which currency is the Vega Watch 2 sold?",
+      "gold_answer": "JPY",
+      "baseline_answer": "The Vega Watch 2 is sold in Japanese Yen.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 974.1252500098199,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Offer_VegaWatch2 (Offer). offersFor: Vega Watch 2. priceAmount: 55000. inCurrency: Japanese Yen.",
+          "Vega Watch 2 (WearableDevice). modelYear: 2026. manufacturedBy: Vega Wearables. soldUnder: Vega.",
+          "Offer_VegaWatch1 (Offer). offersFor: Vega Watch 1. priceAmount: 350000. inCurrency: Korean Won.",
+          "Vega Watch 1 (WearableDevice). modelYear: 2024. manufacturedBy: Vega Wearables. soldUnder: Vega.",
+          "Vega Wearables (Organization). foundedYear: 2012. employeeCount: 1200. hasBrand: Vega. hasCEO: Charles Park. employs: George Yoon."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q005",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "How many employees does Helios Robotics have?",
+      "gold_answer": "800",
+      "baseline_answer": "Helios Robotics has 800 employees.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1025.687332963571,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Helios Robotics (Organization). foundedYear: 2015. employeeCount: 800. subsidiaryOf: Aurora Tech. hasBrand: Helios. hasCEO: Boris Lee. employs: Faith Jung.",
+          "Helios Robotic Arm (ConsumerElectronics). modelYear: 2025. manufacturedBy: Helios Robotics. soldUnder: Helios.",
+          "Helios (Brand).",
+          "Orion Labs (Organization). foundedYear: 2020. employeeCount: 60.",
+          "Offer_HeliosArm (Offer). offersFor: Helios Robotic Arm. priceAmount: 12000.00. inCurrency: Euro."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q006",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "All products manufactured by Aurora Tech",
+      "gold_answer": "Aurora Phone X1, X2, Aurora Book Pro",
+      "baseline_answer": "The products manufactured by Aurora Tech include:\n\n1. Aurora Phone X1 (Smartphone, model year 2024)\n2. Aurora Book Pro (Laptop, model year 2025)\n3. Aurora Phone X2 (Smartphone, model year 2026)",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 2283.4742499981076,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Aurora Phone X1 (Smartphone). modelYear: 2024. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Aurora Tech (Organization). foundedYear: 2008. employeeCount: 3500. subsidiaryOf: Nimbus Group. hasBrand: Aurora. hasCEO: Alice Kim. employs: Eric Cho.",
+          "Aurora Book Pro (Laptop). modelYear: 2025. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Aurora Phone X2 (Smartphone). modelYear: 2026. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Aurora (Brand)."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q007",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "Products priced between 500 and 1000 USD",
+      "gold_answer": "Aurora Phone X1 (899)",
+      "baseline_answer": "The products priced between 500 and 1000 USD are:\n\n1. Aurora Phone X1 - Price: 899.00 USD\n2. Aurora Phone X2 - Price: 1099.00 USD (not included as it exceeds 1000 USD) \n\nSo, the only product in that range is the Aurora Phone X1.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 2710.3708749637008,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Offer_AuroraBookPro (Offer). offersFor: Aurora Book Pro. priceAmount: 2499.00. inCurrency: US Dollar.",
+          "Offer_AuroraPhoneX2 (Offer). offersFor: Aurora Phone X2. priceAmount: 1099.00. inCurrency: US Dollar.",
+          "Offer_HeliosArm (Offer). offersFor: Helios Robotic Arm. priceAmount: 12000.00. inCurrency: Euro.",
+          "Offer: Aurora Phone X1 (Offer). offersFor: Aurora Phone X1. priceAmount: 899.00. inCurrency: US Dollar.",
+          "Offer_VegaWatch2 (Offer). offersFor: Vega Watch 2. priceAmount: 55000. inCurrency: Japanese Yen."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q008",
+      "difficulty": "medium",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "How many products are sold in USD?",
+      "gold_answer": "3",
+      "baseline_answer": "There are three products sold in USD: Aurora Book Pro, Aurora Phone X2, and Aurora Phone X1.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 945.2260420657694,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "US Dollar (Currency). isoCurrencyCode: USD.",
+          "Offer_AuroraBookPro (Offer). offersFor: Aurora Book Pro. priceAmount: 2499.00. inCurrency: US Dollar.",
+          "Offer_AuroraPhoneX2 (Offer). offersFor: Aurora Phone X2. priceAmount: 1099.00. inCurrency: US Dollar.",
+          "Japanese Yen (Currency). isoCurrencyCode: JPY.",
+          "Offer: Aurora Phone X1 (Offer). offersFor: Aurora Phone X1. priceAmount: 899.00. inCurrency: US Dollar."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q009",
+      "difficulty": "medium",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "Manufacturers of all products sold under the Aurora brand",
+      "gold_answer": "Aurora Tech",
+      "baseline_answer": "All products sold under the Aurora brand are manufactured by Aurora Tech.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 978.175041032955,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Aurora (Brand).",
+          "Aurora Book Pro (Laptop). modelYear: 2025. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Aurora Phone X1 (Smartphone). modelYear: 2024. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Aurora Phone X2 (Smartphone). modelYear: 2026. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Aurora Tech (Organization). foundedYear: 2008. employeeCount: 3500. subsidiaryOf: Nimbus Group. hasBrand: Aurora. hasCEO: Alice Kim. employs: Eric Cho."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q010",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "Companies founded in or after 2020",
+      "gold_answer": "Orion Labs (2020)",
+      "baseline_answer": "The companies founded in or after 2020 are:\n\n1. Orion Labs (founded in 2020)",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1244.3244999740273,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Orion Labs (Organization). foundedYear: 2020. employeeCount: 60.",
+          "Nimbus Group (Organization). foundedYear: 1998. employeeCount: 12000. hasCEO: Diana Choi.",
+          "Helios Robotics (Organization). foundedYear: 2015. employeeCount: 800. subsidiaryOf: Aurora Tech. hasBrand: Helios. hasCEO: Boris Lee. employs: Faith Jung.",
+          "Vega Wearables (Organization). foundedYear: 2012. employeeCount: 1200. hasBrand: Vega. hasCEO: Charles Park. employs: George Yoon.",
+          "Aurora Tech (Organization). foundedYear: 2008. employeeCount: 3500. subsidiaryOf: Nimbus Group. hasBrand: Aurora. hasCEO: Alice Kim. employs: Eric Cho."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q011",
+      "difficulty": "medium",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "All people employed directly by Aurora Tech (via employs or hasCEO)",
+      "gold_answer": "Alice Kim, Eric Cho",
+      "baseline_answer": "The people employed directly by Aurora Tech are:\n\n1. Alice Kim (CEO)\n2. Eric Cho\n\n",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1464.4022919237614,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Aurora Tech (Organization). foundedYear: 2008. employeeCount: 3500. subsidiaryOf: Nimbus Group. hasBrand: Aurora. hasCEO: Alice Kim. employs: Eric Cho.",
+          "Aurora (Brand).",
+          "Aurora Book Pro (Laptop). modelYear: 2025. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Helios Robotics (Organization). foundedYear: 2015. employeeCount: 800. subsidiaryOf: Aurora Tech. hasBrand: Helios. hasCEO: Boris Lee. employs: Faith Jung.",
+          "Aurora Phone X1 (Smartphone). modelYear: 2024. manufacturedBy: Aurora Tech. soldUnder: Aurora."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q012",
+      "difficulty": "medium",
+      "category": "reverse_lookup",
+      "uses_inference": false,
+      "question_text": "Which class do the Vega Watch 1 and 2 belong to?",
+      "gold_answer": "WearableDevice",
+      "baseline_answer": "The Vega Watch 1 and 2 belong to the class of Wearable Devices.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 3276.0862500872463,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Vega Watch 1 (WearableDevice). modelYear: 2024. manufacturedBy: Vega Wearables. soldUnder: Vega.",
+          "Vega Watch 2 (WearableDevice). modelYear: 2026. manufacturedBy: Vega Wearables. soldUnder: Vega.",
+          "Offer_VegaWatch2 (Offer). offersFor: Vega Watch 2. priceAmount: 55000. inCurrency: Japanese Yen.",
+          "Vega Wearables (Organization). foundedYear: 2012. employeeCount: 1200. hasBrand: Vega. hasCEO: Charles Park. employs: George Yoon.",
+          "Offer_VegaWatch1 (Offer). offersFor: Vega Watch 1. priceAmount: 350000. inCurrency: Korean Won."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q013",
+      "difficulty": "medium",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "How many organizations own a brand?",
+      "gold_answer": "3",
+      "baseline_answer": "Based on the provided context, there are two organizations that own a brand: Vega Wearables (which owns the brand Vega) and Aurora (which is mentioned as a brand but does not have an associated organization listed). Therefore, only one organization, Vega Wearables, is confirmed to own a brand.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 2635.3529158513993,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Vega (Brand).",
+          "Aurora (Brand).",
+          "Orion Labs (Organization). foundedYear: 2020. employeeCount: 60.",
+          "Vega Wearables (Organization). foundedYear: 2012. employeeCount: 1200. hasBrand: Vega. hasCEO: Charles Park. employs: George Yoon.",
+          "Nimbus Group (Organization). foundedYear: 1998. employeeCount: 12000. hasCEO: Diana Choi."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q014",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "All (direct + indirect) parent companies of Helios Robotics",
+      "gold_answer": "Aurora Tech, Nimbus Group",
+      "baseline_answer": "Helios Robotics is a subsidiary of Aurora Tech. Therefore, the direct parent company is Aurora Tech. There are no indirect parent companies mentioned in the provided context.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1870.85379101336,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Helios Robotics (Organization). foundedYear: 2015. employeeCount: 800. subsidiaryOf: Aurora Tech. hasBrand: Helios. hasCEO: Boris Lee. employs: Faith Jung.",
+          "Helios Robotic Arm (ConsumerElectronics). modelYear: 2025. manufacturedBy: Helios Robotics. soldUnder: Helios.",
+          "Helios (Brand).",
+          "Offer_HeliosArm (Offer). offersFor: Helios Robotic Arm. priceAmount: 12000.00. inCurrency: Euro.",
+          "Orion Labs (Organization). foundedYear: 2020. employeeCount: 60."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q015",
+      "difficulty": "hard",
+      "category": "multi_hop",
+      "uses_inference": true,
+      "question_text": "Total employee count of all subsidiaries (incl. transitive) of Nimbus Group",
+      "gold_answer": "4300",
+      "baseline_answer": "To calculate the total employee count of all subsidiaries (including transitive) of Nimbus Group, we need to consider the following:\n\n1. **Aurora Tech** (subsidiary of Nimbus Group) has 3,500 employees.\n2. **Helios Robotics** (subsidiary of Aurora Tech) has 800 employees.\n\nNow, we add the employee counts:\n\n- Nimbus Group: 12,000 employees (not a subsidiary, but included for total count)\n- Aurora Tech: 3,500 employees\n- Helios Robotics: 800 employees\n\nTotal employee count of all subsidiaries (including transitive) of Nimbus Group:\n\n12,000 (Nimbus Group) + 3,500 (Aurora Tech) + 800 (Helios Robotics) = 16,300 employees.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 4892.119624884799,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Nimbus Group (Organization). foundedYear: 1998. employeeCount: 12000. hasCEO: Diana Choi.",
+          "Aurora Tech (Organization). foundedYear: 2008. employeeCount: 3500. subsidiaryOf: Nimbus Group. hasBrand: Aurora. hasCEO: Alice Kim. employs: Eric Cho.",
+          "Orion Labs (Organization). foundedYear: 2020. employeeCount: 60.",
+          "Helios Robotics (Organization). foundedYear: 2015. employeeCount: 800. subsidiaryOf: Aurora Tech. hasBrand: Helios. hasCEO: Boris Lee. employs: Faith Jung.",
+          "George Yoon (Employee). name: George Yoon."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q016",
+      "difficulty": "hard",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "All CEOs with their organisation names",
+      "gold_answer": "4 pairs",
+      "baseline_answer": "I don't know.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1454.4297910761088,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Boris Lee (CEO). name: Boris Lee.",
+          "Eric Cho (Executive). name: Eric Cho.",
+          "Diana Choi (CEO). name: Diana Choi.",
+          "Alice Kim (CEO). name: Alice Kim.",
+          "Charles Park (CEO). name: Charles Park."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q017",
+      "difficulty": "hard",
+      "category": "counting",
+      "uses_inference": true,
+      "question_text": "Count of instances belonging to ConsumerElectronics or its subclasses (subClassOf transitive)",
+      "gold_answer": "6",
+      "baseline_answer": "There is 1 instance belonging to ConsumerElectronics, which is the Helios Robotic Arm.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1332.8562499955297,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Helios Robotic Arm (ConsumerElectronics). modelYear: 2025. manufacturedBy: Helios Robotics. soldUnder: Helios.",
+          "Nimbus Group (Organization). foundedYear: 1998. employeeCount: 12000. hasCEO: Diana Choi.",
+          "Aurora Book Pro (Laptop). modelYear: 2025. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Orion Labs (Organization). foundedYear: 2020. employeeCount: 60.",
+          "Aurora Tech (Organization). foundedYear: 2008. employeeCount: 3500. subsidiaryOf: Nimbus Group. hasBrand: Aurora. hasCEO: Alice Kim. employs: Eric Cho."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q018",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "All products manufactured by Orion Labs",
+      "gold_answer": "None — Orion Labs has no products in this KG.",
+      "baseline_answer": "I don't know.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1967.5167500972748,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Orion Labs (Organization). foundedYear: 2020. employeeCount: 60.",
+          "Aurora (Brand).",
+          "Aurora Book Pro (Laptop). modelYear: 2025. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Aurora Phone X1 (Smartphone). modelYear: 2024. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Aurora Phone X2 (Smartphone). modelYear: 2026. manufacturedBy: Aurora Tech. soldUnder: Aurora."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q019",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "Who is the parent company of Vega Wearables?",
+      "gold_answer": "None — Vega Wearables is independent in this KG.",
+      "baseline_answer": "I don't know.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1120.2117500361055,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Vega Wearables (Organization). foundedYear: 2012. employeeCount: 1200. hasBrand: Vega. hasCEO: Charles Park. employs: George Yoon.",
+          "Vega Watch 1 (WearableDevice). modelYear: 2024. manufacturedBy: Vega Wearables. soldUnder: Vega.",
+          "Vega Watch 2 (WearableDevice). modelYear: 2026. manufacturedBy: Vega Wearables. soldUnder: Vega.",
+          "Vega (Brand).",
+          "Offer_VegaWatch1 (Offer). offersFor: Vega Watch 1. priceAmount: 350000. inCurrency: Korean Won."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q020",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "What is the price of the Aurora Phone X3?",
+      "gold_answer": "None — Aurora Phone X3 does not exist in this KG.",
+      "baseline_answer": "I don't know.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1008.0137078184634,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "retrieved_chunks": [
+          "Offer: Aurora Phone X1 (Offer). offersFor: Aurora Phone X1. priceAmount: 899.00. inCurrency: US Dollar.",
+          "Offer_AuroraPhoneX2 (Offer). offersFor: Aurora Phone X2. priceAmount: 1099.00. inCurrency: US Dollar.",
+          "Aurora Phone X1 (Smartphone). modelYear: 2024. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Aurora Phone X2 (Smartphone). modelYear: 2026. manufacturedBy: Aurora Tech. soldUnder: Aurora.",
+          "Offer_AuroraBookPro (Offer). offersFor: Aurora Book Pro. priceAmount: 2499.00. inCurrency: US Dollar."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    }
+  ],
+  "aggregate": {
+    "avg_latency_ms": 1769.82039778959,
+    "avg_tool_calls": 0.0,
+    "total_prompt_tokens": 0,
+    "total_completion_tokens": 0,
+    "avg_hallucination_rate": null,
+    "avg_citation_coverage": null,
+    "citation_provided_count": 0,
+    "citation_provided_rate": 0.0,
+    "avg_ragas_faithfulness": null,
+    "avg_ragas_answer_correctness": null,
+    "avg_ragas_answer_relevancy": null,
+    "per_difficulty": {
+      "easy": {
+        "count": 5,
+        "avg_hallucination": null,
+        "avg_citation": null,
+        "citation_provided": 0
+      },
+      "medium": {
+        "count": 8,
+        "avg_hallucination": null,
+        "avg_citation": null,
+        "citation_provided": 0
+      },
+      "hard": {
+        "count": 4,
+        "avg_hallucination": null,
+        "avg_citation": null,
+        "citation_provided": 0
+      },
+      "trap": {
+        "count": 3,
+        "avg_hallucination": null,
+        "avg_citation": null,
+        "citation_provided": 0
+      }
+    }
+  }
+}

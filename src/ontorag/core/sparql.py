@@ -180,7 +180,15 @@ def build_filter_sparql(
             # tag and datatype, restoring intuitive equality. We keep the
             # original ?fv = "..." disjunct so URI-valued filters and
             # exact-typed-literal matches still work.
-            filter_parts.append(f"({fvar} = {val} || STR({fvar}) = {val})")
+            #
+            # Also LCASE both sides so natural-language label filters with
+            # mixed-case user input still match — "peacock" vs "Peacock"
+            # was a goldset-discovered failure mode.
+            filter_parts.append(
+                f"({fvar} = {val}"
+                f" || STR({fvar}) = {val}"
+                f" || LCASE(STR({fvar})) = LCASE({val}))"
+            )
         else:
             filter_parts.append(f"{fvar} {f.op.value} {val}")
 

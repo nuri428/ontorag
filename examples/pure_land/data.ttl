@@ -1,0 +1,459 @@
+# Pure Land Ontology — ABox
+# Status: v0.0.3 — B-1.4 draft (instances), pending B-1.3 human review.
+# Source: 『無量壽經』 T0360 (primary), 『阿彌陀經』 T0366, 『觀無量壽經』 T0365.
+
+@prefix pl:      <https://ontorag.dev/ns/pure_land#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+@prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# BIBLIOGRAPHIC SOURCES (淨土三部經)
+# ═════════════════════════════════════════════════════════════════════════════
+
+pl:T0360 a dcterms:BibliographicResource ;
+    rdfs:label "Larger Sukhāvatīvyūha Sūtra"@en ,
+               "無量壽經"@zh-Hant ,
+               "무량수경"@ko ;
+    dcterms:identifier "T0360" ;
+    dcterms:creator "康僧鎧 (Saṅghavarman, attr.)" ;
+    dcterms:source <https://cbetaonline.dila.edu.tw/zh/T0360> .
+
+pl:T0366 a dcterms:BibliographicResource ;
+    rdfs:label "Smaller Sukhāvatīvyūha Sūtra"@en ,
+               "阿彌陀經"@zh-Hant ,
+               "아미타경"@ko ;
+    dcterms:identifier "T0366" ;
+    dcterms:creator "鳩摩羅什 (Kumārajīva)" ;
+    dcterms:source <https://cbetaonline.dila.edu.tw/zh/T0366> .
+
+pl:T0365 a dcterms:BibliographicResource ;
+    rdfs:label "Amitāyurdhyāna Sūtra"@en ,
+               "觀無量壽經"@zh-Hant ,
+               "관무량수경"@ko ;
+    dcterms:identifier "T0365" ;
+    dcterms:creator "畺良耶舍 (Kālayaśas)" ;
+    dcterms:source <https://cbetaonline.dila.edu.tw/zh/T0365> .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# REALMS
+# ═════════════════════════════════════════════════════════════════════════════
+
+pl:Sukhavati a pl:SacredRealm ;
+    rdfs:label "Sukhāvatī"@en , "極樂世界"@zh-Hant , "극락세계"@ko ;
+    pl:sanskritName "Sukhāvatī" ;
+    pl:appearsIn pl:T0360 , pl:T0366 , pl:T0365 ;
+    rdfs:comment "The Western Pure Land of Buddha Amitābha."@en .
+
+pl:SahaWorld a pl:SahaWorld ;
+    rdfs:label "Sahā world"@en , "娑婆世界"@zh-Hant , "사바세계"@ko ;
+    pl:sanskritName "Sahā" ;
+    pl:appearsIn pl:T0360 .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# BUDDHAS
+# ═════════════════════════════════════════════════════════════════════════════
+
+pl:Amitabha a pl:Buddha ;
+    rdfs:label "Amitābha"@en , "阿彌陀佛"@zh-Hant , "아미타불"@ko ;
+    skos:altLabel "Amitāyus"@en , "無量壽佛"@zh-Hant , "무량수불"@ko ;
+    pl:sanskritName "Amitābha" ;
+    pl:residesIn pl:Sukhavati ;
+    pl:appearsIn pl:T0360 , pl:T0366 , pl:T0365 ;
+    rdfs:comment "Originally the bhikṣu Dharmākara (法藏比丘) who, fulfilling 48 vows, became the Buddha of Sukhāvatī."@en .
+
+pl:Sakyamuni a pl:Buddha ;
+    rdfs:label "Śākyamuni"@en , "釋迦牟尼佛"@zh-Hant , "석가모니불"@ko ;
+    pl:sanskritName "Śākyamuni" ;
+    pl:residesIn pl:SahaWorld ;
+    pl:appearsIn pl:T0360 , pl:T0366 , pl:T0365 ;
+    rdfs:comment "The historical Buddha who teaches the Pure Land sūtras in the Sahā world."@en .
+
+pl:Akshobhya a pl:Buddha ;
+    rdfs:label "Akṣobhya"@en , "阿閦佛"@zh-Hant , "아촉불"@ko ;
+    pl:sanskritName "Akṣobhya" ;
+    pl:appearsIn pl:T0366 ;
+    rdfs:comment "Buddha of the East in T0366's six-direction praise of Amitābha."@en .
+
+pl:Ratnaketu a pl:Buddha ;
+    rdfs:label "Ratnaketu"@en , "寶相佛"@zh-Hant , "보상불"@ko ;
+    pl:sanskritName "Ratnaketu" ;
+    pl:appearsIn pl:T0366 .
+
+pl:Bhismagarjitaghosasvara a pl:Buddha ;
+    rdfs:label "Bhīṣmagarjitaghoṣasvara"@en , "難沮佛"@zh-Hant , "난저불"@ko ;
+    pl:sanskritName "Bhīṣmagarjitaghoṣasvara" ;
+    pl:appearsIn pl:T0366 .
+
+pl:Dharmakara a pl:Bodhisattva ;
+    rdfs:label "Dharmākara"@en , "法藏比丘"@zh-Hant , "법장비구"@ko ;
+    pl:sanskritName "Dharmākara" ;
+    pl:appearsIn pl:T0360 ;
+    pl:precedingStage pl:Amitabha ;
+    rdfs:seeAlso pl:Amitabha ;
+    rdfs:comment "The bodhisattva who, having fulfilled 48 vows, became Amitābha Buddha. Modelled as a distinct Bodhisattva individual linked to Amitābha via pl:precedingStage rather than owl:sameAs to avoid OWL-reasoner type collapse (Buddha ⊓ Bodhisattva)."@en .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# BODHISATTVAS  (西方三聖 + Sahā-world attendants)
+# ═════════════════════════════════════════════════════════════════════════════
+
+pl:Avalokitesvara a pl:Bodhisattva ;
+    rdfs:label "Avalokiteśvara"@en , "觀世音菩薩"@zh-Hant , "관세음보살"@ko ;
+    skos:altLabel "Guanyin"@en , "觀音"@zh-Hant , "관음"@ko ;
+    pl:sanskritName "Avalokiteśvara" ;
+    pl:residesIn pl:Sukhavati ;
+    pl:assists pl:Amitabha ;
+    pl:appearsIn pl:T0360 , pl:T0365 ;
+    rdfs:comment "Attendant of Amitābha (one of the 西方三聖). Left/right designation depends on viewpoint convention (devotee vs. buddha's perspective) and is intentionally omitted."@en .
+
+pl:Mahasthamaprapta a pl:Bodhisattva ;
+    rdfs:label "Mahāsthāmaprāpta"@en , "大勢至菩薩"@zh-Hant , "대세지보살"@ko ;
+    pl:sanskritName "Mahāsthāmaprāpta" ;
+    pl:residesIn pl:Sukhavati ;
+    pl:assists pl:Amitabha ;
+    pl:appearsIn pl:T0360 , pl:T0365 ;
+    rdfs:comment "Attendant of Amitābha (one of the 西方三聖). Left/right designation depends on viewpoint convention and is intentionally omitted."@en .
+
+pl:Manjushri a pl:Bodhisattva ;
+    rdfs:label "Mañjuśrī"@en , "文殊師利菩薩"@zh-Hant , "문수보살"@ko ;
+    pl:sanskritName "Mañjuśrī" ;
+    pl:residesIn pl:SahaWorld ;
+    pl:appearsIn pl:T0366 ;
+    rdfs:comment "Listed in T0366 as one of the great bodhisattvas in Śākyamuni's assembly."@en .
+
+pl:Maitreya a pl:Bodhisattva ;
+    rdfs:label "Maitreya"@en , "彌勒菩薩"@zh-Hant , "미륵보살"@ko ;
+    skos:altLabel "Ajita"@en , "阿逸多"@zh-Hant , "아일다"@ko ;
+    pl:sanskritName "Maitreya" ;
+    pl:residesIn pl:SahaWorld ;
+    pl:appearsIn pl:T0360 ;
+    rdfs:comment "Future Buddha. Interlocutor of the latter half of T0360 (addressed as Ajita)."@en .
+
+pl:Samantabhadra a pl:Bodhisattva ;
+    rdfs:label "Samantabhadra"@en , "普賢菩薩"@zh-Hant , "보현보살"@ko ;
+    pl:sanskritName "Samantabhadra" ;
+    pl:appearsIn pl:T0360 .
+
+pl:Gandhahastin a pl:Bodhisattva ;
+    rdfs:label "Gandhahastin"@en , "香象菩薩"@zh-Hant , "향상보살"@ko ;
+    pl:sanskritName "Gandhahastin" ;
+    pl:appearsIn pl:T0366 .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ŚRĀVAKAS (in Śākyamuni's assembly when T0360 is preached)
+# ═════════════════════════════════════════════════════════════════════════════
+
+pl:Sariputra a pl:Sravaka ;
+    rdfs:label "Śāriputra"@en , "舍利弗"@zh-Hant , "사리불"@ko ;
+    pl:sanskritName "Śāriputra" ;
+    pl:taughtBy pl:Sakyamuni ;
+    pl:appearsIn pl:T0360 , pl:T0366 ;
+    rdfs:comment "Primary interlocutor of T0366."@en .
+
+pl:Mahamaudgalyayana a pl:Sravaka ;
+    rdfs:label "Mahāmaudgalyāyana"@en , "摩訶目犍連"@zh-Hant , "마하목건련"@ko ;
+    pl:sanskritName "Mahāmaudgalyāyana" ;
+    pl:taughtBy pl:Sakyamuni ;
+    pl:appearsIn pl:T0360 , pl:T0366 .
+
+pl:Mahakasyapa a pl:Sravaka ;
+    rdfs:label "Mahākāśyapa"@en , "摩訶迦葉"@zh-Hant , "마하가섭"@ko ;
+    pl:sanskritName "Mahākāśyapa" ;
+    pl:taughtBy pl:Sakyamuni ;
+    pl:appearsIn pl:T0360 , pl:T0366 .
+
+pl:Ananda a pl:Sravaka ;
+    rdfs:label "Ānanda"@en , "阿難"@zh-Hant , "아난"@ko ;
+    pl:sanskritName "Ānanda" ;
+    pl:taughtBy pl:Sakyamuni ;
+    pl:appearsIn pl:T0360 ;
+    rdfs:comment "Primary interlocutor of T0360 — the sūtra opens with his question to Śākyamuni."@en .
+
+pl:Subhuti a pl:Sravaka ;
+    rdfs:label "Subhūti"@en , "須菩提"@zh-Hant , "수보리"@ko ;
+    pl:sanskritName "Subhūti" ;
+    pl:taughtBy pl:Sakyamuni ;
+    pl:appearsIn pl:T0366 .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# DEVAS
+# ═════════════════════════════════════════════════════════════════════════════
+
+pl:Brahma a pl:Deva ;
+    rdfs:label "Brahmā"@en , "大梵天王"@zh-Hant , "대범천왕"@ko ;
+    pl:sanskritName "Brahmā" ;
+    pl:appearsIn pl:T0360 .
+
+pl:Sakra a pl:Deva ;
+    rdfs:label "Śakra"@en , "帝釋天"@zh-Hant , "제석천"@ko ;
+    pl:sanskritName "Śakra" ;
+    pl:appearsIn pl:T0360 , pl:T0366 .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STRUCTURES (in Sukhāvatī)
+# ═════════════════════════════════════════════════════════════════════════════
+
+pl:JeweledTower_Canonical a pl:JeweledTower ;
+    rdfs:label "Seven-storied jeweled tower"@en , "七層寶樓閣"@zh-Hant , "칠층보배누각"@ko ;
+    pl:storyCount 7 ;
+    pl:locatedIn pl:Sukhavati ;
+    pl:appearsIn pl:T0360 , pl:T0366 ;
+    rdfs:comment "The canonical seven-storied jeweled tower of Sukhāvatī. T0360 specifies seven (七)."@en .
+
+pl:LotusPond_Canonical a pl:LotusPond ;
+    rdfs:label "Seven-jewel lotus pond"@en , "七寶池"@zh-Hant , "칠보지"@ko ;
+    pl:locatedIn pl:Sukhavati ;
+    pl:hasColor pl:BlueLotus , pl:YellowLotus , pl:RedLotus , pl:WhiteLotus ;
+    pl:appearsIn pl:T0366 ;
+    rdfs:comment "Filled with the water of eight virtues (八功德水); contains lotuses of four colours."@en .
+
+pl:JeweledTree_Canonical a pl:JeweledTree ;
+    rdfs:label "Jeweled tree"@en , "寶樹"@zh-Hant , "보배나무"@ko ;
+    pl:locatedIn pl:Sukhavati ;
+    pl:appearsIn pl:T0360 ;
+    rdfs:comment "Tree composed of seven precious materials; its rustling proclaims the Dharma."@en .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# LOTUS COLOURS (四色蓮華)
+# ═════════════════════════════════════════════════════════════════════════════
+
+pl:BlueLotus a pl:LotusColor ;
+    rdfs:label "Blue lotus"@en , "青色青光"@zh-Hant , "청색청광"@ko ;
+    pl:appearsIn pl:T0366 .
+
+pl:YellowLotus a pl:LotusColor ;
+    rdfs:label "Yellow lotus"@en , "黃色黃光"@zh-Hant , "황색황광"@ko ;
+    pl:appearsIn pl:T0366 .
+
+pl:RedLotus a pl:LotusColor ;
+    rdfs:label "Red lotus"@en , "赤色赤光"@zh-Hant , "적색적광"@ko ;
+    pl:appearsIn pl:T0366 .
+
+pl:WhiteLotus a pl:LotusColor ;
+    rdfs:label "White lotus"@en , "白色白光"@zh-Hant , "백색백광"@ko ;
+    pl:appearsIn pl:T0366 .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# CELESTIAL BIRDS (located inside the jeweled tree → pond → Sukhāvatī)
+# ═════════════════════════════════════════════════════════════════════════════
+
+pl:Peacock a pl:CelestialBird ;
+    rdfs:label "Peacock"@en , "孔雀"@zh-Hant , "공작"@ko ;
+    pl:locatedIn pl:JeweledTree_Canonical ;
+    pl:appearsIn pl:T0366 .
+
+pl:Parrot a pl:CelestialBird ;
+    rdfs:label "Parrot"@en , "鸚鵡"@zh-Hant , "앵무"@ko ;
+    pl:locatedIn pl:JeweledTree_Canonical ;
+    pl:appearsIn pl:T0366 .
+
+pl:Kalavinka a pl:CelestialBird ;
+    rdfs:label "Kalaviṅka"@en , "迦陵頻伽"@zh-Hant , "가릉빈가"@ko ;
+    pl:sanskritName "Kalaviṅka" ;
+    pl:locatedIn pl:JeweledTree_Canonical ;
+    pl:appearsIn pl:T0366 ;
+    rdfs:comment "A celestial bird with an exquisite voice."@en .
+
+pl:Jivajivaka a pl:CelestialBird ;
+    rdfs:label "Jīvajīvaka"@en , "共命鳥"@zh-Hant , "공명조"@ko ;
+    pl:sanskritName "Jīvajīvaka" ;
+    pl:locatedIn pl:JeweledTree_Canonical ;
+    pl:appearsIn pl:T0366 ;
+    rdfs:comment "The 'shared-life' bird with two heads."@en .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# CONTEMPLATIONS (十六觀法 from T0365)
+# ═════════════════════════════════════════════════════════════════════════════
+
+pl:Contemplation_01 a pl:Contemplation ; pl:contemplationOrder 1  ;
+    rdfs:label "Sun contemplation"@en , "日想觀"@zh-Hant , "일상관"@ko ; pl:appearsIn pl:T0365 .
+pl:Contemplation_02 a pl:Contemplation ; pl:contemplationOrder 2  ;
+    rdfs:label "Water contemplation"@en , "水想觀"@zh-Hant , "수상관"@ko ; pl:appearsIn pl:T0365 .
+pl:Contemplation_03 a pl:Contemplation ; pl:contemplationOrder 3  ;
+    rdfs:label "Earth contemplation"@en , "地想觀"@zh-Hant , "지상관"@ko ; pl:appearsIn pl:T0365 .
+pl:Contemplation_04 a pl:Contemplation ; pl:contemplationOrder 4  ;
+    rdfs:label "Jeweled tree contemplation"@en , "寶樹觀"@zh-Hant , "보수관"@ko ; pl:appearsIn pl:T0365 .
+pl:Contemplation_05 a pl:Contemplation ; pl:contemplationOrder 5  ;
+    rdfs:label "Jeweled pond contemplation"@en , "寶池觀"@zh-Hant , "보지관"@ko ; pl:appearsIn pl:T0365 .
+pl:Contemplation_06 a pl:Contemplation ; pl:contemplationOrder 6  ;
+    rdfs:label "Jeweled tower contemplation"@en , "寶樓觀"@zh-Hant , "보루관"@ko ; pl:appearsIn pl:T0365 .
+pl:Contemplation_07 a pl:Contemplation ; pl:contemplationOrder 7  ;
+    rdfs:label "Flower-throne contemplation"@en , "華座觀"@zh-Hant , "화좌관"@ko ; pl:appearsIn pl:T0365 .
+pl:Contemplation_08 a pl:Contemplation ; pl:contemplationOrder 8  ;
+    rdfs:label "Image contemplation"@en , "像觀"@zh-Hant , "상관"@ko ; pl:appearsIn pl:T0365 .
+pl:Contemplation_09 a pl:Contemplation ; pl:contemplationOrder 9  ;
+    rdfs:label "Amitābha-body contemplation"@en , "阿彌陀佛觀"@zh-Hant , "아미타불관"@ko ; pl:appearsIn pl:T0365 .
+pl:Amitabha pl:hasContemplation pl:Contemplation_09 .
+pl:Contemplation_10 a pl:Contemplation ; pl:contemplationOrder 10 ;
+    rdfs:label "Avalokiteśvara contemplation"@en , "觀世音菩薩觀"@zh-Hant , "관세음보살관"@ko ; pl:appearsIn pl:T0365 .
+pl:Avalokitesvara pl:hasContemplation pl:Contemplation_10 .
+pl:Contemplation_11 a pl:Contemplation ; pl:contemplationOrder 11 ;
+    rdfs:label "Mahāsthāmaprāpta contemplation"@en , "大勢至菩薩觀"@zh-Hant , "대세지보살관"@ko ; pl:appearsIn pl:T0365 .
+pl:Mahasthamaprapta pl:hasContemplation pl:Contemplation_11 .
+pl:Contemplation_12 a pl:Contemplation ; pl:contemplationOrder 12 ;
+    rdfs:label "Universal contemplation"@en , "普觀"@zh-Hant , "보관"@ko ; pl:appearsIn pl:T0365 .
+pl:Contemplation_13 a pl:Contemplation ; pl:contemplationOrder 13 ;
+    rdfs:label "Miscellaneous contemplation"@en , "雜想觀"@zh-Hant , "잡상관"@ko ; pl:appearsIn pl:T0365 .
+pl:Contemplation_14 a pl:Contemplation ; pl:contemplationOrder 14 ;
+    rdfs:label "Higher-grade birth contemplation"@en , "上輩生想觀"@zh-Hant , "상배생상관"@ko ; pl:appearsIn pl:T0365 .
+pl:Contemplation_15 a pl:Contemplation ; pl:contemplationOrder 15 ;
+    rdfs:label "Middle-grade birth contemplation"@en , "中輩生想觀"@zh-Hant , "중배생상관"@ko ; pl:appearsIn pl:T0365 .
+pl:Contemplation_16 a pl:Contemplation ; pl:contemplationOrder 16 ;
+    rdfs:label "Lower-grade birth contemplation"@en , "下輩生想觀"@zh-Hant , "하배생상관"@ko ; pl:appearsIn pl:T0365 .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 48 VOWS OF AMITĀBHA (法藏比丘四十八願 from T0360)
+# All 48 instances asserted so that count-based queries are answerable.
+# Detailed description provided for the most celebrated vows; others carry
+# vowNumber + canonical name only.
+# ═════════════════════════════════════════════════════════════════════════════
+
+pl:Vow_01 a pl:Vow ; pl:vowNumber 1  ;
+    rdfs:label "No three evil destinies in the realm"@en , "國中無三惡道願"@zh-Hant , "국토무삼악도원"@ko ;
+    pl:appearsIn pl:T0360 ;
+    rdfs:comment "If, when I attain buddhahood, there should be in my realm any hell, animal realm, or hungry-ghost realm, may I not attain enlightenment."@en .
+
+pl:Vow_02 a pl:Vow ; pl:vowNumber 2  ;
+    rdfs:label "No falling back into evil destinies"@en , "不更惡趣願"@zh-Hant , "불갱악취원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_03 a pl:Vow ; pl:vowNumber 3  ;
+    rdfs:label "All beings golden-coloured"@en , "悉皆金色願"@zh-Hant , "실개금색원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_04 a pl:Vow ; pl:vowNumber 4  ;
+    rdfs:label "Bodies free of distinction"@en , "無有好醜願"@zh-Hant , "무유호추원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_05 a pl:Vow ; pl:vowNumber 5  ;
+    rdfs:label "Knowledge of past lives"@en , "宿命通願"@zh-Hant , "숙명통원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_06 a pl:Vow ; pl:vowNumber 6  ;
+    rdfs:label "Divine eye"@en , "天眼通願"@zh-Hant , "천안통원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_07 a pl:Vow ; pl:vowNumber 7  ;
+    rdfs:label "Divine ear"@en , "天耳通願"@zh-Hant , "천이통원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_08 a pl:Vow ; pl:vowNumber 8  ;
+    rdfs:label "Knowledge of others' minds"@en , "他心通願"@zh-Hant , "타심통원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_09 a pl:Vow ; pl:vowNumber 9  ;
+    rdfs:label "Divine feet (instant travel)"@en , "神足通願"@zh-Hant , "신족통원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_10 a pl:Vow ; pl:vowNumber 10 ;
+    rdfs:label "No notion of self"@en , "不貪計身願"@zh-Hant , "불탐계신원"@ko ; pl:appearsIn pl:T0360 .
+
+pl:Vow_11 a pl:Vow ; pl:vowNumber 11 ;
+    rdfs:label "Certain attainment of nirvāṇa"@en , "必至滅度願"@zh-Hant , "필지멸도원"@ko ;
+    pl:appearsIn pl:T0360 ;
+    rdfs:comment "Beings born in Sukhāvatī will inevitably attain final nirvāṇa."@en .
+
+pl:Vow_12 a pl:Vow ; pl:vowNumber 12 ;
+    rdfs:label "Boundless light"@en , "光明無量願"@zh-Hant , "광명무량원"@ko ;
+    pl:appearsIn pl:T0360 ;
+    rdfs:comment "The light of the buddha extends without limit — basis of the name 無量光."@en .
+
+pl:Vow_13 a pl:Vow ; pl:vowNumber 13 ;
+    rdfs:label "Boundless lifespan"@en , "壽命無量願"@zh-Hant , "수명무량원"@ko ;
+    pl:appearsIn pl:T0360 ;
+    rdfs:comment "Basis of the name 無量壽 / Amitāyus."@en .
+
+pl:Vow_14 a pl:Vow ; pl:vowNumber 14 ;
+    rdfs:label "Countless śrāvakas"@en , "聲聞無數願"@zh-Hant , "성문무수원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_15 a pl:Vow ; pl:vowNumber 15 ;
+    rdfs:label "Long lifespan for beings"@en , "眷屬長壽願"@zh-Hant , "권속장수원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_16 a pl:Vow ; pl:vowNumber 16 ;
+    rdfs:label "No evil reputation"@en , "無諸不善願"@zh-Hant , "무제불선원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_17 a pl:Vow ; pl:vowNumber 17 ;
+    rdfs:label "All buddhas praise the name"@en , "諸佛稱揚願"@zh-Hant , "제불칭양원"@ko ; pl:appearsIn pl:T0360 .
+
+pl:Vow_18 a pl:Vow ; pl:vowNumber 18 ;
+    rdfs:label "Birth through ten recitations"@en , "念佛往生願"@zh-Hant , "염불왕생원"@ko ;
+    pl:appearsIn pl:T0360 ;
+    rdfs:comment "The Primary Vow (本願王) — any being who calls Amitābha's name even ten times with sincere mind is born in Sukhāvatī. Core of Pure Land soteriology."@en .
+
+pl:Vow_19 a pl:Vow ; pl:vowNumber 19 ;
+    rdfs:label "Welcome at death"@en , "臨終來迎願"@zh-Hant , "임종래영원"@ko ;
+    pl:appearsIn pl:T0360 ;
+    rdfs:comment "Amitābha and his entourage appear before the dying practitioner."@en .
+
+pl:Vow_20 a pl:Vow ; pl:vowNumber 20 ;
+    rdfs:label "Birth through sustained mindfulness"@en , "繫念定生願"@zh-Hant , "계념정생원"@ko ;
+    pl:appearsIn pl:T0360 .
+
+pl:Vow_21 a pl:Vow ; pl:vowNumber 21 ;
+    rdfs:label "Adorned with the 32 marks"@en , "三十二相願"@zh-Hant , "삼십이상원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_22 a pl:Vow ; pl:vowNumber 22 ;
+    rdfs:label "Attainment of one-life bodhisattvahood"@en , "必至補處願"@zh-Hant , "필지보처원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_23 a pl:Vow ; pl:vowNumber 23 ;
+    rdfs:label "Offering to all buddhas"@en , "供養諸佛願"@zh-Hant , "공양제불원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_24 a pl:Vow ; pl:vowNumber 24 ;
+    rdfs:label "All offerings as wished"@en , "供具如意願"@zh-Hant , "공구여의원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_25 a pl:Vow ; pl:vowNumber 25 ;
+    rdfs:label "Teaching the Dharma at will"@en , "說一切智願"@zh-Hant , "설일체지원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_26 a pl:Vow ; pl:vowNumber 26 ;
+    rdfs:label "Body of Nārāyaṇa strength"@en , "那羅延身願"@zh-Hant , "나라연신원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_27 a pl:Vow ; pl:vowNumber 27 ;
+    rdfs:label "Adornments beyond reckoning"@en , "莊嚴無量願"@zh-Hant , "장엄무량원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_28 a pl:Vow ; pl:vowNumber 28 ;
+    rdfs:label "Seeing the jeweled trees"@en , "見道場樹願"@zh-Hant , "견도장수원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_29 a pl:Vow ; pl:vowNumber 29 ;
+    rdfs:label "Wisdom and eloquence"@en , "得辯才智願"@zh-Hant , "득변재지원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_30 a pl:Vow ; pl:vowNumber 30 ;
+    rdfs:label "Limitless wisdom and eloquence"@en , "智辯無窮願"@zh-Hant , "지변무궁원"@ko ; pl:appearsIn pl:T0360 .
+
+pl:Vow_31 a pl:Vow ; pl:vowNumber 31 ;
+    rdfs:label "Pure realm reflecting all worlds"@en , "國土清淨願"@zh-Hant , "국토청정원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_32 a pl:Vow ; pl:vowNumber 32 ;
+    rdfs:label "Adornments of countless jewels"@en , "國土嚴飾願"@zh-Hant , "국토엄식원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_33 a pl:Vow ; pl:vowNumber 33 ;
+    rdfs:label "Light that benefits all"@en , "蒙光柔軟願"@zh-Hant , "몽광유연원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_34 a pl:Vow ; pl:vowNumber 34 ;
+    rdfs:label "Forbearance through hearing the name"@en , "聞名得忍願"@zh-Hant , "문명득인원"@ko ; pl:appearsIn pl:T0360 .
+
+pl:Vow_35 a pl:Vow ; pl:vowNumber 35 ;
+    rdfs:label "Women's transformation to buddhahood"@en , "女人往生願"@zh-Hant , "여인왕생원"@ko ;
+    pl:appearsIn pl:T0360 ;
+    rdfs:comment "Women who entrust themselves to Amitābha will be born in Sukhāvatī; widely cited in Pure Land texts."@en .
+
+pl:Vow_36 a pl:Vow ; pl:vowNumber 36 ;
+    rdfs:label "Constant practice of pure conduct"@en , "常修梵行願"@zh-Hant , "상수범행원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_37 a pl:Vow ; pl:vowNumber 37 ;
+    rdfs:label "Reverence from devas and humans"@en , "人天致敬願"@zh-Hant , "인천치경원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_38 a pl:Vow ; pl:vowNumber 38 ;
+    rdfs:label "Clothing appearing as wished"@en , "衣服隨念願"@zh-Hant , "의복수념원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_39 a pl:Vow ; pl:vowNumber 39 ;
+    rdfs:label "Pleasures equal to those of cessation"@en , "受樂無染願"@zh-Hant , "수락무염원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_40 a pl:Vow ; pl:vowNumber 40 ;
+    rdfs:label "Seeing the pure lands as desired"@en , "隨意見土願"@zh-Hant , "수의견토원"@ko ; pl:appearsIn pl:T0360 .
+
+pl:Vow_41 a pl:Vow ; pl:vowNumber 41 ;
+    rdfs:label "Complete sense faculties"@en , "諸根具足願"@zh-Hant , "제근구족원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_42 a pl:Vow ; pl:vowNumber 42 ;
+    rdfs:label "Pure samādhi at will"@en , "住定供佛願"@zh-Hant , "주정공불원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_43 a pl:Vow ; pl:vowNumber 43 ;
+    rdfs:label "Birth in noble families"@en , "生尊貴家願"@zh-Hant , "생존귀가원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_44 a pl:Vow ; pl:vowNumber 44 ;
+    rdfs:label "Joyful practice of virtues"@en , "具足德本願"@zh-Hant , "구족덕본원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_45 a pl:Vow ; pl:vowNumber 45 ;
+    rdfs:label "Samādhi of seeing all buddhas"@en , "住定見佛願"@zh-Hant , "주정견불원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_46 a pl:Vow ; pl:vowNumber 46 ;
+    rdfs:label "Hearing the Dharma as desired"@en , "隨意聞法願"@zh-Hant , "수의문법원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_47 a pl:Vow ; pl:vowNumber 47 ;
+    rdfs:label "Attainment of non-retrogression"@en , "得不退轉願"@zh-Hant , "득불퇴전원"@ko ; pl:appearsIn pl:T0360 .
+pl:Vow_48 a pl:Vow ; pl:vowNumber 48 ;
+    rdfs:label "Three insights from hearing the name"@en , "得三法忍願"@zh-Hant , "득삼법인원"@ko ;
+    pl:appearsIn pl:T0360 ;
+    rdfs:comment "Hearing Amitābha's name leads to three levels of forbearance — the final of the 48 vows."@en .
+
+# All 48 vows belong to Amitābha (as Dharmākara, before buddhahood):
+pl:Amitabha pl:hasVow
+    pl:Vow_01 , pl:Vow_02 , pl:Vow_03 , pl:Vow_04 , pl:Vow_05 ,
+    pl:Vow_06 , pl:Vow_07 , pl:Vow_08 , pl:Vow_09 , pl:Vow_10 ,
+    pl:Vow_11 , pl:Vow_12 , pl:Vow_13 , pl:Vow_14 , pl:Vow_15 ,
+    pl:Vow_16 , pl:Vow_17 , pl:Vow_18 , pl:Vow_19 , pl:Vow_20 ,
+    pl:Vow_21 , pl:Vow_22 , pl:Vow_23 , pl:Vow_24 , pl:Vow_25 ,
+    pl:Vow_26 , pl:Vow_27 , pl:Vow_28 , pl:Vow_29 , pl:Vow_30 ,
+    pl:Vow_31 , pl:Vow_32 , pl:Vow_33 , pl:Vow_34 , pl:Vow_35 ,
+    pl:Vow_36 , pl:Vow_37 , pl:Vow_38 , pl:Vow_39 , pl:Vow_40 ,
+    pl:Vow_41 , pl:Vow_42 , pl:Vow_43 , pl:Vow_44 , pl:Vow_45 ,
+    pl:Vow_46 , pl:Vow_47 , pl:Vow_48 .
+
+# Teaching relations:
+pl:Sakyamuni pl:teaches pl:Sariputra , pl:Mahamaudgalyayana , pl:Mahakasyapa , pl:Ananda , pl:Subhuti .
+
+# Inference test: Vow_18 vowsToSave inference
+# (No explicit pl:vowsToSave triples; relationship is captured by pl:hasVow + Vow's textual meaning. Future iteration may add pl:Amitabha pl:vowsToSave pl:Sentient.)

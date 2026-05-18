@@ -1,5 +1,11 @@
 # Tech Stack Ontology Example
 
+> **Trademark notice.** Technology names in this dataset
+> (*React*, *Angular*, *Next.js*, *Node.js*, *TypeScript*, ...) are
+> trademarks of their respective owners. Use is **nominative fair
+> use** for framework demonstration only. Full disclaimer in the
+> [**Disclaimer**](#disclaimer) section below.
+
 This example shows two things ontorag can do that a plain vector-search RAG cannot:
 
 1. **OWL transitive reasoning** — ask "what does Next.js depend on?" and get the full chain
@@ -143,6 +149,31 @@ uv run ontorag learn populate examples/techstack/corpus.txt --yes
 
 ---
 
+## RAGAS 벤치마크 결과 (2026-05, gpt-4o agent + gpt-4o judge)
+
+20문항 한국어 goldset(`examples/techstack/goldset.jsonl`) — easy 5 / medium 6 / hard 5 (모두 `dependsOn+` 전이 추론) / trap 4 (Vue·Svelte·Deno·Yarn — 실재하지만 이 온톨로지에 없음).
+
+| 메트릭 | LangChain (vector RAG) | ontorag_native | Δ |
+|---|---|---|---|
+| RAGAS Faithfulness | **0.808** | 0.333 | LangChain +0.475 |
+| RAGAS AnswerCorrectness | **0.523** | 0.382 | LangChain +0.141 |
+| RAGAS AnswerRelevancy | **0.420** | 0.279 | LangChain +0.141 |
+| Hallucination rate (det.) | — | **0.000** | ontorag |
+| Citation 제공률 | 0% | **45%** | ontorag |
+| 평균 응답 시간 | 1410 ms | 1835 ms | LangChain ↓ |
+
+### 해석
+
+Techstack은 **contamination 매우 높음 + ABox가 작음(91 triples)** → LangChain이 작은 chunk에서 직접 정답 텍스트를 인용하기 쉬운 환경. RAGAS judge의 텍스트 일치 선호와 결합해 모든 LLM-as-judge 점수에서 LangChain 우위.
+
+그러나:
+- **Hallucination 0%**: ontorag_native는 4개 trap 질문(Vue/Svelte/Deno/Yarn)에 대해 SPARQL이 empty rows를 반환하므로 절대 답을 지어내지 않음. LangChain은 contamination된 사전지식으로 hallucinate할 위험.
+- **Citation 45%**: SPARQL 결과의 트리플을 답변에 첨부 → 감사 가능.
+
+> **트레이드오프**: LLM-judge 점수만 보면 LangChain이 우위, 결정론적 검증 가능성에선 ontorag_native가 우위. 운영 환경의 hallucination 비용에 따라 선택.
+
+---
+
 ## Files
 
 | File | Description |
@@ -150,3 +181,48 @@ uv run ontorag learn populate examples/techstack/corpus.txt --yes
 | `schema.ttl` | TBox — 11 classes, 4 object properties (1 transitive), 4 data properties |
 | `data.ttl` | ABox seed — 12 technologies, 5 organizations |
 | `corpus.txt` | Plain-text description of 10 additional technologies for LLMs4OL |
+| `goldset.jsonl` | 20문항 (easy 5 / medium 6 / hard 5 / trap 4) |
+| `bench_results/langchain_gpt4o.json` | LangChain RetrievalQA 벤치 결과 |
+| `bench_results/ontorag_native_gpt4o.json` | ontorag agent 벤치 결과 |
+
+---
+
+## Disclaimer
+
+**1. Rights / 권리 귀속.** Technology names in this dataset are
+trademarks of their respective owners:
+*React* of **Meta Platforms, Inc.**;
+*Angular* of **Google LLC**;
+*Next.js* of **Vercel, Inc.**;
+*Node.js* and *npm* of **the OpenJS Foundation / npm, Inc.**;
+*TypeScript* of **Microsoft Corporation**;
+*Bun* of **Oven**;
+*webpack*, *Vite*, *Remix*, *pnpm* of their respective project teams
+and contributors.
+
+**2. Nature of this work / 본 데이터의 성격.** This RDF dataset
+encodes **publicly available factual information** (release year,
+license string, maintainer organization, dependency relationships) for
+the purpose of demonstrating the ontorag framework's OWL inference
+capabilities (TransitiveProperty closures, subclass reasoning,
+LLMs4OL). **No logos, source code, copyrighted documentation, or
+trademarked iconography is reproduced.** Use of trademark names is
+**nominative fair use** — referring to the actual products to discuss
+verifiable factual relationships among them.
+
+**3. No affiliation / 비제휴 선언.** This project is **not affiliated
+with, endorsed by, or sponsored by** any of the organizations listed
+above.
+
+**4. Takedown commitment / 즉시 제거 약속.** If any trademark holder
+prefers their mark not appear in this dataset, the relevant entries
+will be **removed or renamed promptly** upon request. Contact: GitHub
+issue on the ontorag repository.
+
+## License
+
+- **Ontology files** (`schema.ttl`, `data.ttl`, `goldset.jsonl`,
+  `corpus.txt`, README) — MIT (same as ontorag).
+- **Factual content** (release years, license strings, dependency
+  facts) — not copyrightable as such; sourced from each project's
+  public documentation as of writing.

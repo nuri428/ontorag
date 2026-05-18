@@ -1,0 +1,190 @@
+# Commerce Ontology — ABox
+# Fictional company/product/person data. No real-world entity modelled.
+
+@prefix co:      <https://ontorag.dev/ns/commerce#> .
+@prefix foaf:    <http://xmlns.com/foaf/0.1/> .
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# CURRENCIES (ISO 4217 codes used; the entities themselves are KG individuals)
+# ═════════════════════════════════════════════════════════════════════════════
+
+co:USD a co:Currency ;
+    rdfs:label "US Dollar"@en , "미국 달러"@ko ;
+    co:isoCurrencyCode "USD" .
+
+co:EUR a co:Currency ;
+    rdfs:label "Euro"@en , "유로"@ko ;
+    co:isoCurrencyCode "EUR" .
+
+co:KRW a co:Currency ;
+    rdfs:label "Korean Won"@en , "대한민국 원"@ko ;
+    co:isoCurrencyCode "KRW" .
+
+co:JPY a co:Currency ;
+    rdfs:label "Japanese Yen"@en , "일본 엔"@ko ;
+    co:isoCurrencyCode "JPY" .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ORGANIZATIONS — three independent firms + one parent group
+# ═════════════════════════════════════════════════════════════════════════════
+
+co:Org_NimbusGroup a co:Organization ;
+    rdfs:label "Nimbus Group"@en , "님버스 그룹"@ko ;
+    co:foundedYear "1998"^^xsd:gYear ;
+    co:employeeCount 12000 .
+
+co:Org_AuroraTech a co:Organization ;
+    rdfs:label "Aurora Tech"@en , "오로라 테크"@ko ;
+    co:foundedYear "2008"^^xsd:gYear ;
+    co:employeeCount 3500 ;
+    co:subsidiaryOf co:Org_NimbusGroup .
+
+co:Org_HeliosRobotics a co:Organization ;
+    rdfs:label "Helios Robotics"@en , "헬리오스 로보틱스"@ko ;
+    co:foundedYear "2015"^^xsd:gYear ;
+    co:employeeCount 800 ;
+    co:subsidiaryOf co:Org_AuroraTech .
+
+co:Org_VegaWearables a co:Organization ;
+    rdfs:label "Vega Wearables"@en , "베가 웨어러블"@ko ;
+    co:foundedYear "2012"^^xsd:gYear ;
+    co:employeeCount 1200 .
+
+co:Org_OrionLabs a co:Organization ;
+    rdfs:label "Orion Labs"@en , "오리온 랩스"@ko ;
+    co:foundedYear "2020"^^xsd:gYear ;
+    co:employeeCount 60 .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# BRANDS (one per consumer-facing org)
+# ═════════════════════════════════════════════════════════════════════════════
+
+co:Brand_Aurora a co:Brand ;
+    rdfs:label "Aurora"@en , "오로라"@ko .
+
+co:Brand_Helios a co:Brand ;
+    rdfs:label "Helios"@en , "헬리오스"@ko .
+
+co:Brand_Vega a co:Brand ;
+    rdfs:label "Vega"@en , "베가"@ko .
+
+co:Org_AuroraTech co:hasBrand co:Brand_Aurora .
+co:Org_HeliosRobotics co:hasBrand co:Brand_Helios .
+co:Org_VegaWearables co:hasBrand co:Brand_Vega .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# PEOPLE — CEOs and a few employees
+# ═════════════════════════════════════════════════════════════════════════════
+
+co:Person_AliceKim a co:CEO ;
+    rdfs:label "Alice Kim"@en , "김앨리스"@ko ;
+    foaf:name "Alice Kim" .
+co:Org_AuroraTech co:hasCEO co:Person_AliceKim .
+
+co:Person_BorisLee a co:CEO ;
+    rdfs:label "Boris Lee"@en , "이보리스"@ko ;
+    foaf:name "Boris Lee" .
+co:Org_HeliosRobotics co:hasCEO co:Person_BorisLee .
+
+co:Person_CharlesPark a co:CEO ;
+    rdfs:label "Charles Park"@en , "박찰스"@ko ;
+    foaf:name "Charles Park" .
+co:Org_VegaWearables co:hasCEO co:Person_CharlesPark .
+
+co:Person_DianaChoi a co:CEO ;
+    rdfs:label "Diana Choi"@en , "최다이애나"@ko ;
+    foaf:name "Diana Choi" .
+co:Org_NimbusGroup co:hasCEO co:Person_DianaChoi .
+
+co:Person_EricCho a co:Executive ;
+    rdfs:label "Eric Cho"@en , "조에릭"@ko ;
+    foaf:name "Eric Cho" .
+co:Org_AuroraTech co:employs co:Person_EricCho .
+
+co:Person_FaithJung a co:Employee ;
+    rdfs:label "Faith Jung"@en , "정페이스"@ko ;
+    foaf:name "Faith Jung" .
+co:Org_HeliosRobotics co:employs co:Person_FaithJung .
+
+co:Person_GeorgeYoon a co:Employee ;
+    rdfs:label "George Yoon"@en , "윤조지"@ko ;
+    foaf:name "George Yoon" .
+co:Org_VegaWearables co:employs co:Person_GeorgeYoon .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# PRODUCTS
+# ═════════════════════════════════════════════════════════════════════════════
+
+co:Prod_AuroraPhoneX1 a co:Smartphone ;
+    rdfs:label "Aurora Phone X1"@en , "오로라 폰 X1"@ko ;
+    co:modelYear "2024"^^xsd:gYear ;
+    co:manufacturedBy co:Org_AuroraTech ;
+    co:soldUnder co:Brand_Aurora .
+
+co:Prod_AuroraPhoneX2 a co:Smartphone ;
+    rdfs:label "Aurora Phone X2"@en , "오로라 폰 X2"@ko ;
+    co:modelYear "2026"^^xsd:gYear ;
+    co:manufacturedBy co:Org_AuroraTech ;
+    co:soldUnder co:Brand_Aurora .
+
+co:Prod_AuroraBookPro a co:Laptop ;
+    rdfs:label "Aurora Book Pro"@en , "오로라 북 프로"@ko ;
+    co:modelYear "2025"^^xsd:gYear ;
+    co:manufacturedBy co:Org_AuroraTech ;
+    co:soldUnder co:Brand_Aurora .
+
+co:Prod_HeliosArm a co:ConsumerElectronics ;
+    rdfs:label "Helios Robotic Arm"@en , "헬리오스 로봇 팔"@ko ;
+    co:modelYear "2025"^^xsd:gYear ;
+    co:manufacturedBy co:Org_HeliosRobotics ;
+    co:soldUnder co:Brand_Helios .
+
+co:Prod_VegaWatch1 a co:WearableDevice ;
+    rdfs:label "Vega Watch 1"@en , "베가 워치 1"@ko ;
+    co:modelYear "2024"^^xsd:gYear ;
+    co:manufacturedBy co:Org_VegaWearables ;
+    co:soldUnder co:Brand_Vega .
+
+co:Prod_VegaWatch2 a co:WearableDevice ;
+    rdfs:label "Vega Watch 2"@en , "베가 워치 2"@ko ;
+    co:modelYear "2026"^^xsd:gYear ;
+    co:manufacturedBy co:Org_VegaWearables ;
+    co:soldUnder co:Brand_Vega .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# OFFERS / PRICING
+# ═════════════════════════════════════════════════════════════════════════════
+
+co:Offer_AuroraPhoneX1 a co:Offer ;
+    rdfs:label "Offer: Aurora Phone X1"@en ;
+    co:offersFor co:Prod_AuroraPhoneX1 ;
+    co:priceAmount "899.00"^^xsd:decimal ;
+    co:inCurrency co:USD .
+
+co:Offer_AuroraPhoneX2 a co:Offer ;
+    co:offersFor co:Prod_AuroraPhoneX2 ;
+    co:priceAmount "1099.00"^^xsd:decimal ;
+    co:inCurrency co:USD .
+
+co:Offer_AuroraBookPro a co:Offer ;
+    co:offersFor co:Prod_AuroraBookPro ;
+    co:priceAmount "2499.00"^^xsd:decimal ;
+    co:inCurrency co:USD .
+
+co:Offer_HeliosArm a co:Offer ;
+    co:offersFor co:Prod_HeliosArm ;
+    co:priceAmount "12000.00"^^xsd:decimal ;
+    co:inCurrency co:EUR .
+
+co:Offer_VegaWatch1 a co:Offer ;
+    co:offersFor co:Prod_VegaWatch1 ;
+    co:priceAmount "350000"^^xsd:decimal ;
+    co:inCurrency co:KRW .
+
+co:Offer_VegaWatch2 a co:Offer ;
+    co:offersFor co:Prod_VegaWatch2 ;
+    co:priceAmount "55000"^^xsd:decimal ;
+    co:inCurrency co:JPY .

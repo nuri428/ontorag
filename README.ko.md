@@ -22,6 +22,22 @@
 
 ---
 
+## ontorag을 쓰는 이유 (vector RAG 대비)
+
+동일한 TBox + ABox + goldset으로 측정한 결과입니다 — 전체 실행 내역은 [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) (LangChain + Chroma + OpenAI, 2개 도메인 합산 70 문항).
+
+| 능력 | Vector RAG (LangChain) | ontorag |
+|---|---|---|
+| 단일 엔티티 조회 | ✓ Commerce easy 5/5 | ✓ |
+| 멀티 홉 / OWL 전이 추론 (`pl:locatedIn+`) | ✗ Q008/Q039/Q040은 첫 홉에서 멈춤 | ✓ |
+| 트리플 단위 인용 (감사 가능한 출처) | ✗ 0 / 70 (구조적 한계 — 청크만 반환) | ✓ 30 / 70 인용 |
+| 정답 대비 환각 측정 가능성 | N/A (트리플 단위 grounding 없음) | ✓ 환각률 0.000 |
+| KG에 없는 사실에 대한 거절 (trap 문항) | ✓ Commerce 3/3 거절 | ✓ |
+
+Vector RAG는 단순 조회에 강합니다. ontorag의 구조적 우위는 **전이 추론·출처 인용·정량 grounding**에서 나타납니다.
+
+---
+
 ## 주요 기능
 
 | 기능 | 설명 |
@@ -418,13 +434,250 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 ---
 
+## 평가 하네스 — `ontorag eval`
+
+`eval-harness` 브랜치에서 사용 가능한 내장 평가 도구. ontorag을
+벡터 RAG baseline과 정량 비교하기 위한 goldset+metric 파이프라인.
+
+### 제공 기능
+
+- **두 벤치마크 도메인** — `examples/pure_land/` (50문항, fictional+religious — 다국어 라벨 서방정토 우주관) + `examples/commerce/` (20문항, schema.org 표준 어휘 + 가상 회사 인스턴스)
+- **Goldset 형식** — JSONL with `gold_sparql`, `gold_answer`, `gold_triples`, `uses_inference`. Pydantic 검증.
+- **5개 메트릭** — `sparql_result_equivalent`, `inference_utilization`, `hallucination_rate`, `citation_coverage`, RAGAS (`faithfulness`, `answer_correctness`, `answer_relevancy`)
+- **Baseline** — `ontorag_mock` (perfect retrieval 상한), `vector_rag_mock` (70/20/10 bucket 시뮬), `langchain` (실제 RetrievalQA + Chroma + OpenAI — `--extra bench` + API key 필요)
+- **Markdown 리포트** — PR 코멘트/블로그 포스트에 그대로 부착 가능
+- **CI 통합** — GitHub Actions matrix가 두 도메인 모두 PR마다 실행 + artifact upload + sticky comment
+
+### 명령어
+
+```bash
+# Goldset 검증
+uv run ontorag eval validate examples/commerce/goldset.jsonl
+
+# gold_sparql을 graph에 실행 (데이터 위생 체크)
+uv run ontorag eval run examples/commerce/goldset.jsonl \
+    --schema examples/commerce/schema.ttl \
+    --data examples/commerce/data.ttl \
+    --output report.json
+
+# Baseline + 메트릭 통합 실행
+uv run ontorag eval bench examples/commerce/goldset.jsonl \
+    --baseline ontorag_mock \
+    --schema examples/commerce/schema.ttl \
+    --data examples/commerce/data.ttl \
+    --output ontorag.json
+
+# 두 결과 비교 Markdown
+uv run ontorag eval compare ontorag.json langchain.json \
+    --name-a ontorag --name-b langchain \
+    --output comparison.md
+
+# JSON → Markdown 리포트
+uv run ontorag eval report ontorag.json --output report.md
+```
+
+### 실제 LangChain baseline + RAGAS (~$1/실행)
+
+```bash
+uv sync --extra bench
+export OPENAI_API_KEY=sk-...
+
+uv run ontorag eval bench examples/commerce/goldset.jsonl \
+    --baseline langchain \
+    --schema examples/commerce/schema.ttl \
+    --data examples/commerce/data.ttl \
+    --with-ragas \
+    --output langchain_real.json
+```
+
+전체 측정 이력(v2~v9)과 정직한 결과 정리는
+[`BENCHMARK_RESULTS.md`](BENCHMARK_RESULTS.md)를 참조하세요.
+
+---
+
+## 벤치마크 결과 — 4-도메인 RAGAS final (2026-05)
+
+**네 개의 온톨로지 도메인**에 대해 **agent = `gpt-4o`**, **judge = `gpt-4o`** (RAGAS LLM-as-judge)로 head-to-head 벤치마크를 돌렸습니다. 비교한 두 baseline은:
+
+| Baseline | 설명 |
+|---|---|
+| `langchain` | 고전적 vector RAG — TTL chunk를 Chroma에 인덱싱 + OpenAI embedding + `gpt-4o` RetrievalQA. 그래프 추론 없음. |
+| `ontorag_native` | ontorag 자체 agent loop — `gpt-4o`가 Apache Jena Fuseki(OWL 추론 활성)를 9개 MCP 툴로 호출. |
+
+### 네 도메인 — OWL 기능 조합을 다양하게 커버
+
+| 도메인 | 문항 수 | 언어 | OWL 기능 조합 | LLM 사전학습 오염도 |
+|---|---|---|---|---|
+| **Pokemon** | 20 | 한국어 | TransitiveProperty 1개 (`evolvesFrom`), 작은 ABox (~50 인스턴스) | **매우 높음** — 1세대 포켓몬은 모든 frontier LLM이 사전학습 |
+| **Techstack** | 20 | 한국어 | TransitiveProperty 1개 (`dependsOn`), 작은 ABox (15 기술) | **매우 높음** — React/Node/TS는 어디든 |
+| **ODS** (Open Data Structures) | 20 | 영어 | TransitiveProperty 2개 (`uses`, `specialises`) + inverseOf 쌍 (`implements` ↔ `implementedBy`) | 높음 — Pat Morin 공개 교재 |
+| **Pure Land** | 50 | 한국어 | TransitiveProperty (`locatedIn`) + 다국어 라벨 (`@ko/@zh-Hant/@en`) + 큰 ABox (717 트리플) | 낮음 — 서방정토 우주관, fictional+religious |
+
+도메인은 두 축에서 변동하도록 의도적으로 선정했습니다 — **OWL 기능 풍부도**와 **LLM이 답을 이미 외우고 있는 정도**.
+
+> **Attribution & disclaimer 정책.** 본 repository의 모든 example
+> 데이터셋은 README 하단에 일관된 `## Disclaimer` 섹션을 갖추고
+> 있으며 네 가지 항목을 통일된 순서로 제공합니다:
+> (1) **권리 귀속** — 어떤 상표·저작권·원천 자료가 누구의 소유인가;
+> (2) **본 데이터의 성격** — fan-made fair use / CC 라이선스 파생물
+> / public-domain 기반 원작 모델링;
+> (3) **비제휴 선언** — 권리자와의 affiliation 부재;
+> (4) **즉시 제거 약속** — 권리자 요청 시 즉시 제거 + 연락 경로.
+> 도메인별 요약:
+> *Pokemon* — ㈜포켓몬컴퍼니 / 닌텐도 / Creatures Inc. / 게임 프리크의
+> 등록상표, fan-made 교육용 예제
+> ([상세](examples/pokemon/README.md#disclaimer));
+> *Techstack* — Meta / Google / Vercel / OpenJS / Microsoft 등의
+> 등록상표, nominative fair use
+> ([상세](examples/techstack/README.md#disclaimer));
+> *ODS* — Pat Morin의 CC BY 2.5 attribution과 함께 derivative
+> ([상세](examples/ods/README.md#disclaimer));
+> *Pure Land* — public-domain 불교 경전을 기반으로 한 원작 모델링 +
+> 별도의 교리적 면책
+> ([상세](examples/pure_land/README.md#disclaimer)).
+
+### 측정 결과
+
+(domain, baseline) 쌍마다 RAGAS LLM-as-judge 3개 메트릭(Faithfulness, AnswerCorrectness, AnswerRelevancy) + 결정론적 2개 메트릭(SPARQL 근거 기반 Hallucination, Citation 제공률)을 측정. **굵게**는 도메인 내 우위.
+
+| 도메인 | Baseline | Faithfulness | Correctness | Relevancy | Hallucination | Citation% |
+|---|---|---|---|---|---|---|
+| Pokemon | LangChain | **0.677** | 0.448 | 0.342 | — | 0% |
+| Pokemon | ontorag_native | 0.423 | **0.466** | **0.349** | **0.000** | **65%** |
+| Techstack | LangChain | **0.808** | **0.523** | **0.420** | — | 0% |
+| Techstack | ontorag_native | 0.333 | 0.382 | 0.279 | **0.000** | **45%** |
+| ODS | LangChain | 0.521 | 0.493 | 0.641 | — | 0% |
+| ODS | ontorag_native | **0.551** | **0.515** | **0.749** | **0.000** | **65%** |
+| Pure Land | LangChain | 0.345 | 0.260 | 0.180 | — | 0% |
+| Pure Land | ontorag_native | **0.422** | **0.381** | **0.357** | **0.000** | **66%** |
+
+### 표 해석 — 세 가지 발견
+
+#### 발견 1. LLM judge의 Faithfulness 점수는 "원문 인용 스타일"을 좋아함
+
+Pokemon·Techstack에서 LangChain Faithfulness가 0.677/0.808로 크게 우위입니다. 이건 LangChain이 **더 진실한 답을 생성한다는 증거가 아닙니다** — RAGAS judge가 "검색된 chunk와 어휘가 얼마나 겹치는가"를 본질적으로 좋아한다는 증거입니다. LangChain은 TTL 텍스트를 거의 그대로 인용하므로 겹침이 큼.
+
+ontorag_native는 반대로 **SPARQL을 실행하고 결과를 유창한 답변으로 재구성**합니다. 사실(fact)은 동일해도 표현이 원문과 달라지므로 judge가 페널티를 줍니다.
+
+style 차이라는 증거는 옆 칸 두 메트릭에서 확인됩니다 — Pokemon에서 ontorag의 **AnswerCorrectness가 더 높고**(0.466 vs 0.448), **AnswerRelevancy도 더 높습니다**(0.349 vs 0.342). 같은 사실, 다른 스타일.
+
+#### 발견 2. OWL 기능이 풍부할수록 ontorag 우위가 커짐
+
+네 도메인이 동원하는 독립적 OWL 기능 수로 비교:
+
+| 도메인 | TransitiveProperty | inverseOf | 다국어 라벨 | ontorag가 우위인 메트릭 수 (5개 중) |
+|---|---|---|---|---|
+| Pokemon | 1 | ✗ | ✗ | 3/5 |
+| Techstack | 1 | ✗ | ✗ | 2/5 |
+| ODS | 2 | ✓ | ✗ | 5/5 |
+| Pure Land | 1 | ✓ | ✓ | 5/5 |
+
+OWL 추론 축이 **1축뿐인 도메인**(Pokemon, Techstack)에선 vector RAG의 chunk-quote 이점이 style 메트릭에 그대로 반영됩니다. **2축 이상**(ODS의 두 TransProp + inverseOf; Pure Land의 transitive locatedIn + 다국어 라벨 + 큰 ABox)에선 그래프 추론이 *모든* RAGAS 메트릭(Faithfulness 포함)을 이깁니다.
+
+가장 극단적인 경우는 Pure Land. AnswerRelevancy가 0.180(LangChain)에서 0.357(ontorag)로 **상대 98% 개선**. 왜? 질문과 정답이 서로 다른 언어일 수 있고 URI가 그것들을 잇지만, vector 인덱스는 그것들을 무관한 chunk로 봅니다.
+
+##### 결정 격자 — 도메인별 좌표
+
+OWL 풍부도 × LLM contamination 2×2 격자에 네 도메인을 올려놓으면 trade-off가 한눈에 보입니다:
+
+```
+                           OWL 풍부도  →
+                      낮음                       높음
+                  ┌──────────────────┬──────────────────┐
+                  │                  │                  │
+        낮음      │                  │   ★ Pure Land    │
+                  │                  │   ★ ODS          │
+                  │                  │                  │
+   contamination  ├──────────────────┼──────────────────┤
+                  │                  │                  │
+        높음      │   ★ Pokemon     │   ★ Techstack   │
+                  │                  │                  │
+                  └──────────────────┴──────────────────┘
+                  ontorag             ontorag가 모든
+                  Correctness/        RAGAS 메트릭 우위 +
+                  Relevancy 우위,     모든 도메인 공통
+                  LangChain           Hallucination 0%,
+                  Faithfulness 우위   Citation 45-66%
+```
+
+**Pure Land의 위치는 우상단** — ODS와 같은 셀입니다. 근거:
+
+| 축 | 근거 | 결론 |
+|---|---|---|
+| Contamination | "Sukhāvatī cosmology, fictional+religious" — frontier LLM이 외운 사실이 거의 없음 (정확한 본원 수 48 vs 막연한 "약 40개" 같은 함정이 가능한 이유) | **낮음** |
+| OWL 풍부도 | TransProp 1 (`locatedIn`) + inverseOf 쌍 + **다국어 라벨** (`@ko/@zh-Hant/@en` — vector embedding이 본질적으로 못 다루는 축) + 큰 ABox (717 트리플) | **높음** |
+
+우상단 셀은 ontorag 우위가 가장 큰 영역입니다 — Pure Land AnswerRelevancy +98% (상대) / ODS Relevancy +0.108 (절대). OWL 추론·다국어 URI 매칭이 vector embedding 한계를 가장 크게 노출하기 때문.
+
+**우하단 (Techstack)** 은 RAGAS 점수상 ontorag의 *적대적*(adversarial) 셀 — 높은 contamination + 작은 ABox가 chunk-quote style bias를 정면으로 강화. **좌하단 (Pokemon)** 은 *분할 판정* 셀: style 메트릭은 LangChain, 사실성 메트릭은 ontorag. **좌상단**은 의도적으로 비워둠 — "OWL 추론도 약하고 LLM이 외우지도 못한 도메인"이라면 사실 RAG 스택 자체가 필요 없고 간단한 Q&A 봇이면 충분합니다.
+
+#### 발견 3. Hallucination 0% / Citation 45-66% — ontorag 전용
+
+우측 두 열을 보면 **네 도메인 모두**에서 ontorag는 **Hallucination 정확히 0.000**, Citation 제공률 45-66%입니다. LangChain은 두 칸 모두 "—"인데 — **"—"는 "0"이 아닙니다**. 설명이 필요합니다.
+
+이 두 메트릭은 *결정론적*(deterministic — LLM judge 아님)입니다. 하네스가 각 답변에서 명시적 트리플/URI 인용을 파싱한 뒤, 그 트리플이 실제 ABox에 존재하는지 코드로 검증합니다.
+
+* `citation_provided_rate` = "답변이 무언가를 인용했는가?"
+* `citation_coverage` = "인용한 것 중 실제 ABox 트리플과 매칭되는 비율"
+* `hallucination_rate` = "인용한 것 중 **ABox에 없는** 트리플의 비율"
+
+세 메트릭 모두 1단계 — **답변에 인용이 있어야** — 가 충족되어야 2단계 검증이 정의됩니다. LangChain의 `RetrievalQA`는 chunk를 prompt에 넣고 자연어 답변만 받아오며 RDF 트리플을 절대 출력하지 않습니다. 결과:
+
+* `citation_provided_rate = 0%`은 **실측치** (110개 질문 전체에서 단 한 번도 인용 안 함)
+* `hallucination_rate = "—"`는 **"측정 불가"**이지 "0"이 아님. 검증할 인용이 없으면 falsifiable test 자체가 정의되지 않습니다. 여기서 0이라고 적으면 "안전하다"는 거짓 주장이 됩니다.
+
+ontorag의 agent loop는 MCP 툴을 통해 SPARQL을 실행하고 결과 트리플을 답변 안에 "근거"로 첨부합니다. 하네스가 그것을 추출·검증할 수 있으니 같은 칸이 ontorag엔 채워지고 — 게다가 전부 통과(Hallucination 0, 인용률 45-66%).
+
+**이게 LLM judge에 의존하지 않는 구조적 해자입니다.** 자신만만하게 틀린 답을 만드는 비용이 큰 도메인(법률·의료·학술 KG·다언어 카탈로그)에서 가치가 여기 있습니다. 각 goldset에는 20%의 **trap 질문**(LLM이 사전학습에서 본 적 있지만 온톨로지엔 없는 엔티티 — *이브이* / *Vue.js* / *SplayTree* / *뮤*)이 있는데, ontorag는 SPARQL이 empty rows를 반환하면 답을 만들지 않습니다.
+
+> **LangChain의 환각도 같은 축에서 보고 싶다면?** 3열의 RAGAS Faithfulness가 가장 가까운 LLM-judged 대용입니다 — 다만 *fuzzy 유사도 점수*일 뿐, 실제 그래프에 대한 *falsifiable 예/아니오* 검증은 아닙니다.
+
+### 실무적 결론
+
+| 당신의 도메인이... | 추천 |
+|---|---|
+| LLM 오염 심함 + ABox 작음 + 인용 스타일이 중요 | **LangChain**이 RAGAS 점수 우위; ~$0.45/실행 |
+| OWL 기능 풍부 (TransProp ≥2, inverseOf, 다국어 라벨) | **ontorag**가 모든 RAGAS 메트릭 우위 |
+| Hallucination 비용 > retrieval 비용 (법률/의료/학술) | **ontorag** — 답을 만들지 않고 거절함 |
+| 답이 어느 트리플에서 나왔는지 짚어야 함 | **ontorag** — 유일하게 citation을 출력 |
+
+문항별 상세와 v2→v9 반복 이력은 [`BENCHMARK_RESULTS.md`](BENCHMARK_RESULTS.md)에 있습니다. 도메인별 심층 분석은 각 `examples/<domain>/README.md` 참조.
+
+### 재현 방법
+
+```bash
+docker compose up -d                           # Fuseki
+cp .env.example .env && OPENAI_API_KEY 설정    # OpenAI 키 필수
+echo "LLM_MODEL=gpt-4o"            >> .env     # agent 모델
+echo "RAGAS_JUDGE_MODEL=gpt-4o"    >> .env     # judge 모델 (opt-in)
+
+# 도메인마다 그래프 clear → load → 두 baseline 실행:
+uv run ontorag load schema examples/pokemon/schema.ttl
+uv run ontorag load data   examples/pokemon/data.ttl
+
+uv run ontorag eval bench examples/pokemon/goldset.jsonl \
+    --baseline langchain      --schema examples/pokemon/schema.ttl \
+    --data examples/pokemon/data.ttl --lang ko --with-ragas \
+    --output examples/pokemon/bench_results/langchain_gpt4o.json
+
+uv run ontorag eval bench examples/pokemon/goldset.jsonl \
+    --baseline ontorag_native --schema examples/pokemon/schema.ttl \
+    --data examples/pokemon/data.ttl --lang ko --with-ragas \
+    --output examples/pokemon/bench_results/ontorag_native_gpt4o.json
+```
+
+대략적인 비용: agent와 judge 모두 `gpt-4o`로 4-도메인 × 2-baseline 풀 실행 시 ~$7-9.
+
+---
+
 ## 로드맵
 
 - **v0.1** — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE 스트리밍 ✅
 - **v0.2** — Web UI (Schema/Data/Playground) · 브라우저 RDF 업로드 · 레이트 리밋 UX · 온톨로지 데이터 존재 시 툴 호출 강제 ✅
 - **v0.3** — LLMs4OL: `ontorag learn` CLI (용어 타이핑 · 분류 발견 · 관계 추출) · `type_term` + `extract_triples` MCP 툴 · 기술 스택 예제 ✅
 - **v0.3.1** — 구조화 ABox 확장: `populate-structured`로 CSV/JSON/JSONL 읽기 → LLM으로 컬럼을 TBox에 매핑 → RDF 트리플 → Fuseki; 매핑 캐시, uuid5 멱등 URI, 배치 체크포인팅 ✅
-- **v0.3.2** (현재) — TBox/ABox 덤프: `ontorag dump schema|data|all` · `GET /dump` REST 엔드포인트 · Web UI 다운로드 버튼 · TTL / JSON / JSONL / XLSX 포맷 ✅
+- **v0.3.2** — TBox/ABox 덤프: `ontorag dump schema|data|all` · `GET /dump` REST 엔드포인트 · Web UI 다운로드 버튼 · TTL / JSON / JSONL / XLSX 포맷 ✅
+- **v0.4 (eval-harness 브랜치, 현재)** — Phase B 평가 하네스: 2개 벤치마크 도메인 (Pure Land 50q + Commerce 20q) · Goldset JSONL + Pydantic loader · 4개 결정론적 메트릭 + RAGAS wrapper · LangChain 벡터 baseline · `ontorag eval` CLI (validate/run/bench/compare/report) · GitHub Actions matrix CI · BenchRunner orchestrator ✅
 - **v0.5** — Neo4j + n10s 어댑터 · `GRAPH_STORE` 환경 변수 · 벡터 유사도 툴 (`find_similar`) · 멀티 온톨로지 지원
 
 ---

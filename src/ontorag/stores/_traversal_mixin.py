@@ -103,7 +103,8 @@ WHERE {{
 
             frontier = new_frontier
 
-        # Batch-fetch labels for all discovered nodes
+        # Batch-fetch labels for all discovered nodes + predicate URIs (TBox)
+        # so LLM can read the result without needing extra describe_entity calls.
         if nodes:
             uris_block = " ".join(f"<{n['uri']}>" for n in nodes)
             lbl_q = f"{pfx}\nSELECT ?uri ?label WHERE {{ VALUES ?uri {{ {uris_block} }} GRAPH <{_DATA}> {{ ?uri rdfs:label ?label . }} }}"
@@ -119,6 +120,30 @@ WHERE {{
             }
             for node in nodes:
                 node["label"] = uri_labels.get(node["uri"])
+
+        # Predicate labels live in the schema graph, not the data graph
+        if edges:
+            pred_uris = list({e["predicate"] for e in edges})
+            pred_block = " ".join(f"<{u}>" for u in pred_uris)
+            pred_q = (
+                f"{pfx}\nSELECT ?p ?label WHERE {{ VALUES ?p {{ {pred_block} }} "
+                f"?p rdfs:label ?label . }}"
+            )
+            try:
+                pred_bindings = (
+                    (await self._sparql_select(pred_q))
+                    .get("results", {})
+                    .get("bindings", [])
+                )
+                pred_labels = {
+                    b["p"]["value"]: b["label"]["value"]
+                    for b in pred_bindings
+                    if "p" in b and "label" in b
+                }
+                for edge in edges:
+                    edge["predicate_label"] = pred_labels.get(edge["predicate"])
+            except Exception as exc:  # pragma: no cover — best-effort enrichment
+                logger.debug("predicate label enrichment skipped: %s", exc)
 
         return TraversalResult(
             start_uri=start_uri,
@@ -304,6 +329,88 @@ LIMIT {limit}"""
                         "label": b.get("bLabel", {}).get("value"),
                         "class_uri": class_uri_b,
                     },
+                }
+            )
+        return out
+
+    async def property_path_closure(
+        self,
+        predicate_uri: str,
+        start_uri: str | None = None,
+        start_label: str | None = None,
+        start_class_uri: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """SPARQL property-path closure with three start modes.
+
+        Mode 1 — *instance closure*: ``start_uri`` given. Runs
+            ``<start_uri> <pred>+ ?reached``.
+        Mode 2 — *label lookup + instance closure*: ``start_label``
+            given (optional ``start_class_uri`` disambiguates). Runs
+            ``?start rdfs:label "label" ; <pred>+ ?reached`` in one
+            round-trip with case-insensitive / lang-tag-insensitive
+            label match.
+        Mode 3 — *class-wide closure*: only ``start_class_uri`` given,
+            no instance start. Runs
+            ``?start a <Class> ; <pred>+ ?reached``. Use this for
+            questions like "all places where any X is transitively
+            located" — where the start is *every instance of a class*
+            rather than a single named entity.
+
+        Match the question's intent to the mode; the LLM should be
+        able to read the schema (which lists every class URI) and
+        decide which start mode applies.
+        """
+        if not (start_uri or start_label or start_class_uri):
+            raise ValueError(
+                "property_path_closure requires at least one of "
+                "start_uri / start_label / start_class_uri"
+            )
+
+        pfx = self._pfx()
+        pred = uri_ref(predicate_uri)
+        type_clause = ""
+
+        if start_uri:
+            # Mode 1
+            start_clause = f"BIND({uri_ref(start_uri)} AS ?start)"
+            if start_class_uri:
+                type_clause = f"?start a {uri_ref(start_class_uri)} ."
+        elif start_label:
+            # Mode 2
+            label_val = start_label.replace('"', '\\"')
+            start_clause = (
+                f'?start rdfs:label ?startLabel .\n'
+                f'    FILTER(STR(?startLabel) = "{label_val}" '
+                f'|| LCASE(STR(?startLabel)) = LCASE("{label_val}"))'
+            )
+            if start_class_uri:
+                type_clause = f"?start a {uri_ref(start_class_uri)} ."
+        else:
+            # Mode 3 — class-wide closure (no instance start)
+            assert start_class_uri is not None  # narrowing for type-checkers
+            start_clause = f"?start a {uri_ref(start_class_uri)} ."
+
+        query = f"""{pfx}
+SELECT DISTINCT ?reached (SAMPLE(?l) AS ?label)
+WHERE {{
+  GRAPH <{_DATA}> {{
+    {start_clause}
+    {type_clause}
+    ?start {pred}+ ?reached .
+    OPTIONAL {{ ?reached rdfs:label ?l . }}
+  }}
+}}
+GROUP BY ?reached
+ORDER BY STR(?reached)
+LIMIT {limit}"""
+        result = await self._sparql_select(query)
+        out: list[dict[str, Any]] = []
+        for b in result.get("results", {}).get("bindings", []):
+            out.append(
+                {
+                    "uri": b["reached"]["value"],
+                    "label": b.get("label", {}).get("value"),
                 }
             )
         return out

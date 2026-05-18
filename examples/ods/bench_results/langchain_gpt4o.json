@@ -1,0 +1,689 @@
+{
+  "baseline_name": "langchain_vector",
+  "baseline_version": "0.1.0",
+  "goldset_path": "examples/ods/goldset.jsonl",
+  "graph_triples": 374,
+  "total_questions": 20,
+  "language": "en",
+  "results": [
+    {
+      "question_id": "Q001",
+      "difficulty": "easy",
+      "category": "lookup",
+      "uses_inference": false,
+      "question_text": "What chapter of Open Data Structures introduces the SkiplistSSet?",
+      "gold_answer": "Chapter 4",
+      "baseline_answer": "The SkiplistSSet is introduced in chapter 4 of Open Data Structures.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1340.2632500510663,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.8274214842736525,
+      "ragas_answer_relevancy": 0.9756066909200637,
+      "extra": {
+        "retrieved_chunks": [
+          "SkiplistSSet (DataStructure). chapter: 4. implements: SSet. supports: find. supports: add.",
+          "SkiplistList (DataStructure). chapter: 4. implements: List.",
+          "AdjacencyLists (DataStructure). chapter: 12. implements: Graph. supports: hasEdge. uses: DLList.",
+          "SLList (LinkedListStructure). chapter: 3. implements: Stack. implements: Queue. supports: push. supports: pop.",
+          "LinearHashTable (HashTableStructure). chapter: 5. implements: USet."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q002",
+      "difficulty": "easy",
+      "category": "lookup",
+      "uses_inference": false,
+      "question_text": "What is the worst-case complexity of ArrayStack.get?",
+      "gold_answer": "O(1)",
+      "baseline_answer": "The worst-case complexity of ArrayStack.get is constant.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 757.5293339323252,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.5824979465701986,
+      "ragas_answer_relevancy": 1.0000000000000002,
+      "extra": {
+        "retrieved_chunks": [
+          "get (Operation). hasWorstCaseComplexity: constant.",
+          "get (Operation). hasWorstCaseComplexity: constant.",
+          "addFirst (Operation). hasWorstCaseComplexity: constant.",
+          "find (Operation). hasWorstCaseComplexity: linear.",
+          "find (Operation). hasWorstCaseComplexity: linear."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q003",
+      "difficulty": "easy",
+      "category": "lookup",
+      "uses_inference": false,
+      "question_text": "Which interface does ChainedHashTable implement?",
+      "gold_answer": "USet",
+      "baseline_answer": "ChainedHashTable implements the USet interface.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 799.0025831386447,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.8542049887130836,
+      "ragas_answer_relevancy": 0.9890873711744245,
+      "extra": {
+        "retrieved_chunks": [
+          "ChainedHashTable (HashTableStructure). chapter: 5. implements: USet. supports: find. supports: add. uses: ArrayStack.",
+          "LinearHashTable (HashTableStructure). chapter: 5. implements: USet.",
+          "Queue (Interface).",
+          "XFastTrie (TrieStructure). chapter: 13. implements: SSet. supports: find. specialises: BinaryTrie. uses: ChainedHashTable.",
+          "Stack (Interface)."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q004",
+      "difficulty": "easy",
+      "category": "lookup",
+      "uses_inference": false,
+      "question_text": "What is the big-O notation for logarithmic complexity in this ontology?",
+      "gold_answer": "O(log n)",
+      "baseline_answer": "The big-O notation for logarithmic complexity in this ontology is O(log n).",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 2104.409374995157,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.8906472407561385,
+      "ragas_answer_relevancy": 1.0,
+      "extra": {
+        "retrieved_chunks": [
+          "logarithmic (Complexity). bigO: O(log n).",
+          "linear (Complexity). bigO: O(n).",
+          "linearithmic (Complexity). bigO: O(n log n).",
+          "constant (Complexity). bigO: O(1).",
+          "find (Operation). hasWorstCaseComplexity: logarithmic."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q005",
+      "difficulty": "easy",
+      "category": "lookup",
+      "uses_inference": false,
+      "question_text": "What is the worst-case complexity of find in RedBlackTree?",
+      "gold_answer": "O(log n)",
+      "baseline_answer": "The worst-case complexity of the find operation in a Red-Black Tree is logarithmic.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 849.1574169602245,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.6103764447979475,
+      "ragas_answer_relevancy": 0.9677063503288393,
+      "extra": {
+        "retrieved_chunks": [
+          "find (Operation). hasWorstCaseComplexity: linear.",
+          "find (Operation). hasWorstCaseComplexity: linear.",
+          "find (Operation). hasWorstCaseComplexity: linear.",
+          "find (Operation). hasWorstCaseComplexity: linear.",
+          "find (Operation). hasWorstCaseComplexity: logarithmic."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q006",
+      "difficulty": "medium",
+      "category": "interface_search",
+      "uses_inference": false,
+      "question_text": "Which data structures implement the SSet interface?",
+      "gold_answer": "BinarySearchTree, Treap, ScapegoatTree, RedBlackTree, SkiplistSSet, BinaryTrie, XFastTrie, YFastTrie",
+      "baseline_answer": "The data structures that implement the SSet interface are:\n\n1. SkiplistSSet\n2. BinaryTrie\n3. BinarySearchTree",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1188.4197080507874,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.5859099840075894,
+      "ragas_answer_relevancy": 0.9796180128357787,
+      "extra": {
+        "retrieved_chunks": [
+          "SkiplistSSet (DataStructure). chapter: 4. implements: SSet. supports: find. supports: add.",
+          "SSet (Interface).",
+          "BinaryTrie (TrieStructure). chapter: 13. implements: SSet. supports: find.",
+          "BinarySearchTree (TreeStructure). chapter: 6. implements: SSet. supports: find. supports: add. specialises: BinaryTree.",
+          "LinearHashTable (HashTableStructure). chapter: 5. implements: USet."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q007",
+      "difficulty": "medium",
+      "category": "relation_search",
+      "uses_inference": false,
+      "question_text": "Which sort algorithm directly uses BinaryHeap?",
+      "gold_answer": "HeapSort",
+      "baseline_answer": "HeapSort is the sort algorithm that directly uses BinaryHeap.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 966.2879169918597,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.9333579059937838,
+      "ragas_answer_relevancy": 0.8207212588438826,
+      "extra": {
+        "retrieved_chunks": [
+          "HeapSort (SortAlgorithm). chapter: 11. uses: BinaryHeap.",
+          "BinaryHeap (HeapStructure). chapter: 10. supports: add. supports: remove. uses: ArrayStack.",
+          "MergeSort (SortAlgorithm). chapter: 11.",
+          "QuickSort (SortAlgorithm). chapter: 11.",
+          "CountingSort (SortAlgorithm). chapter: 11."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q008",
+      "difficulty": "medium",
+      "category": "count",
+      "uses_inference": false,
+      "question_text": "How many array-based structures are defined in the ontology?",
+      "gold_answer": "5",
+      "baseline_answer": "There are five array-based structures defined in the ontology: RootishArrayStack, DualArrayDeque, ArrayStack, ArrayQueue, and ArrayDeque.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1375.2696660812944,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.16666666666666666,
+      "ragas_answer_correctness": 0.5403123338811354,
+      "ragas_answer_relevancy": 1.0000000000000002,
+      "extra": {
+        "retrieved_chunks": [
+          "RootishArrayStack (ArrayBasedStructure). chapter: 2. implements: List.",
+          "DualArrayDeque (ArrayBasedStructure). chapter: 2. implements: List. implements: Deque. uses: ArrayStack.",
+          "ArrayStack (ArrayBasedStructure). chapter: 2. implements: List. implements: Stack. supports: get. supports: set. supports: add. supports: remove.",
+          "ArrayQueue (ArrayBasedStructure). chapter: 2. implements: Queue. uses: ArrayStack.",
+          "ArrayDeque (ArrayBasedStructure). chapter: 2. implements: List. implements: Deque. supports: get. supports: add. supports: remove."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q009",
+      "difficulty": "medium",
+      "category": "interface_intersection",
+      "uses_inference": false,
+      "question_text": "Which structures implement both List and Deque?",
+      "gold_answer": "ArrayDeque, DLList",
+      "baseline_answer": "The structures that implement both List and Deque are:\n\n1. DualArrayDeque\n2. DLList\n3. ArrayDeque\n4. SEList",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1525.612583849579,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.75,
+      "ragas_answer_correctness": 0.6702779197409203,
+      "ragas_answer_relevancy": 0.9749584287247992,
+      "extra": {
+        "retrieved_chunks": [
+          "DualArrayDeque (ArrayBasedStructure). chapter: 2. implements: List. implements: Deque. uses: ArrayStack.",
+          "DLList (LinkedListStructure). chapter: 3. implements: List. implements: Deque. supports: get. supports: addFirst. supports: removeFirst.",
+          "ArrayDeque (ArrayBasedStructure). chapter: 2. implements: List. implements: Deque. supports: get. supports: add. supports: remove.",
+          "SEList (LinkedListStructure). comment: Space-efficient linked list — DLList of small ArrayDeque blocks.. chapter: 3. implements: List. implements: Deque. uses: DLList. uses: ArrayDeque.",
+          "SLList (LinkedListStructure). chapter: 3. implements: Stack. implements: Queue. supports: push. supports: pop."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q010",
+      "difficulty": "medium",
+      "category": "interface_search",
+      "uses_inference": false,
+      "question_text": "Which structures does the Graph interface get implemented by?",
+      "gold_answer": "AdjacencyMatrix, AdjacencyLists",
+      "baseline_answer": "The Graph interface is implemented by the AdjacencyMatrix and AdjacencyLists data structures.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1154.5211249031126,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.9134374625384936,
+      "ragas_answer_relevancy": 0.8232520085937117,
+      "extra": {
+        "retrieved_chunks": [
+          "Graph (Interface).",
+          "AdjacencyMatrix (DataStructure). chapter: 12. implements: Graph. supports: hasEdge.",
+          "AdjacencyLists (DataStructure). chapter: 12. implements: Graph. supports: hasEdge. uses: DLList.",
+          "Stack (Interface).",
+          "RootishArrayStack (ArrayBasedStructure). chapter: 2. implements: List."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q011",
+      "difficulty": "medium",
+      "category": "chapter_filter",
+      "uses_inference": false,
+      "question_text": "List all data structures introduced in Chapter 13.",
+      "gold_answer": "BinaryTrie, XFastTrie, YFastTrie",
+      "baseline_answer": "I don't know.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1176.4863340649754,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.020712347239490597,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "retrieved_chunks": [
+          "ArrayDeque (ArrayBasedStructure). chapter: 2. implements: List. implements: Deque. supports: get. supports: add. supports: remove.",
+          "DLList (LinkedListStructure). chapter: 3. implements: List. implements: Deque. supports: get. supports: addFirst. supports: removeFirst.",
+          "SLList (LinkedListStructure). chapter: 3. implements: Stack. implements: Queue. supports: push. supports: pop.",
+          "SkiplistList (DataStructure). chapter: 4. implements: List.",
+          "BinaryTree (TreeStructure). chapter: 6."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q012",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "List all data structures that HeapSort uses, directly or indirectly.",
+      "gold_answer": "BinaryHeap, ArrayStack",
+      "baseline_answer": "HeapSort uses the following data structures directly or indirectly:\n\n1. BinaryHeap (HeapStructure)\n2. ArrayStack (ArrayBasedStructure) - used by BinaryHeap",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1854.698667069897,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.6666666666666666,
+      "ragas_answer_correctness": 0.7627832613701222,
+      "ragas_answer_relevancy": 0.8332415286191089,
+      "extra": {
+        "retrieved_chunks": [
+          "HeapSort (SortAlgorithm). chapter: 11. uses: BinaryHeap.",
+          "BinaryHeap (HeapStructure). chapter: 10. supports: add. supports: remove. uses: ArrayStack.",
+          "MeldableHeap (HeapStructure). chapter: 10. supports: add. supports: remove.",
+          "ArrayStack (ArrayBasedStructure). chapter: 2. implements: List. implements: Stack. supports: get. supports: set. supports: add. supports: remove.",
+          "SLList (LinkedListStructure). chapter: 3. implements: Stack. implements: Queue. supports: push. supports: pop."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q013",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "Which data structures does YFastTrie specialise (directly or indirectly)?",
+      "gold_answer": "XFastTrie, BinaryTrie",
+      "baseline_answer": "YFastTrie directly specialises in XFastTrie. Indirectly, it also relates to BinaryTrie, as XFastTrie specialises in BinaryTrie.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1617.2028749715537,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.3333333333333333,
+      "ragas_answer_correctness": 0.4985091797820136,
+      "ragas_answer_relevancy": 0.8507389195809115,
+      "extra": {
+        "retrieved_chunks": [
+          "YFastTrie (TrieStructure). chapter: 13. implements: SSet. specialises: XFastTrie. uses: Treap.",
+          "XFastTrie (TrieStructure). chapter: 13. implements: SSet. supports: find. specialises: BinaryTrie. uses: ChainedHashTable.",
+          "BinaryTrie (TrieStructure). chapter: 13. implements: SSet. supports: find.",
+          "Treap (TreeStructure). chapter: 7. implements: SSet. supports: find. supports: add. specialises: BinarySearchTree.",
+          "RedBlackTree (TreeStructure). chapter: 9. implements: SSet. supports: find. supports: add. specialises: BinarySearchTree."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q014",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "List every data structure transitively used by any structure introduced in Chapter 13.",
+      "gold_answer": "ChainedHashTable, ArrayStack, Treap",
+      "baseline_answer": "I don't know.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 804.8280000220984,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.032249238402529405,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "retrieved_chunks": [
+          "AdjacencyLists (DataStructure). chapter: 12. implements: Graph. supports: hasEdge. uses: DLList.",
+          "SLList (LinkedListStructure). chapter: 3. implements: Stack. implements: Queue. supports: push. supports: pop.",
+          "Treap (TreeStructure). chapter: 7. implements: SSet. supports: find. supports: add. specialises: BinarySearchTree.",
+          "RootishArrayStack (ArrayBasedStructure). chapter: 2. implements: List.",
+          "ArrayDeque (ArrayBasedStructure). chapter: 2. implements: List. implements: Deque. supports: get. supports: add. supports: remove."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q015",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "All ancestors of Treap via specialises (direct + indirect).",
+      "gold_answer": "BinarySearchTree, BinaryTree",
+      "baseline_answer": "The ancestors of Treap via specialises (direct + indirect) are:\n\n1. BinarySearchTree (direct ancestor of Treap)\n2. XFastTrie (indirect ancestor via Treap)",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1351.3301669154316,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.5,
+      "ragas_answer_correctness": 0.5522545716992016,
+      "ragas_answer_relevancy": 0.7212135929747033,
+      "extra": {
+        "retrieved_chunks": [
+          "Treap (TreeStructure). chapter: 7. implements: SSet. supports: find. supports: add. specialises: BinarySearchTree.",
+          "YFastTrie (TrieStructure). chapter: 13. implements: SSet. specialises: XFastTrie. uses: Treap.",
+          "ScapegoatTree (TreeStructure). chapter: 8. implements: SSet. supports: find. supports: add. specialises: BinarySearchTree.",
+          "XFastTrie (TrieStructure). chapter: 13. implements: SSet. supports: find. specialises: BinaryTrie. uses: ChainedHashTable.",
+          "RedBlackTree (TreeStructure). chapter: 9. implements: SSet. supports: find. supports: add. specialises: BinarySearchTree."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q016",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "Which sort algorithms use a counting-based primitive (directly or indirectly)?",
+      "gold_answer": "RadixSort",
+      "baseline_answer": "The sort algorithms that use a counting-based primitive (directly or indirectly) are:\n\n1. CountingSort (directly)\n2. RadixSort (indirectly, as it uses CountingSort)",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1371.8533751089126,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.38843112219628084,
+      "ragas_answer_relevancy": 0.8872567975181168,
+      "extra": {
+        "retrieved_chunks": [
+          "CountingSort (SortAlgorithm). chapter: 11.",
+          "RadixSort (SortAlgorithm). chapter: 11. uses: CountingSort.",
+          "HeapSort (SortAlgorithm). chapter: 11. uses: BinaryHeap.",
+          "MergeSort (SortAlgorithm). chapter: 11.",
+          "QuickSort (SortAlgorithm). chapter: 11."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q017",
+      "difficulty": "trap",
+      "category": "trap",
+      "uses_inference": false,
+      "question_text": "What is the worst-case complexity of insert in AuroraTree?",
+      "gold_answer": "No information in this ontology. AuroraTree is not defined.",
+      "baseline_answer": "I don't know.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1431.790041970089,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.04426367681686417,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "retrieved_chunks": [
+          "addFirst (Operation). hasWorstCaseComplexity: constant.",
+          "remove (Operation). hasWorstCaseComplexity: logarithmic.",
+          "remove (Operation). hasWorstCaseComplexity: linear.",
+          "remove (Operation). hasWorstCaseComplexity: linear.",
+          "remove (Operation). hasWorstCaseComplexity: linear."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q018",
+      "difficulty": "trap",
+      "category": "trap",
+      "uses_inference": false,
+      "question_text": "Which interface does the SplayTree implement?",
+      "gold_answer": "No information in this ontology. SplayTree is not defined here.",
+      "baseline_answer": "I don't know.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1197.747082915157,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.04321973825448394,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "retrieved_chunks": [
+          "ScapegoatTree (TreeStructure). chapter: 8. implements: SSet. supports: find. supports: add. specialises: BinarySearchTree.",
+          "Treap (TreeStructure). chapter: 7. implements: SSet. supports: find. supports: add. specialises: BinarySearchTree.",
+          "RedBlackTree (TreeStructure). chapter: 9. implements: SSet. supports: find. supports: add. specialises: BinarySearchTree.",
+          "Stack (Interface).",
+          "YFastTrie (TrieStructure). chapter: 13. implements: SSet. specialises: XFastTrie. uses: Treap."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q019",
+      "difficulty": "trap",
+      "category": "trap",
+      "uses_inference": false,
+      "question_text": "List all data structures introduced in Chapter 15.",
+      "gold_answer": "No information in this ontology. No structure is tagged Chapter 15.",
+      "baseline_answer": "I don't know.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 660.1436249911785,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.05348180950884687,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "retrieved_chunks": [
+          "ArrayDeque (ArrayBasedStructure). chapter: 2. implements: List. implements: Deque. supports: get. supports: add. supports: remove.",
+          "DLList (LinkedListStructure). chapter: 3. implements: List. implements: Deque. supports: get. supports: addFirst. supports: removeFirst.",
+          "SLList (LinkedListStructure). chapter: 3. implements: Stack. implements: Queue. supports: push. supports: pop.",
+          "SkiplistList (DataStructure). chapter: 4. implements: List.",
+          "ArrayStack (ArrayBasedStructure). chapter: 2. implements: List. implements: Stack. supports: get. supports: set. supports: add. supports: remove."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q020",
+      "difficulty": "trap",
+      "category": "trap",
+      "uses_inference": false,
+      "question_text": "Which sort algorithm in this ontology uses TimSort internally?",
+      "gold_answer": "No information in this ontology. TimSort is not defined.",
+      "baseline_answer": "I don't know.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1329.5712911058217,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.04750720895744856,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "retrieved_chunks": [
+          "MergeSort (SortAlgorithm). chapter: 11.",
+          "CountingSort (SortAlgorithm). chapter: 11.",
+          "QuickSort (SortAlgorithm). chapter: 11.",
+          "RadixSort (SortAlgorithm). chapter: 11. uses: CountingSort.",
+          "HeapSort (SortAlgorithm). chapter: 11. uses: BinaryHeap."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    }
+  ],
+  "aggregate": {
+    "avg_latency_ms": 1242.8062209044583,
+    "avg_tool_calls": 0.0,
+    "total_prompt_tokens": 0,
+    "total_completion_tokens": 0,
+    "avg_hallucination_rate": null,
+    "avg_citation_coverage": null,
+    "citation_provided_count": 0,
+    "citation_provided_rate": 0.0,
+    "avg_ragas_faithfulness": 0.5208333333333334,
+    "avg_ragas_answer_correctness": 0.49259279327501126,
+    "avg_ragas_answer_relevancy": 0.6411700480057171,
+    "per_difficulty": {
+      "easy": {
+        "count": 5,
+        "avg_hallucination": null,
+        "avg_citation": null,
+        "citation_provided": 0
+      },
+      "medium": {
+        "count": 6,
+        "avg_hallucination": null,
+        "avg_citation": null,
+        "citation_provided": 0
+      },
+      "hard": {
+        "count": 5,
+        "avg_hallucination": null,
+        "avg_citation": null,
+        "citation_provided": 0
+      },
+      "trap": {
+        "count": 4,
+        "avg_hallucination": null,
+        "avg_citation": null,
+        "citation_provided": 0
+      }
+    }
+  }
+}

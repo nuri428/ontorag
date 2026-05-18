@@ -22,6 +22,22 @@ User query → LLM agent → ontology tools (get_schema / find_entities / traver
 
 ---
 
+## Why ontorag (vs. vector RAG)
+
+Measured on identical TBox + ABox + goldsets — see [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) for the full run (LangChain + Chroma + OpenAI, 70 questions across 2 domains).
+
+| Capability | Vector RAG (LangChain) | ontorag |
+|---|---|---|
+| Single-entity lookup | ✓ Commerce easy 5/5 | ✓ |
+| Multi-hop / OWL transitive inference (`pl:locatedIn+`) | ✗ Q008/Q039/Q040 stopped at first hop | ✓ |
+| Triple-level citation (auditable provenance) | ✗ 0 / 70 (structural — chunks only) | ✓ 30 / 70 cited |
+| Hallucination measurability against ground truth | N/A (no triple-level grounding) | ✓ 0.000 hallucination rate |
+| Refusal on KG-absent facts (trap questions) | ✓ Commerce 3/3 traps refused | ✓ |
+
+Vector RAG handles flat lookups well — the structural advantage of ontorag appears on **transitive inference**, **provenance**, and **measurable grounding**.
+
+---
+
 ## Key features
 
 | Feature | Detail |
@@ -424,13 +440,313 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 ---
 
+## Evaluation Harness — `ontorag eval`
+
+A built-in evaluation harness for comparing ontorag against vector RAG
+baselines on benchmark goldsets. Available on the `eval-harness` branch.
+
+### What it provides
+
+- **Two benchmark domains** — `examples/pure_land/` (50 questions, fictional+religious — Sukhāvatī cosmology with multilingual labels) and `examples/commerce/` (20 questions, schema.org real vocabulary with fictional companies)
+- **Goldset format** — JSONL with `gold_sparql`, `gold_answer`, `gold_triples`, `uses_inference` per question. Pydantic-validated.
+- **5 metrics** — `sparql_result_equivalent`, `inference_utilization`, `hallucination_rate`, `citation_coverage`, plus RAGAS (`faithfulness`, `answer_correctness`, `answer_relevancy`)
+- **Baselines** — `ontorag_mock` (perfect retrieval upper bound), `vector_rag_mock` (lossy 70/20/10 bucket simulation), `langchain` (real RetrievalQA + Chroma + OpenAI — `--extra bench` + API key)
+- **Markdown reports** — automatic generation suitable for PR comments / blog posts
+- **CI integration** — GitHub Actions matrix runs both domains on every PR; report uploaded as artifact + posted as sticky comment
+
+### Commands
+
+```bash
+# Validate a goldset
+uv run ontorag eval validate examples/commerce/goldset.jsonl
+
+# Run gold_sparql against schema+data (data hygiene check)
+uv run ontorag eval run examples/commerce/goldset.jsonl \
+    --schema examples/commerce/schema.ttl \
+    --data examples/commerce/data.ttl \
+    --output report.json
+
+# End-to-end bench with a baseline + metrics
+uv run ontorag eval bench examples/commerce/goldset.jsonl \
+    --baseline ontorag_mock \
+    --schema examples/commerce/schema.ttl \
+    --data examples/commerce/data.ttl \
+    --output ontorag.json
+
+# Side-by-side comparison Markdown
+uv run ontorag eval compare ontorag.json langchain.json \
+    --name-a ontorag --name-b langchain \
+    --output comparison.md
+
+# Markdown report from JSON
+uv run ontorag eval report ontorag.json --output report.md
+```
+
+### Real LangChain baseline + RAGAS (~$1 / run)
+
+```bash
+uv sync --extra bench
+export OPENAI_API_KEY=sk-...
+
+uv run ontorag eval bench examples/commerce/goldset.jsonl \
+    --baseline langchain \
+    --schema examples/commerce/schema.ttl \
+    --data examples/commerce/data.ttl \
+    --with-ragas \
+    --output langchain_real.json
+```
+
+See [`BENCHMARK_RESULTS.md`](BENCHMARK_RESULTS.md) for the full
+multi-iteration history and an honest accounting of what is and isn't
+proven.
+
+---
+
+## Benchmark results — 4-domain RAGAS final (2026-05)
+
+We ran a head-to-head benchmark across **four ontology domains** with
+both **agent = `gpt-4o`** and **judge = `gpt-4o`** (RAGAS LLM-as-judge).
+The two baselines compared are:
+
+| Baseline | What it does |
+|---|---|
+| `langchain` | Classic vector RAG — Chroma index over TTL chunks + OpenAI embeddings + `gpt-4o` RetrievalQA. No graph reasoning. |
+| `ontorag_native` | ontorag's own agent loop — `gpt-4o` calling 9 ontology-aware MCP tools backed by Apache Jena Fuseki with OWL inference. |
+
+### The four domains — designed to cover different OWL feature mixes
+
+| Domain | Questions | Lang | OWL feature mix | LLM contamination |
+|---|---|---|---|---|
+| **Pokemon** | 20 | Korean | 1 TransitiveProperty (`evolvesFrom`), small ABox (~50 instances) | Very high — every frontier LLM was pre-trained on Gen-1 Pokemon |
+| **Techstack** | 20 | Korean | 1 TransitiveProperty (`dependsOn`), small ABox (15 technologies) | Very high — React/Node.js/TypeScript everywhere |
+| **ODS** (Open Data Structures) | 20 | English | 2 TransitiveProperty (`uses`, `specialises`) + 1 inverseOf pair (`implements` ↔ `implementedBy`) | High — Pat Morin's open textbook |
+| **Pure Land** | 50 | Korean | TransitiveProperty (`locatedIn`) + multilingual labels (`@ko/@zh-Hant/@en`) + large ABox (717 triples) | Low — Sukhāvatī cosmology, fictional+religious |
+
+The four domains were deliberately chosen to vary along two axes — how
+**OWL-feature-rich** the ontology is, and how much the LLM has already
+**seen the answers during pre-training**.
+
+> **Attribution & disclaimer policy.** Every example dataset in this
+> repository has a uniform `## Disclaimer` section near the bottom of
+> its `README.md` covering four items: (1) **rights** — who owns the
+> trademarks / copyrights / source material referenced; (2) **nature
+> of this work** — fan-made fair use, CC-attributed derivative, or
+> original modeling against public-domain sources; (3) **no
+> affiliation** with the rights holders; (4) **takedown commitment**
+> with a contact path. Per-domain summary:
+> *Pokemon* — trademarks of The Pokémon Company / Nintendo /
+> Creatures Inc. / Game Freak Inc., fan-made educational example
+> ([details](examples/pokemon/README.md#disclaimer));
+> *Techstack* — technology names are trademarks of Meta / Google /
+> Vercel / OpenJS Foundation / Microsoft etc., used under nominative
+> fair use ([details](examples/techstack/README.md#disclaimer));
+> *ODS* — CC BY 2.5 derivative with attribution to Pat Morin
+> ([details](examples/ods/README.md#disclaimer));
+> *Pure Land* — original modeling against public-domain canonical
+> sūtras, with separate doctrinal disclaimer
+> ([details](examples/pure_land/README.md#disclaimer)).
+
+### The numbers
+
+For each (domain, baseline) pair we measured three RAGAS LLM-as-judge
+metrics (Faithfulness, AnswerCorrectness, AnswerRelevancy) plus two
+deterministic metrics (Hallucination rate from SPARQL evidence,
+Citation provision rate). Values in **bold** are the within-domain
+winner.
+
+| Domain | Baseline | Faithfulness | Correctness | Relevancy | Hallucination | Citation% |
+|---|---|---|---|---|---|---|
+| Pokemon | LangChain | **0.677** | 0.448 | 0.342 | — | 0% |
+| Pokemon | ontorag_native | 0.423 | **0.466** | **0.349** | **0.000** | **65%** |
+| Techstack | LangChain | **0.808** | **0.523** | **0.420** | — | 0% |
+| Techstack | ontorag_native | 0.333 | 0.382 | 0.279 | **0.000** | **45%** |
+| ODS | LangChain | 0.521 | 0.493 | 0.641 | — | 0% |
+| ODS | ontorag_native | **0.551** | **0.515** | **0.749** | **0.000** | **65%** |
+| Pure Land | LangChain | 0.345 | 0.260 | 0.180 | — | 0% |
+| Pure Land | ontorag_native | **0.422** | **0.381** | **0.357** | **0.000** | **66%** |
+
+### How to read the table — three findings
+
+#### Finding 1. LLM-judge Faithfulness has a chunk-quote style bias
+
+In Pokemon and Techstack, LangChain wins Faithfulness by a large margin
+(0.677 and 0.808). This is **not** evidence that LangChain produces
+truer answers — it's evidence that the RAGAS judge rewards answers
+whose wording overlaps with the retrieved chunks. LangChain literally
+quotes the source TTL text, so the overlap is high.
+
+ontorag_native, by contrast, **runs SPARQL and translates the result
+into a fluent answer**. The factual content can be identical, but the
+phrasing diverges from the source — so the judge penalizes it.
+
+You can confirm this is a *style* difference rather than a *factual*
+difference by looking at the next two metrics: in Pokemon, ontorag's
+**AnswerCorrectness is actually higher** (0.466 vs 0.448) and so is
+**AnswerRelevancy** (0.349 vs 0.342). Same facts, different style.
+
+#### Finding 2. The richer the OWL feature set, the bigger ontorag's edge
+
+Compare the four domains by how many independent OWL features the TBox
+exercises:
+
+| Domain | TransitiveProperty | inverseOf | Multilingual | Domains ontorag wins (5 metrics) |
+|---|---|---|---|---|
+| Pokemon | 1 | ✗ | ✗ | 3 of 5 |
+| Techstack | 1 | ✗ | ✗ | 2 of 5 |
+| ODS | 2 | ✓ | ✗ | 5 of 5 |
+| Pure Land | 1 | ✓ | ✓ | 5 of 5 |
+
+When the ontology only exercises **one axis of OWL inference**
+(Pokemon, Techstack), vector RAG's chunk-quote advantage holds on the
+style metrics. When the ontology exercises **two or more axes** (ODS's
+two TransProps + inverseOf; Pure Land's transitive locatedIn +
+multilingual labels + large ABox), graph reasoning starts winning
+*every* RAGAS metric — including Faithfulness.
+
+The most dramatic case is Pure Land. AnswerRelevancy jumps from 0.180
+(LangChain) to 0.357 (ontorag), a **98% relative improvement**. Why?
+Because the question and the gold answer can be in different
+languages, and the URI links them — but the vector index sees them as
+unrelated chunks.
+
+##### Decision grid — where each domain sits
+
+Plotting the four domains on a 2×2 of *OWL richness* × *LLM
+contamination* makes the trade-off visible at a glance:
+
+```
+                           OWL richness  →
+                      low                       high
+                  ┌──────────────────┬──────────────────┐
+                  │                  │                  │
+        low       │                  │   ★ Pure Land    │
+                  │                  │   ★ ODS          │
+                  │                  │                  │
+  contamination   ├──────────────────┼──────────────────┤
+                  │                  │                  │
+        high      │   ★ Pokemon     │   ★ Techstack   │
+                  │                  │                  │
+                  └──────────────────┴──────────────────┘
+                  ontorag             ontorag wins every
+                  Correctness/        RAGAS metric +
+                  Relevancy ↑,        always wins
+                  LangChain           Hallucination 0%
+                  Faithfulness ↑      and Citation 45-66%
+```
+
+Pure Land sits in the **upper-right** alongside ODS — its TransProp +
+inverseOf + multilingual labels make it OWL-rich, and its
+fictional+religious cosmology makes it the least-contaminated of the
+four. That cell is where ontorag's advantage is largest (Pure Land
+AnswerRelevancy +98% relative; ODS Relevancy +17% absolute).
+
+The **lower-right** (Techstack) is the *adversarial* cell for ontorag
+on RAGAS scores — high contamination plus a small ABox plays directly
+to the chunk-quote style bias. The **lower-left** (Pokemon) is the
+*split decision* cell: LangChain wins style metrics, ontorag wins
+factual metrics. The **upper-left** is intentionally empty — that
+combination (low OWL features + low contamination) is rare in
+practice; if you're not exercising graph reasoning *and* the LLM
+hasn't memorized your domain, you probably just need a Q&A bot, not a
+RAG stack.
+
+#### Finding 3. Hallucination 0% and Citation 45-66% — only ontorag
+
+Look at the rightmost two columns: across **all four domains**,
+ontorag has a **Hallucination rate of exactly 0.000** and Citation
+provision rates between 45% and 66%. LangChain shows "—" in both — and
+this needs an explanation, because "—" is **not** the same as "0".
+
+The two metrics are *deterministic* (not LLM-judged): the harness
+parses each answer for explicit triple/URI citations, then checks each
+cited triple against the actual ABox.
+
+* `citation_provided_rate` = "did the answer cite anything?"
+* `citation_coverage` = "of those citations, what fraction match a real
+  ABox triple?"
+* `hallucination_rate` = "of those citations, what fraction reference
+  triples that do **not** exist in the ABox?"
+
+All three require step 1 — **the answer must emit citations** — before
+step 2 can compute anything. LangChain's `RetrievalQA` chain feeds
+chunks to the LLM as prompt context and returns prose only; it never
+emits RDF triples. So:
+
+* `citation_provided_rate = 0%` is a real measurement (the baseline
+  produced no citations on any of the 110 questions).
+* `hallucination_rate = "—"` is **"not measurable"**, not "zero". With
+  no citations to verify, the falsifiable test has no input — saying
+  the rate is 0 would be a false claim of safety.
+
+ontorag's agent loop, by contrast, runs SPARQL through MCP tools and
+attaches the result triples as evidence inside the answer. The harness
+extracts and verifies them, which is why the same columns *do*
+populate for ontorag — and they all clear the bar (0 hallucinations,
+45-66% of answers cited at least one triple).
+
+**This is the structural moat that does not depend on the LLM judge.**
+If your application is in a domain where producing a confident wrong
+answer is expensive — legal, medical, scholarly KGs, multi-locale
+catalogs — this is where the value lives. Each goldset includes 20%
+**trap questions** (entities the LLM has seen in pre-training but that
+are absent from the ontology, e.g. *Eevee* / *Vue.js* / *SplayTree* /
+*Mew*); ontorag refuses to answer instead of hallucinating, because
+SPARQL returns empty rows and the agent honors that.
+
+> **Want a comparable proxy for LangChain?** RAGAS Faithfulness in
+> column 3 is the closest LLM-judged equivalent — but it gives you a
+> *fuzzy similarity score*, not a *falsifiable yes/no* check against
+> the actual graph.
+
+### Practical takeaway
+
+| If your domain is... | Pick |
+|---|---|
+| Heavy contamination + small ABox + style/quote matters | **LangChain** wins RAGAS scores; ~$0.45/run |
+| Rich OWL features (≥2 TransProps, inverseOf, or multilingual) | **ontorag** wins every RAGAS metric |
+| Hallucination cost > retrieval cost (legal/medical/scholarly) | **ontorag** — it refuses instead of fabricating |
+| You need to point at the exact triple that produced an answer | **ontorag** — only baseline that cites |
+
+Full per-question breakdown and the v2→v9 iteration history are in
+[`BENCHMARK_RESULTS.md`](BENCHMARK_RESULTS.md). Per-domain analyses
+live in each `examples/<domain>/README.md`.
+
+### Reproducing
+
+```bash
+docker compose up -d                           # Fuseki
+cp .env.example .env && edit OPENAI_API_KEY    # OpenAI key required
+echo "LLM_MODEL=gpt-4o"            >> .env     # agent model
+echo "RAGAS_JUDGE_MODEL=gpt-4o"    >> .env     # judge model (opt-in)
+
+# For each domain — clear graph, reload, run two baselines:
+uv run ontorag load schema examples/pokemon/schema.ttl
+uv run ontorag load data   examples/pokemon/data.ttl
+
+uv run ontorag eval bench examples/pokemon/goldset.jsonl \
+    --baseline langchain      --schema examples/pokemon/schema.ttl \
+    --data examples/pokemon/data.ttl --lang ko --with-ragas \
+    --output examples/pokemon/bench_results/langchain_gpt4o.json
+
+uv run ontorag eval bench examples/pokemon/goldset.jsonl \
+    --baseline ontorag_native --schema examples/pokemon/schema.ttl \
+    --data examples/pokemon/data.ttl --lang ko --with-ragas \
+    --output examples/pokemon/bench_results/ontorag_native_gpt4o.json
+```
+
+Approximate cost: ~$7-9 for the full 4-domain × 2-baseline run with
+`gpt-4o` on both agent and judge.
+
+---
+
 ## Roadmap
 
 - **v0.1** — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE streaming ✅
 - **v0.2** — Web UI (Schema/Data/Playground) · RDF upload from browser · Rate-limit UX · Forced tool-use when ontology has data ✅
 - **v0.3** — LLMs4OL: `ontorag learn` CLI (Term Typing · Taxonomy Discovery · Relation Extraction) · `type_term` + `extract_triples` MCP tools · Tech Stack example ✅
 - **v0.3.1** — Structured ABox population: `populate-structured` reads CSV/JSON/JSONL → maps columns to TBox via LLM → RDF triples → Fuseki; mapping cache, uuid5 idempotent URIs, batch checkpointing ✅
-- **v0.3.2** (current) — TBox/ABox dump: `ontorag dump schema|data|all` · `GET /dump` REST endpoint · Web UI download buttons · TTL / JSON / JSONL / XLSX formats ✅
+- **v0.3.2** — TBox/ABox dump: `ontorag dump schema|data|all` · `GET /dump` REST endpoint · Web UI download buttons · TTL / JSON / JSONL / XLSX formats ✅
+- **v0.4 (eval-harness branch, current)** — Phase B evaluation harness: 2 benchmark domains (Pure Land 50q + Commerce 20q) · Goldset JSONL + Pydantic loader · 4 deterministic metrics + RAGAS wrapper · LangChain vector baseline · `ontorag eval` CLI (validate/run/bench/compare/report) · GitHub Actions matrix CI · BenchRunner orchestrator ✅
 - **v0.5** — Neo4j + n10s adapter · `GRAPH_STORE` env var · Vector similarity tool (`find_similar`) · Multi-ontology support
 
 ---

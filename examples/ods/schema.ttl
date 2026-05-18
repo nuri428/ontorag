@@ -1,0 +1,121 @@
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
+@prefix ods:   <https://ontorag.dev/ns/ods#> .
+
+# ── Ontology header ─────────────────────────────────────────────────────────
+
+<https://ontorag.dev/ns/ods> a owl:Ontology ;
+    rdfs:label "Open Data Structures Ontology"@en ;
+    rdfs:comment "TBox for the data structures and algorithms taught in Pat Morin's Open Data Structures (Carleton University). CC BY 2.5 — opendatastructures.org."@en .
+
+# ── Top-level class ─────────────────────────────────────────────────────────
+
+ods:DataStructure a owl:Class ;
+    rdfs:label "Data structure"@en ;
+    rdfs:comment "A concrete data structure as taught in Open Data Structures. Each instance is one named structure (ArrayStack, RedBlackTree, ...) presented in a specific chapter of the book."@en .
+
+# ── Subcategories (six concrete + one mixin) ────────────────────────────────
+
+ods:ArrayBasedStructure a owl:Class ;
+    rdfs:label "Array-based structure"@en ;
+    rdfs:subClassOf ods:DataStructure ;
+    rdfs:comment "Backs storage with a contiguous array (possibly with amortised re-allocation). Covered in Chapter 2."@en .
+
+ods:LinkedListStructure a owl:Class ;
+    rdfs:label "Linked-list structure"@en ;
+    rdfs:subClassOf ods:DataStructure ;
+    rdfs:comment "Sequence of nodes connected by pointers; singly-, doubly-, or space-efficient-linked. Covered in Chapter 3."@en .
+
+ods:TreeStructure a owl:Class ;
+    rdfs:label "Tree structure"@en ;
+    rdfs:subClassOf ods:DataStructure ;
+    rdfs:comment "Hierarchical data structure built from parent/child node references. Covers binary trees, search trees, and balanced variants in Chapters 6–9."@en .
+
+ods:HashTableStructure a owl:Class ;
+    rdfs:label "Hash-table structure"@en ;
+    rdfs:subClassOf ods:DataStructure ;
+    rdfs:comment "Maps keys to slots via a hash function; collision handling via chaining or open addressing. Covered in Chapter 5."@en .
+
+ods:HeapStructure a owl:Class ;
+    rdfs:label "Heap structure"@en ;
+    rdfs:subClassOf ods:DataStructure ;
+    rdfs:comment "Priority-queue data structure satisfying the heap property. Chapter 10."@en .
+
+ods:TrieStructure a owl:Class ;
+    rdfs:label "Trie structure"@en ;
+    rdfs:subClassOf ods:DataStructure ;
+    rdfs:comment "Bit-indexed search tree over integer keys. Chapter 13."@en .
+
+ods:SortAlgorithm a owl:Class ;
+    rdfs:label "Sort algorithm"@en ;
+    rdfs:comment "A sorting procedure as analysed in Chapter 11."@en .
+
+# ── Auxiliary classes ───────────────────────────────────────────────────────
+
+ods:Interface a owl:Class ;
+    rdfs:label "Abstract data type / interface"@en ;
+    rdfs:comment "An abstract operation set (List, SSet, USet, Stack, Queue, Deque, Graph) that data structures implement."@en .
+
+ods:Operation a owl:Class ;
+    rdfs:label "Operation"@en ;
+    rdfs:comment "A single operation supported by a data structure (e.g. add, remove, find). Each operation links to a worst-case complexity."@en .
+
+ods:Complexity a owl:Class ;
+    rdfs:label "Asymptotic complexity"@en ;
+    rdfs:comment "A big-O complexity class. Discrete instances cover the bands actually used in the book (Constant, Logarithmic, Linear, Linearithmic, Quadratic)."@en .
+
+# ── Object properties ──────────────────────────────────────────────────────
+
+ods:implements a owl:ObjectProperty ;
+    rdfs:label "implements"@en ;
+    rdfs:domain ods:DataStructure ;
+    rdfs:range ods:Interface ;
+    owl:inverseOf ods:implementedBy ;
+    rdfs:comment "Asserts that a data structure realises an abstract data type."@en .
+
+ods:implementedBy a owl:ObjectProperty ;
+    rdfs:label "implemented by"@en ;
+    rdfs:domain ods:Interface ;
+    rdfs:range ods:DataStructure ;
+    owl:inverseOf ods:implements .
+
+ods:supports a owl:ObjectProperty ;
+    rdfs:label "supports"@en ;
+    rdfs:domain ods:DataStructure ;
+    rdfs:range ods:Operation ;
+    rdfs:comment "Connects a data structure to one of its supported operations. Each Operation instance carries the worst-case Complexity."@en .
+
+ods:uses a owl:ObjectProperty, owl:TransitiveProperty ;
+    rdfs:label "uses"@en ;
+    rdfs:domain ods:DataStructure ;
+    rdfs:range ods:DataStructure ;
+    rdfs:comment "Composition relation: structure A uses structure B as a building block. TransitiveProperty — if A uses B and B uses C, then A uses C."@en .
+
+ods:specialises a owl:ObjectProperty, owl:TransitiveProperty ;
+    rdfs:label "specialises"@en ;
+    rdfs:domain ods:DataStructure ;
+    rdfs:range ods:DataStructure ;
+    rdfs:comment "Derivation relation among data structures: a balanced BST specialises a binary search tree which specialises a binary tree. TransitiveProperty."@en .
+
+ods:hasWorstCaseComplexity a owl:ObjectProperty ;
+    rdfs:label "has worst-case complexity"@en ;
+    rdfs:domain ods:Operation ;
+    rdfs:range ods:Complexity ;
+    rdfs:comment "Links an operation to its asymptotic worst-case running time."@en .
+
+# ── Data properties ─────────────────────────────────────────────────────────
+
+ods:chapter a owl:DatatypeProperty ;
+    rdfs:label "book chapter"@en ;
+    rdfs:domain ods:DataStructure ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Chapter number in Open Data Structures (Pat Morin) where the structure is introduced."@en .
+
+ods:bigO a owl:DatatypeProperty ;
+    rdfs:label "big-O notation"@en ;
+    rdfs:domain ods:Complexity ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Standard big-O string for the complexity band (e.g. \"O(1)\", \"O(log n)\")."@en .

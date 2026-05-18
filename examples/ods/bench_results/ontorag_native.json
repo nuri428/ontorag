@@ -1,0 +1,1124 @@
+{
+  "baseline_name": "ontorag_native",
+  "baseline_version": "0.1.0",
+  "goldset_path": "examples/ods/goldset.jsonl",
+  "graph_triples": 374,
+  "total_questions": 20,
+  "language": "en",
+  "results": [
+    {
+      "question_id": "Q001",
+      "difficulty": "easy",
+      "category": "lookup",
+      "uses_inference": false,
+      "question_text": "What chapter of Open Data Structures introduces the SkiplistSSet?",
+      "gold_answer": "Chapter 4",
+      "baseline_answer": "The SkiplistSSet is introduced in Chapter 4 of Open Data Structures.",
+      "baseline_cited_triple_count": 13,
+      "tool_calls": 1,
+      "latency_ms": 3375.8490418549627,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.15384615384615385,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.8253871055352726,
+      "ragas_answer_relevancy": 0.9755964521670041,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#DataStructure",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "SkiplistSSet"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 1
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q002",
+      "difficulty": "easy",
+      "category": "lookup",
+      "uses_inference": false,
+      "question_text": "What is the worst-case complexity of ArrayStack.get?",
+      "gold_answer": "O(1)",
+      "baseline_answer": "There are no instances of `ArrayStack` in the ontology, which means I cannot determine the worst-case complexity of the `get` operation for `ArrayStack`.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 3,
+      "latency_ms": 5345.349416136742,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.07016871312512582,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_related",
+          "find_entities",
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/ods#ArrayStack",
+              "predicate": "https://ontorag.dev/ns/ods#supports",
+              "class_uri_b": "https://ontorag.dev/ns/ods#Operation"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#Operation",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/ods#supports",
+                  "value": "ArrayStack"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#ArrayStack"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q003",
+      "difficulty": "easy",
+      "category": "lookup",
+      "uses_inference": false,
+      "question_text": "Which interface does ChainedHashTable implement?",
+      "gold_answer": "USet",
+      "baseline_answer": "The ChainedHashTable implements the USet interface.",
+      "baseline_cited_triple_count": 18,
+      "tool_calls": 1,
+      "latency_ms": 2232.1731250267476,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.2222222222222222,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.8479438597933854,
+      "ragas_answer_relevancy": 0.9840832901676181,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#HashTableStructure",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "op": "=",
+                  "value": "ChainedHashTable"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 1
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q004",
+      "difficulty": "easy",
+      "category": "lookup",
+      "uses_inference": false,
+      "question_text": "What is the big-O notation for logarithmic complexity in this ontology?",
+      "gold_answer": "O(log n)",
+      "baseline_answer": "The big-O notation for logarithmic complexity is \"O(log n)\".",
+      "baseline_cited_triple_count": 3,
+      "tool_calls": 1,
+      "latency_ms": 2994.8330828920007,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 1.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.9001210399034101,
+      "ragas_answer_relevancy": 0.838835583081361,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#Complexity",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/ods#bigO",
+                  "value": "O(log n)"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 1
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q005",
+      "difficulty": "easy",
+      "category": "lookup",
+      "uses_inference": false,
+      "question_text": "What is the worst-case complexity of find in RedBlackTree?",
+      "gold_answer": "O(log n)",
+      "baseline_answer": "The worst-case complexity of the \"find\" operation in a Red-Black Tree is \"logarithmic\".",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 4567.955791018903,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.1,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.6137128907716792,
+      "ragas_answer_relevancy": 0.9624893340908245,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#Operation",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "find"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 8
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q006",
+      "difficulty": "medium",
+      "category": "interface_search",
+      "uses_inference": false,
+      "question_text": "Which data structures implement the SSet interface?",
+      "gold_answer": "BinarySearchTree, Treap, ScapegoatTree, RedBlackTree, SkiplistSSet, BinaryTrie, XFastTrie, YFastTrie",
+      "baseline_answer": "There are no data structures implementing the SSet interface in the ontology.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 3620.8713341038674,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.08476393884719054,
+      "ragas_answer_relevancy": 0.8157591087587401,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/ods#Interface",
+              "predicate": "https://ontorag.dev/ns/ods#implements",
+              "class_uri_b": "https://ontorag.dev/ns/ods#DataStructure"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q007",
+      "difficulty": "medium",
+      "category": "relation_search",
+      "uses_inference": false,
+      "question_text": "Which sort algorithm directly uses BinaryHeap?",
+      "gold_answer": "HeapSort",
+      "baseline_answer": "The sort algorithm that directly uses BinaryHeap is HeapSort.",
+      "baseline_cited_triple_count": 9,
+      "tool_calls": 1,
+      "latency_ms": 2884.0096660424024,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.3333333333333333,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.6638161852798252,
+      "ragas_answer_relevancy": 0.9227534566003343,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/ods#SortAlgorithm",
+              "predicate": "https://ontorag.dev/ns/ods#uses",
+              "class_uri_b": "https://ontorag.dev/ns/ods#HeapStructure"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 1
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q008",
+      "difficulty": "medium",
+      "category": "count",
+      "uses_inference": false,
+      "question_text": "How many array-based structures are defined in the ontology?",
+      "gold_answer": "5",
+      "baseline_answer": "The ontology defines 5 array-based structures.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 1922.6034169550985,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.8031801542297667,
+      "ragas_answer_relevancy": 0.9751758979403027,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "count_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#ArrayBasedStructure"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q009",
+      "difficulty": "medium",
+      "category": "interface_intersection",
+      "uses_inference": false,
+      "question_text": "Which structures implement both List and Deque?",
+      "gold_answer": "ArrayDeque, DLList",
+      "baseline_answer": "There are no structures that implement both List and Deque.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 2,
+      "latency_ms": 4544.261459028348,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.13652712339176537,
+      "ragas_answer_relevancy": 0.9217631396306002,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_related",
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/ods#Interface",
+              "predicate": "https://ontorag.dev/ns/ods#implementedBy",
+              "class_uri_b": "https://ontorag.dev/ns/ods#LinkedListStructure"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/ods#Interface",
+              "predicate": "https://ontorag.dev/ns/ods#implementedBy",
+              "class_uri_b": "https://ontorag.dev/ns/ods#Deque"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q010",
+      "difficulty": "medium",
+      "category": "interface_search",
+      "uses_inference": false,
+      "question_text": "Which structures does the Graph interface get implemented by?",
+      "gold_answer": "AdjacencyMatrix, AdjacencyLists",
+      "baseline_answer": "The Graph interface is not implemented by any data structures.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 4095.2337910421193,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.06984771118426636,
+      "ragas_answer_relevancy": 0.8246235961012586,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/ods#Interface",
+              "predicate": "https://ontorag.dev/ns/ods#implementedBy",
+              "class_uri_b": "https://ontorag.dev/ns/ods#DataStructure"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q011",
+      "difficulty": "medium",
+      "category": "chapter_filter",
+      "uses_inference": false,
+      "question_text": "List all data structures introduced in Chapter 13.",
+      "gold_answer": "BinaryTrie, XFastTrie, YFastTrie",
+      "baseline_answer": "The following data structures are introduced in Chapter 13:\n\n1. **YFastTrie**\n2. **XFastTrie**\n3. **BinaryTrie** \n\nIf you have any more questions about these data structures or related concepts, feel free to ask!",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 7,
+      "latency_ms": 12441.69587502256,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.25,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.7398864622381227,
+      "ragas_answer_relevancy": 0.858567903965845,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_entities",
+          "find_entities",
+          "find_entities",
+          "find_entities",
+          "find_entities",
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#TrieStructure",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/ods#chapter",
+                  "value": "13"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#DataStructure",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/ods#chapter",
+                  "value": "13"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#ArrayBasedStructure",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/ods#chapter",
+                  "value": "13"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#LinkedListStructure",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/ods#chapter",
+                  "value": "13"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#Complexity",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/ods#chapter",
+                  "value": "13"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#SortAlgorithm",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/ods#chapter",
+                  "value": "13"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#Operation",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/ods#chapter",
+                  "value": "13"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q012",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "List all data structures that HeapSort uses, directly or indirectly.",
+      "gold_answer": "BinaryHeap, ArrayStack",
+      "baseline_answer": "HeapSort 사용과 관련된 데이터 구조는 다음과 같습니다: **ArrayStack**, **BinaryHeap**, **CountingSort**.",
+      "baseline_cited_triple_count": 13,
+      "tool_calls": 1,
+      "latency_ms": 3240.6543341930956,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.23076923076923078,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.7513480530770311,
+      "ragas_answer_relevancy": 0.8095024505828903,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "property_path_query"
+        ],
+        "tool_trace": [
+          {
+            "tool": "property_path_query",
+            "args": {
+              "predicate_uri": "https://ontorag.dev/ns/ods#uses",
+              "start_class_uri": "https://ontorag.dev/ns/ods#SortAlgorithm"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q013",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "Which data structures does YFastTrie specialise (directly or indirectly)?",
+      "gold_answer": "XFastTrie, BinaryTrie",
+      "baseline_answer": "The YFastTrie specializes in the following data structures, directly or indirectly:\n\n- SSet\n- SkiplistSSet",
+      "baseline_cited_triple_count": 15,
+      "tool_calls": 1,
+      "latency_ms": 3368.6660840176046,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.3333333333333333,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.17442940725905154,
+      "ragas_answer_relevancy": 0.9348804591781817,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_path"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_path",
+            "args": {
+              "uri_a": "https://ontorag.dev/ns/ods#YFastTrie",
+              "uri_b": "https://ontorag.dev/ns/ods#DataStructure"
+            },
+            "result_summary": {
+              "kind": "dict",
+              "keys": [
+                "start_uri",
+                "end_uri",
+                "nodes",
+                "edges",
+                "depth_reached"
+              ],
+              "nodes_len": 4
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q014",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "List every data structure transitively used by any structure introduced in Chapter 13.",
+      "gold_answer": "ChainedHashTable, ArrayStack, Treap",
+      "baseline_answer": "The data structures transitively used by any structure introduced in Chapter 13 are:\n\n- ArrayStack\n- ChainedHashTable\n- Treap",
+      "baseline_cited_triple_count": 15,
+      "tool_calls": 1,
+      "latency_ms": 5203.528332989663,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.4,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.944561598455737,
+      "ragas_answer_relevancy": 0.753641064118947,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "property_path_query"
+        ],
+        "tool_trace": [
+          {
+            "tool": "property_path_query",
+            "args": {
+              "predicate_uri": "https://ontorag.dev/ns/ods#uses",
+              "start_class_uri": "https://ontorag.dev/ns/ods#TrieStructure"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q015",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "All ancestors of Treap via specialises (direct + indirect).",
+      "gold_answer": "BinarySearchTree, BinaryTree",
+      "baseline_answer": "The ancestors of Treap via the specialises relation (direct and indirect) are:\n\n- BinarySearchTree\n- BinaryTree",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 2,
+      "latency_ms": 4315.589166013524,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.1,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.8901224660354616,
+      "ragas_answer_relevancy": 0.7351341161132066,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "property_path_query"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#TreeStructure"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 5
+            }
+          },
+          {
+            "tool": "property_path_query",
+            "args": {
+              "predicate_uri": "https://ontorag.dev/ns/ods#specialises",
+              "start_uri": "https://ontorag.dev/ns/ods#Treap"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 2
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q016",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "Which sort algorithms use a counting-based primitive (directly or indirectly)?",
+      "gold_answer": "RadixSort",
+      "baseline_answer": "The data does not contain any sort algorithms that use a counting-based primitive directly or indirectly.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 3603.279208065942,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.08254010114923593,
+      "ragas_answer_relevancy": 0.8438408865431722,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/ods#SortAlgorithm",
+              "predicate": "https://ontorag.dev/ns/ods#uses",
+              "class_uri_b": "https://ontorag.dev/ns/ods#Complexity"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q017",
+      "difficulty": "trap",
+      "category": "trap",
+      "uses_inference": false,
+      "question_text": "What is the worst-case complexity of insert in AuroraTree?",
+      "gold_answer": "No information in this ontology. AuroraTree is not defined.",
+      "baseline_answer": "There are no instances named \"AuroraTree\" in the current ontology. As a result, I cannot provide the worst-case complexity of the insert operation for that data structure.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 2,
+      "latency_ms": 4300.865333061665,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.17837436963037356,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "count_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#DataStructure",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "AuroraTree"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#DataStructure"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q018",
+      "difficulty": "trap",
+      "category": "trap",
+      "uses_inference": false,
+      "question_text": "Which interface does the SplayTree implement?",
+      "gold_answer": "No information in this ontology. SplayTree is not defined here.",
+      "baseline_answer": "There are no instances of a SplayTree in the ontology. Therefore, I cannot determine which interface it implements.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 3,
+      "latency_ms": 6151.955458102748,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.2002844457975489,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_entities",
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#DataStructure",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "SplayTree"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#TreeStructure",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "SplayTree"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#DataStructure",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "splaytree"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q019",
+      "difficulty": "trap",
+      "category": "trap",
+      "uses_inference": false,
+      "question_text": "List all data structures introduced in Chapter 15.",
+      "gold_answer": "No information in this ontology. No structure is tagged Chapter 15.",
+      "baseline_answer": "The data does not contain any data structures introduced in Chapter 15.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2748.4798750374466,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.1524866090718259,
+      "ragas_answer_relevancy": 0.8398858105044683,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#DataStructure",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/ods#chapter",
+                  "value": "15"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q020",
+      "difficulty": "trap",
+      "category": "trap",
+      "uses_inference": false,
+      "question_text": "Which sort algorithm in this ontology uses TimSort internally?",
+      "gold_answer": "No information in this ontology. TimSort is not defined.",
+      "baseline_answer": "The ontology does not contain any sort algorithm that uses TimSort internally.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2854.888499947265,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.20045789509402212,
+      "ragas_answer_relevancy": 0.9024075712198293,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/ods#SortAlgorithm",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/ods#implementedBy",
+                  "value": "TimSort"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    }
+  ],
+  "aggregate": {
+    "avg_latency_ms": 4190.637114527635,
+    "avg_tool_calls": 1.65,
+    "total_prompt_tokens": 0,
+    "total_completion_tokens": 0,
+    "avg_hallucination_rate": 0.0,
+    "avg_citation_coverage": 0.31235042735042734,
+    "citation_provided_count": 10,
+    "citation_provided_rate": 0.5,
+    "avg_ragas_faithfulness": 0.4,
+    "avg_ragas_answer_correctness": 0.46649800649350487,
+    "avg_ragas_answer_relevancy": 0.7449470060382292,
+    "per_difficulty": {
+      "easy": {
+        "count": 5,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.36901709401709404,
+        "citation_provided": 4
+      },
+      "medium": {
+        "count": 6,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.29166666666666663,
+        "citation_provided": 2
+      },
+      "hard": {
+        "count": 5,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.266025641025641,
+        "citation_provided": 4
+      },
+      "trap": {
+        "count": 4,
+        "avg_hallucination": null,
+        "avg_citation": null,
+        "citation_provided": 0
+      }
+    }
+  }
+}

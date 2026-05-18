@@ -30,6 +30,12 @@ class ClassSummary(BaseModel):
     parent_uri: str | None = None
     property_count: int = 0
     instance_count: int = 0
+    description: str | None = Field(
+        default=None,
+        description="rdfs:comment or skos:definition — natural-language "
+        "meaning authored on the TBox. Surfaced into the LLM's "
+        "system prompt so prompt logic stays domain-agnostic.",
+    )
 
 
 class PropertySummary(BaseModel):
@@ -42,6 +48,10 @@ class PropertySummary(BaseModel):
     range_uri: str | None = None
     is_transitive: bool = False
     inverse_of_uri: str | None = None
+    description: str | None = Field(
+        default=None,
+        description="rdfs:comment or skos:definition for this property.",
+    )
 
 
 class ClassDetail(BaseModel):
@@ -402,6 +412,43 @@ class GraphStore(Protocol):
 
         Returns:
             Path nodes and edges, or empty result if no path found.
+        """
+        ...
+
+    async def property_path_closure(
+        self,
+        predicate_uri: str,
+        start_uri: str | None = None,
+        start_label: str | None = None,
+        start_class_uri: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Return all entities reachable via a transitive predicate.
+
+        Three start modes (exactly one of the three groups must be given):
+
+        - **Instance closure** (``start_uri``):
+          ``<start_uri> <pred>+ ?reached``.
+        - **Label lookup + instance closure** (``start_label`` ± ``start_class_uri``):
+          single round-trip — label resolved case- and lang-tag-insensitive,
+          then closure from the matched instance.
+        - **Class-wide closure** (``start_class_uri`` alone): every
+          instance of the class is a start node: ``?start a <Class> ;
+          <pred>+ ?reached``. Use for "any X is transitively …"
+          questions.
+
+        Args:
+            predicate_uri: Predicate to follow (should be
+                owl:TransitiveProperty for the result to be meaningful).
+            start_uri: Instance URI to start from. Mode 1.
+            start_label: rdfs:label of the start instance. Mode 2.
+            start_class_uri: Class URI — disambiguates Mode 2, or
+                triggers Mode 3 on its own.
+            limit: Max entities to return (default 100).
+
+        Returns:
+            List of ``{"uri": str, "label": str | None}`` ordered by URI.
+            Empty list means no closure result.
         """
         ...
 

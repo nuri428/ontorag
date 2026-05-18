@@ -1,0 +1,689 @@
+{
+  "baseline_name": "langchain_vector",
+  "baseline_version": "0.1.0",
+  "goldset_path": "examples/techstack/goldset.jsonl",
+  "graph_triples": 162,
+  "total_questions": 20,
+  "language": "ko",
+  "results": [
+    {
+      "question_id": "Q001",
+      "difficulty": "easy",
+      "category": "lookup",
+      "uses_inference": false,
+      "question_text": "React는 어떤 라이선스로 배포되는가?",
+      "gold_answer": "MIT",
+      "baseline_answer": "React는 MIT 라이선스로 배포됩니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1289.4894590135664,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.8449362308253192,
+      "ragas_answer_relevancy": 0.5163462712819148,
+      "extra": {
+        "retrieved_chunks": [
+          "React (FrontendFramework). builtWith: JavaScript. maintainedBy: Meta. dependsOn: Node.js. firstReleased: 2013. version: 19.0. license: MIT.",
+          "Remix (FullstackFramework). builtWith: TypeScript. dependsOn: React. firstReleased: 2021. license: MIT.",
+          "Next.js (FullstackFramework). builtWith: TypeScript. maintainedBy: Vercel. dependsOn: React. firstReleased: 2016. version: 15.0. license: MIT.",
+          "Node.js (RuntimeEnvironment). builtWith: JavaScript. maintainedBy: OpenJS Foundation. firstReleased: 2009. license: MIT.",
+          "webpack (BuildTool). builtWith: JavaScript. dependsOn: Node.js. firstReleased: 2012. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q002",
+      "difficulty": "easy",
+      "category": "lookup",
+      "uses_inference": false,
+      "question_text": "Vite는 몇 년에 처음 출시되었는가?",
+      "gold_answer": "2020년",
+      "baseline_answer": "Vite는 2020년에 처음 출시되었습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1737.5634999480098,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.864302552975825,
+      "ragas_answer_relevancy": 0.7519312868599434,
+      "extra": {
+        "retrieved_chunks": [
+          "Vite (BuildTool). builtWith: TypeScript. dependsOn: Node.js. firstReleased: 2020. version: 6.0. license: MIT.",
+          "Next.js (FullstackFramework). builtWith: TypeScript. maintainedBy: Vercel. dependsOn: React. firstReleased: 2016. version: 15.0. license: MIT.",
+          "Vercel (Organization).",
+          "JavaScript (ProgrammingLanguage). firstReleased: 1995. license: MIT. homepage: https://developer.mozilla.org/en-US/docs/Web/JavaScript.",
+          "webpack (BuildTool). builtWith: JavaScript. dependsOn: Node.js. firstReleased: 2012. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q003",
+      "difficulty": "easy",
+      "category": "lookup",
+      "uses_inference": false,
+      "question_text": "TypeScript는 어느 기관이 유지보수하는가?",
+      "gold_answer": "Microsoft",
+      "baseline_answer": "TypeScript는 Microsoft에 의해 유지보수됩니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1060.893541900441,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.8309758345269802,
+      "ragas_answer_relevancy": 0.5257403349587075,
+      "extra": {
+        "retrieved_chunks": [
+          "TypeScript (ProgrammingLanguage). builtWith: JavaScript. maintainedBy: Microsoft. firstReleased: 2012. license: Apache-2.0. homepage: https://www.typescriptlang.org.",
+          "Bun (RuntimeEnvironment). builtWith: TypeScript. supersedes: Node.js. firstReleased: 2022. license: MIT.",
+          "Angular (FrontendFramework). builtWith: TypeScript. maintainedBy: Google. dependsOn: Node.js. firstReleased: 2016. version: 19.0. license: MIT.",
+          "Vite (BuildTool). builtWith: TypeScript. dependsOn: Node.js. firstReleased: 2020. version: 6.0. license: MIT.",
+          "Next.js (FullstackFramework). builtWith: TypeScript. maintainedBy: Vercel. dependsOn: React. firstReleased: 2016. version: 15.0. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q004",
+      "difficulty": "easy",
+      "category": "lookup",
+      "uses_inference": false,
+      "question_text": "Angular는 어떤 프로그래밍 언어로 만들어졌는가?",
+      "gold_answer": "TypeScript",
+      "baseline_answer": "Angular는 TypeScript로 만들어졌습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1089.2717919778079,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.8719602080492738,
+      "ragas_answer_relevancy": 0.769937566507448,
+      "extra": {
+        "retrieved_chunks": [
+          "Angular (FrontendFramework). builtWith: TypeScript. maintainedBy: Google. dependsOn: Node.js. firstReleased: 2016. version: 19.0. license: MIT.",
+          "Node.js (RuntimeEnvironment). builtWith: JavaScript. maintainedBy: OpenJS Foundation. firstReleased: 2009. license: MIT.",
+          "React (FrontendFramework). builtWith: JavaScript. maintainedBy: Meta. dependsOn: Node.js. firstReleased: 2013. version: 19.0. license: MIT.",
+          "TypeScript (ProgrammingLanguage). builtWith: JavaScript. maintainedBy: Microsoft. firstReleased: 2012. license: Apache-2.0. homepage: https://www.typescriptlang.org.",
+          "Next.js (FullstackFramework). builtWith: TypeScript. maintainedBy: Vercel. dependsOn: React. firstReleased: 2016. version: 15.0. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q005",
+      "difficulty": "easy",
+      "category": "lookup",
+      "uses_inference": false,
+      "question_text": "Next.js의 현재 안정 버전은?",
+      "gold_answer": "15.0",
+      "baseline_answer": "Next.js의 현재 안정 버전은 15.0입니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1330.6447500362992,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.8473645380921253,
+      "ragas_answer_relevancy": 0.7083926728548495,
+      "extra": {
+        "retrieved_chunks": [
+          "Next.js (FullstackFramework). builtWith: TypeScript. maintainedBy: Vercel. dependsOn: React. firstReleased: 2016. version: 15.0. license: MIT.",
+          "Angular (FrontendFramework). builtWith: TypeScript. maintainedBy: Google. dependsOn: Node.js. firstReleased: 2016. version: 19.0. license: MIT.",
+          "React (FrontendFramework). builtWith: JavaScript. maintainedBy: Meta. dependsOn: Node.js. firstReleased: 2013. version: 19.0. license: MIT.",
+          "Remix (FullstackFramework). builtWith: TypeScript. dependsOn: React. firstReleased: 2021. license: MIT.",
+          "npm (PackageManager). builtWith: JavaScript. maintainedBy: OpenJS Foundation. dependsOn: Node.js. firstReleased: 2010. license: Artistic-2.0."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q006",
+      "difficulty": "medium",
+      "category": "subclass_inference",
+      "uses_inference": true,
+      "question_text": "이 온톨로지에 정의된 프론트엔드 프레임워크를 모두 나열하라.",
+      "gold_answer": "React, Angular",
+      "baseline_answer": "이 온톨로지에 정의된 프론트엔드 프레임워크는 다음과 같습니다:\n\n1. React (FrontendFramework) - builtWith: JavaScript, maintainedBy: Meta, firstReleased: 2013, version: 19.0, license: MIT.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1962.012582924217,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.8333333333333334,
+      "ragas_answer_correctness": 0.30203254681281433,
+      "ragas_answer_relevancy": 0.29057574591671126,
+      "extra": {
+        "retrieved_chunks": [
+          "OpenJS Foundation (Organization).",
+          "Remix (FullstackFramework). builtWith: TypeScript. dependsOn: React. firstReleased: 2021. license: MIT.",
+          "Node.js (RuntimeEnvironment). builtWith: JavaScript. maintainedBy: OpenJS Foundation. firstReleased: 2009. license: MIT.",
+          "React (FrontendFramework). builtWith: JavaScript. maintainedBy: Meta. dependsOn: Node.js. firstReleased: 2013. version: 19.0. license: MIT.",
+          "webpack (BuildTool). builtWith: JavaScript. dependsOn: Node.js. firstReleased: 2012. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q007",
+      "difficulty": "medium",
+      "category": "filter",
+      "uses_inference": false,
+      "question_text": "Vercel이 유지보수하는 기술을 모두 나열하라.",
+      "gold_answer": "Next.js",
+      "baseline_answer": "Vercel이 유지보수하는 기술은 다음과 같습니다:\n\n1. Next.js (Fullstack Framework)",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1872.0207910519093,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.6666666666666666,
+      "ragas_answer_correctness": 0.5092019581590911,
+      "ragas_answer_relevancy": 0.5030079833458437,
+      "extra": {
+        "retrieved_chunks": [
+          "Vercel (Organization).",
+          "Vite (BuildTool). builtWith: TypeScript. dependsOn: Node.js. firstReleased: 2020. version: 6.0. license: MIT.",
+          "Next.js (FullstackFramework). builtWith: TypeScript. maintainedBy: Vercel. dependsOn: React. firstReleased: 2016. version: 15.0. license: MIT.",
+          "Google (Organization).",
+          "webpack (BuildTool). builtWith: JavaScript. dependsOn: Node.js. firstReleased: 2012. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q008",
+      "difficulty": "medium",
+      "category": "filter",
+      "uses_inference": false,
+      "question_text": "TypeScript로 만들어진 기술을 모두 나열하라.",
+      "gold_answer": "Bun, Angular, Next.js, Remix, pnpm, Vite",
+      "baseline_answer": "TypeScript로 만들어진 기술은 다음과 같습니다:\n\n1. Bun (Runtime Environment)\n2. Vite (Build Tool)\n3. Remix (Fullstack Framework)\n4. Next.js (Fullstack Framework)",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1473.3922081068158,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.7604893785594876,
+      "ragas_answer_relevancy": 0.5204925604969866,
+      "extra": {
+        "retrieved_chunks": [
+          "TypeScript (ProgrammingLanguage). builtWith: JavaScript. maintainedBy: Microsoft. firstReleased: 2012. license: Apache-2.0. homepage: https://www.typescriptlang.org.",
+          "Bun (RuntimeEnvironment). builtWith: TypeScript. supersedes: Node.js. firstReleased: 2022. license: MIT.",
+          "Vite (BuildTool). builtWith: TypeScript. dependsOn: Node.js. firstReleased: 2020. version: 6.0. license: MIT.",
+          "Remix (FullstackFramework). builtWith: TypeScript. dependsOn: React. firstReleased: 2021. license: MIT.",
+          "Next.js (FullstackFramework). builtWith: TypeScript. maintainedBy: Vercel. dependsOn: React. firstReleased: 2016. version: 15.0. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q009",
+      "difficulty": "medium",
+      "category": "relation_lookup",
+      "uses_inference": false,
+      "question_text": "pnpm은 어떤 패키지 매니저를 대체하는가?",
+      "gold_answer": "npm",
+      "baseline_answer": "pnpm은 npm을 대체합니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 768.689583055675,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.8745642157329259,
+      "ragas_answer_relevancy": 0.5570138405969569,
+      "extra": {
+        "retrieved_chunks": [
+          "pnpm (PackageManager). builtWith: TypeScript. dependsOn: Node.js. supersedes: npm. firstReleased: 2017. license: MIT.",
+          "npm (PackageManager). builtWith: JavaScript. maintainedBy: OpenJS Foundation. dependsOn: Node.js. firstReleased: 2010. license: Artistic-2.0.",
+          "Angular (FrontendFramework). builtWith: TypeScript. maintainedBy: Google. dependsOn: Node.js. firstReleased: 2016. version: 19.0. license: MIT.",
+          "React (FrontendFramework). builtWith: JavaScript. maintainedBy: Meta. dependsOn: Node.js. firstReleased: 2013. version: 19.0. license: MIT.",
+          "Bun (RuntimeEnvironment). builtWith: TypeScript. supersedes: Node.js. firstReleased: 2022. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q010",
+      "difficulty": "medium",
+      "category": "count",
+      "uses_inference": false,
+      "question_text": "이 온톨로지에 정의된 빌드 도구는 몇 개인가?",
+      "gold_answer": "2개",
+      "baseline_answer": "이 온톨로지에 정의된 빌드 도구는 두 개입니다: webpack과 Vite입니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1135.3637089487165,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.44657795939219547,
+      "ragas_answer_relevancy": 0.30765444560523475,
+      "extra": {
+        "retrieved_chunks": [
+          "webpack (BuildTool). builtWith: JavaScript. dependsOn: Node.js. firstReleased: 2012. license: MIT.",
+          "Angular (FrontendFramework). builtWith: TypeScript. maintainedBy: Google. dependsOn: Node.js. firstReleased: 2016. version: 19.0. license: MIT.",
+          "Vite (BuildTool). builtWith: TypeScript. dependsOn: Node.js. firstReleased: 2020. version: 6.0. license: MIT.",
+          "npm (PackageManager). builtWith: JavaScript. maintainedBy: OpenJS Foundation. dependsOn: Node.js. firstReleased: 2010. license: Artistic-2.0.",
+          "Node.js (RuntimeEnvironment). builtWith: JavaScript. maintainedBy: OpenJS Foundation. firstReleased: 2009. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q011",
+      "difficulty": "medium",
+      "category": "filter",
+      "uses_inference": false,
+      "question_text": "2016년에 처음 출시된 기술을 모두 나열하라.",
+      "gold_answer": "Angular, Next.js",
+      "baseline_answer": "2016년에 처음 출시된 기술은 다음과 같습니다:\n\n1. Next.js (FullstackFramework)\n2. Angular (FrontendFramework)",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1195.1570000965148,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.75,
+      "ragas_answer_correctness": 0.635634692678378,
+      "ragas_answer_relevancy": 0.5218055394509608,
+      "extra": {
+        "retrieved_chunks": [
+          "webpack (BuildTool). builtWith: JavaScript. dependsOn: Node.js. firstReleased: 2012. license: MIT.",
+          "Next.js (FullstackFramework). builtWith: TypeScript. maintainedBy: Vercel. dependsOn: React. firstReleased: 2016. version: 15.0. license: MIT.",
+          "Remix (FullstackFramework). builtWith: TypeScript. dependsOn: React. firstReleased: 2021. license: MIT.",
+          "JavaScript (ProgrammingLanguage). firstReleased: 1995. license: MIT. homepage: https://developer.mozilla.org/en-US/docs/Web/JavaScript.",
+          "Angular (FrontendFramework). builtWith: TypeScript. maintainedBy: Google. dependsOn: Node.js. firstReleased: 2016. version: 19.0. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q012",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "Next.js가 직접 또는 간접적으로 의존하는 모든 기술을 나열하라.",
+      "gold_answer": "React, Node.js",
+      "baseline_answer": "Next.js는 다음과 같은 기술에 의존합니다:\n\n1. React (직접 의존)\n2. Node.js (간접 의존, React가 Node.js에 의존하기 때문입니다)",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1497.300707967952,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.6364045381520748,
+      "ragas_answer_relevancy": 0.5315271696023184,
+      "extra": {
+        "retrieved_chunks": [
+          "Next.js (FullstackFramework). builtWith: TypeScript. maintainedBy: Vercel. dependsOn: React. firstReleased: 2016. version: 15.0. license: MIT.",
+          "React (FrontendFramework). builtWith: JavaScript. maintainedBy: Meta. dependsOn: Node.js. firstReleased: 2013. version: 19.0. license: MIT.",
+          "Remix (FullstackFramework). builtWith: TypeScript. dependsOn: React. firstReleased: 2021. license: MIT.",
+          "Angular (FrontendFramework). builtWith: TypeScript. maintainedBy: Google. dependsOn: Node.js. firstReleased: 2016. version: 19.0. license: MIT.",
+          "webpack (BuildTool). builtWith: JavaScript. dependsOn: Node.js. firstReleased: 2012. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q013",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "Node.js에 (직접 또는 간접적으로) 의존하는 모든 기술을 나열하라.",
+      "gold_answer": "React, Angular, Next.js, Remix, npm, pnpm, Vite, webpack",
+      "baseline_answer": "Node.js에 (직접 또는 간접적으로) 의존하는 기술은 다음과 같습니다:\n\n1. webpack (BuildTool)\n2. npm (PackageManager)\n3. React (FrontendFramework)",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1615.333457943052,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.5651105830005942,
+      "ragas_answer_relevancy": 0.5250435802683034,
+      "extra": {
+        "retrieved_chunks": [
+          "Node.js (RuntimeEnvironment). builtWith: JavaScript. maintainedBy: OpenJS Foundation. firstReleased: 2009. license: MIT.",
+          "webpack (BuildTool). builtWith: JavaScript. dependsOn: Node.js. firstReleased: 2012. license: MIT.",
+          "npm (PackageManager). builtWith: JavaScript. maintainedBy: OpenJS Foundation. dependsOn: Node.js. firstReleased: 2010. license: Artistic-2.0.",
+          "Next.js (FullstackFramework). builtWith: TypeScript. maintainedBy: Vercel. dependsOn: React. firstReleased: 2016. version: 15.0. license: MIT.",
+          "React (FrontendFramework). builtWith: JavaScript. maintainedBy: Meta. dependsOn: Node.js. firstReleased: 2013. version: 19.0. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q014",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "Remix가 직접·간접적으로 의존하는 모든 기술은?",
+      "gold_answer": "React, Node.js",
+      "baseline_answer": "Remix는 직접적으로 React에 의존하고 있으며, React는 Node.js에 의존합니다. 따라서 Remix가 간접적으로 의존하는 기술은 Node.js입니다. 요약하자면, Remix가 의존하는 모든 기술은 다음과 같습니다:\n\n1. React (직접 의존)\n2. Node.js (간접 의존)",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1987.0584579184651,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.8333333333333334,
+      "ragas_answer_correctness": 0.7290162555814801,
+      "ragas_answer_relevancy": 0.6187778302782951,
+      "extra": {
+        "retrieved_chunks": [
+          "Remix (FullstackFramework). builtWith: TypeScript. dependsOn: React. firstReleased: 2021. license: MIT.",
+          "React (FrontendFramework). builtWith: JavaScript. maintainedBy: Meta. dependsOn: Node.js. firstReleased: 2013. version: 19.0. license: MIT.",
+          "webpack (BuildTool). builtWith: JavaScript. dependsOn: Node.js. firstReleased: 2012. license: MIT.",
+          "Meta (Organization).",
+          "Angular (FrontendFramework). builtWith: TypeScript. maintainedBy: Google. dependsOn: Node.js. firstReleased: 2016. version: 19.0. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q015",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "어떤 풀스택 프레임워크가 (직접 또는 간접적으로) RuntimeEnvironment에 의존하는가?",
+      "gold_answer": "Next.js, Remix",
+      "baseline_answer": "Remix가 React에 의존하고, React는 Node.js에 의존하므로, Remix는 간접적으로 Node.js에 의존합니다. 따라서 Remix가 RuntimeEnvironment에 의존하는 풀스택 프레임워크입니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 2505.607415921986,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.75,
+      "ragas_answer_correctness": 0.3910191889124376,
+      "ragas_answer_relevancy": 0.2600008930498794,
+      "extra": {
+        "retrieved_chunks": [
+          "Node.js (RuntimeEnvironment). builtWith: JavaScript. maintainedBy: OpenJS Foundation. firstReleased: 2009. license: MIT.",
+          "Bun (RuntimeEnvironment). builtWith: TypeScript. supersedes: Node.js. firstReleased: 2022. license: MIT.",
+          "npm (PackageManager). builtWith: JavaScript. maintainedBy: OpenJS Foundation. dependsOn: Node.js. firstReleased: 2010. license: Artistic-2.0.",
+          "Remix (FullstackFramework). builtWith: TypeScript. dependsOn: React. firstReleased: 2021. license: MIT.",
+          "React (FrontendFramework). builtWith: JavaScript. maintainedBy: Meta. dependsOn: Node.js. firstReleased: 2013. version: 19.0. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q016",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "Vite의 전이적 의존성 집합 전체는?",
+      "gold_answer": "Node.js",
+      "baseline_answer": "Vite의 전이적 의존성 집합에 대한 정보는 제공되지 않았습니다. 따라서 정확한 답변을 드릴 수 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1197.5130420178175,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": -0.0010794653761035313,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "retrieved_chunks": [
+          "Vite (BuildTool). builtWith: TypeScript. dependsOn: Node.js. firstReleased: 2020. version: 6.0. license: MIT.",
+          "Vercel (Organization).",
+          "Next.js (FullstackFramework). builtWith: TypeScript. maintainedBy: Vercel. dependsOn: React. firstReleased: 2016. version: 15.0. license: MIT.",
+          "Meta (Organization).",
+          "Google (Organization)."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q017",
+      "difficulty": "trap",
+      "category": "trap",
+      "uses_inference": false,
+      "question_text": "이 온톨로지 기준 Vue.js는 몇 년에 처음 출시되었는가?",
+      "gold_answer": "이 온톨로지에 Vue.js는 정의되어 있지 않습니다.",
+      "baseline_answer": "죄송하지만, Vue.js에 대한 정보는 제공된 컨텍스트에 포함되어 있지 않습니다. 따라서 정확한 출시 연도를 알려드릴 수 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1349.8173749540001,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.11767465266336535,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "retrieved_chunks": [
+          "Next.js (FullstackFramework). builtWith: TypeScript. maintainedBy: Vercel. dependsOn: React. firstReleased: 2016. version: 15.0. license: MIT.",
+          "Angular (FrontendFramework). builtWith: TypeScript. maintainedBy: Google. dependsOn: Node.js. firstReleased: 2016. version: 19.0. license: MIT.",
+          "Node.js (RuntimeEnvironment). builtWith: JavaScript. maintainedBy: OpenJS Foundation. firstReleased: 2009. license: MIT.",
+          "React (FrontendFramework). builtWith: JavaScript. maintainedBy: Meta. dependsOn: Node.js. firstReleased: 2013. version: 19.0. license: MIT.",
+          "webpack (BuildTool). builtWith: JavaScript. dependsOn: Node.js. firstReleased: 2012. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q018",
+      "difficulty": "trap",
+      "category": "trap",
+      "uses_inference": false,
+      "question_text": "이 온톨로지에서 Svelte의 홈페이지 URL은?",
+      "gold_answer": "이 온톨로지에 Svelte는 정의되어 있지 않습니다.",
+      "baseline_answer": "모르겠습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 784.0635841712356,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.02874633283839504,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "retrieved_chunks": [
+          "Next.js (FullstackFramework). builtWith: TypeScript. maintainedBy: Vercel. dependsOn: React. firstReleased: 2016. version: 15.0. license: MIT.",
+          "Angular (FrontendFramework). builtWith: TypeScript. maintainedBy: Google. dependsOn: Node.js. firstReleased: 2016. version: 19.0. license: MIT.",
+          "Remix (FullstackFramework). builtWith: TypeScript. dependsOn: React. firstReleased: 2021. license: MIT.",
+          "React (FrontendFramework). builtWith: JavaScript. maintainedBy: Meta. dependsOn: Node.js. firstReleased: 2013. version: 19.0. license: MIT.",
+          "Vite (BuildTool). builtWith: TypeScript. dependsOn: Node.js. firstReleased: 2020. version: 6.0. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q019",
+      "difficulty": "trap",
+      "category": "trap",
+      "uses_inference": false,
+      "question_text": "이 온톨로지에서 Deno를 유지보수하는 기관은?",
+      "gold_answer": "이 온톨로지에 Deno 인스턴스는 없습니다 (스키마 주석에만 언급).",
+      "baseline_answer": "Deno를 유지보수하는 기관에 대한 정보는 제공되지 않았습니다. 따라서 답변을 드릴 수 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1223.488082876429,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.3333333333333333,
+      "ragas_answer_correctness": 0.10662154238220045,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "retrieved_chunks": [
+          "OpenJS Foundation (Organization).",
+          "Node.js (RuntimeEnvironment). builtWith: JavaScript. maintainedBy: OpenJS Foundation. firstReleased: 2009. license: MIT.",
+          "Meta (Organization).",
+          "Vercel (Organization).",
+          "React (FrontendFramework). builtWith: JavaScript. maintainedBy: Meta. dependsOn: Node.js. firstReleased: 2013. version: 19.0. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    },
+    {
+      "question_id": "Q020",
+      "difficulty": "trap",
+      "category": "trap",
+      "uses_inference": false,
+      "question_text": "이 온톨로지에서 Yarn이 대체한 패키지 매니저는?",
+      "gold_answer": "이 온톨로지에 Yarn은 정의되어 있지 않습니다.",
+      "baseline_answer": "Yarn이 대체한 패키지 매니저는 npm입니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 0,
+      "latency_ms": 1126.679457956925,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.10039968985035543,
+      "ragas_answer_relevancy": 0.48971285020272887,
+      "extra": {
+        "retrieved_chunks": [
+          "React (FrontendFramework). builtWith: JavaScript. maintainedBy: Meta. dependsOn: Node.js. firstReleased: 2013. version: 19.0. license: MIT.",
+          "Angular (FrontendFramework). builtWith: TypeScript. maintainedBy: Google. dependsOn: Node.js. firstReleased: 2016. version: 19.0. license: MIT.",
+          "Remix (FullstackFramework). builtWith: TypeScript. dependsOn: React. firstReleased: 2021. license: MIT.",
+          "webpack (BuildTool). builtWith: JavaScript. dependsOn: Node.js. firstReleased: 2012. license: MIT.",
+          "Node.js (RuntimeEnvironment). builtWith: JavaScript. maintainedBy: OpenJS Foundation. firstReleased: 2009. license: MIT."
+        ],
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "gpt-4o-mini",
+        "top_k": 5
+      }
+    }
+  ],
+  "aggregate": {
+    "avg_latency_ms": 1410.0680249393918,
+    "avg_tool_calls": 0.0,
+    "total_prompt_tokens": 0,
+    "total_completion_tokens": 0,
+    "avg_hallucination_rate": null,
+    "avg_citation_coverage": null,
+    "citation_provided_count": 0,
+    "citation_provided_rate": 0.0,
+    "avg_ragas_faithfulness": 0.8083333333333333,
+    "avg_ragas_answer_correctness": 0.5230976716904607,
+    "avg_ragas_answer_relevancy": 0.4198980285638541,
+    "per_difficulty": {
+      "easy": {
+        "count": 5,
+        "avg_hallucination": null,
+        "avg_citation": null,
+        "citation_provided": 0
+      },
+      "medium": {
+        "count": 6,
+        "avg_hallucination": null,
+        "avg_citation": null,
+        "citation_provided": 0
+      },
+      "hard": {
+        "count": 5,
+        "avg_hallucination": null,
+        "avg_citation": null,
+        "citation_provided": 0
+      },
+      "trap": {
+        "count": 4,
+        "avg_hallucination": null,
+        "avg_citation": null,
+        "citation_provided": 0
+      }
+    }
+  }
+}

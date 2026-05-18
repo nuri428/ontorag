@@ -12,48 +12,40 @@ from ontorag.stores.base import GraphStore, PatternQuery, PatternTriple
 logger = logging.getLogger(__name__)
 
 _SYSTEM_BASE = """\
-당신은 RDF 온톨로지 전문 에이전트입니다.
+You are an RDF/OWL ontology agent. The TBox below is your sole source of
+truth — class/property URIs, hierarchy, OWL characteristics, and the
+authors' natural-language meaning (rdfs:comment / skos:definition).
 
-## 툴 사용 규칙 (최우선 — 반드시 준수)
+## Hard rules
 
-아래 '현재 온톨로지 스키마'에서 **인스턴스 수 합계**를 확인하세요.
+- If any class lists `instances > 0`, **never answer from prior knowledge** —
+  call a tool first. Answer only from tool results.
+- Exceptions (answer without tools): every class has `instances=0`, or
+  the question is unrelated to the ontology domain (greetings, weather).
+- URIs in tool arguments must be **copied verbatim** from the schema
+  above or from prior tool results. Never paste a natural-language label
+  into a URI slot. Never invent or concatenate URIs.
+- The final answer text must use **labels only** (never raw URIs).
 
-**온톨로지에 데이터가 있을 때 (인스턴스 수 > 0인 클래스가 하나라도 있으면)**
-→ 사전 학습 지식으로 직접 답변하는 것은 **금지**입니다.
-→ 반드시 툴을 호출하여 온톨로지 데이터를 조회한 뒤 그 결과로 답변하세요.
-→ "이미 알고 있는 내용이라도" 예외 없음. 온톨로지 데이터가 항상 우선합니다.
+## Tool selection
 
-**예외 (아래 경우에만 툴 없이 즉시 답변)**
-1. 모든 클래스의 인스턴스 수가 0 (온톨로지가 비어 있음)
-2. 인사·감사·날씨 등 온톨로지 도메인과 전혀 무관한 질문 (엔티티나 관계를 묻지 않음)
+Each tool's own description states which OWL semantics it covers and what
+result shape it returns. Pick the tool whose description matches the
+question's intent. Re-read the property table's `OWL flags` column when
+deciding — `TRANSITIVE`, `inverseOf=…` are the routing signals.
 
-## 질문 유형 → 추천 툴 (도메인 무관 — TBox 메타데이터로 판단)
+## Result interpretation
 
-| 질문 유형 | 추천 툴 |
-|-----------|---------|
-| "transitively/directly and indirectly/모든·전체 X" + 위 '속성/관계' 표에 `TRANSITIVE` 플래그 있는 property 매칭 | **traverse_graph** (predicate=해당 URI, max_depth=3) — 필수, find_entities/find_related로 대체 불가 |
-| 단일 홉 관계 (X의 직속 P) | find_related 또는 traverse_graph(max_depth=1) |
-| 단일 엔티티의 전체 속성/관계 | describe_entity |
-| 클래스 + 필터로 인스턴스 검색 | find_entities (filters에 rdfs:label 권장) |
-| 두 엔티티 간 경로 | find_path |
-| 스키마/클래스 구조 파악 | get_schema, get_class_detail |
+- A non-empty list result means *every item in the list is part of the
+  answer*. Quote the labels directly in the final text.
+- A list result of length 0 means the data does not contain the
+  requested entities — say so plainly. Do not extrapolate.
+- If `find_entities` returns 0 rows, retry with `contains` op or a
+  sub-class before giving up. Three attempts max.
 
-## URI 처리 규칙
+## Reply language
 
-- URI는 반드시 툴이 반환한 값 또는 아래 '현재 스키마'에 나온 URI만 사용하세요. URI나 prefix:name을 직접 구성하거나 추측하는 것은 절대 금지입니다.
-- **predicate 자리에는 반드시 위 '속성/관계' 섹션의 URI를 그대로 복사해 넣으세요.** label(예: 'Chief Executive Officer')을 predicate URI로 쓰면 절대 안 됩니다 — Fuseki가 "Invalid URI" 오류를 던집니다.
-- 인스턴스 URI를 모를 때: find_entities(class_uri=<알고있는클래스URI>, filters=[{{"property": "rdfs:label", "op": "=", "value": "이름"}}])로 조회하세요.
-- find_entities가 0건이면 다음 순서로 fallback:
-  1. 다른 label로 재시도 (영문/한글, "Tech" 같은 부분 일치 contains op)
-  2. 같은 도메인의 sub-class에서 검색 (예: Organization 대신 Company)
-  3. 그래도 안 되면 "정보 없음" 답변 — 추측 금지
-- 최종 답변에 URI를 절대 노출하지 마세요. 이름(label)만 사용하세요.
-
-## 답변 스타일
-
-- 사용자 질문에 직접 답하세요. 묻지 않은 추가 정보는 생략하거나 한 줄로만 덧붙이세요.
-- 엔티티 이름이 명확한 짧은 질문은 get_schema 없이 즉시 find_entities → traverse_graph 순으로 진행하세요.
-- 사용자 메시지가 한국어면 한국어로, 영어면 영어로 답변하세요."""
+Match the user's language. If the user wrote Korean, reply in Korean."""
 
 
 def _local_name(uri: str) -> str:
@@ -64,25 +56,38 @@ def _local_name(uri: str) -> str:
 
 
 def _format_schema_for_prompt(schema: Any) -> str:
-    """SchemaResult를 시스템 프롬프트용 compact 텍스트로 변환."""
-    lines = ["## 현재 온톨로지 스키마 (세션 고정 — get_schema 재호출 불필요)", ""]
-    lines.append("### 클래스 (URI | label | 속성수 | 인스턴스수)")
+    """SchemaResult를 시스템 프롬프트용 compact 텍스트로 변환.
+
+    Single source of truth = TBox. The function only renders what the
+    ontology itself declares (labels, comments/definitions, hierarchy,
+    OWL property characteristics). No domain-specific examples, no
+    natural-language closure-keyword matching — those decisions are
+    made by the TBox or by the tool descriptions, not here.
+    """
+    lines = ["## Ontology schema (TBox — single source of truth)", ""]
+    lines.append("### Classes (URI | label | parent | #properties | #instances)")
     for cls in schema.classes:
         label = cls.label or "-"
         parent = f" ← {_local_name(cls.parent_uri)}" if cls.parent_uri else ""
         lines.append(
-            f"- {cls.uri} | {label}{parent} | 속성:{cls.property_count} | 인스턴스:{cls.instance_count}"
+            f"- {cls.uri} | {label}{parent} | props={cls.property_count} | "
+            f"instances={cls.instance_count}"
         )
+        desc = getattr(cls, "description", None)
+        if desc:
+            # Trim to keep token usage in check; ontology authors should
+            # write concise rdfs:comment to begin with.
+            snippet = " ".join(desc.split())[:280]
+            lines.append(f"    “{snippet}”")
 
-    # Properties block — LLM otherwise has no way to know exact predicate URIs,
-    # which it MUST use as-is (no string concatenation, no label guessing).
-    # Flags surfaced here (TRANSITIVE / inverseOf) are read from the TBox so
-    # the prompt stays domain-agnostic: any ontology declaring those OWL
-    # constructs gets them propagated automatically.
+    # Properties — exact URIs (LLM must reuse verbatim) + OWL characteristics
+    # + author-supplied natural-language meaning.
     props = getattr(schema, "properties", None) or []
     if props:
         lines.append("")
-        lines.append("### 속성/관계 (URI | label | 유형 | domain → range | 플래그)")
+        lines.append(
+            "### Properties (URI | label | type | domain → range | OWL flags)"
+        )
         for p in props:
             label = p.label or "-"
             dom = _local_name(p.domain_uri) if p.domain_uri else "?"
@@ -97,13 +102,10 @@ def _format_schema_for_prompt(schema: Any) -> str:
             lines.append(
                 f"- {p.uri} | {label} | {p.prop_type} | {dom} → {rng}{flag_str}"
             )
-        lines.append("")
-        lines.append(
-            "> 위 URI를 그대로 사용하세요. predicate 자리에 label을 넣지 마세요."
-        )
-        lines.append(
-            "> `TRANSITIVE` 플래그가 붙은 property에 대해 'all/transitively/모든/전체' 같은 closure 질문이 오면 **반드시 traverse_graph(predicate=해당 URI, max_depth=3)**를 사용하세요."
-        )
+            desc = getattr(p, "description", None)
+            if desc:
+                snippet = " ".join(desc.split())[:280]
+                lines.append(f"    “{snippet}”")
 
     ns_relevant = {
         k: v
@@ -112,7 +114,7 @@ def _format_schema_for_prompt(schema: Any) -> str:
     }
     if ns_relevant:
         lines.append("")
-        lines.append("### 도메인 네임스페이스")
+        lines.append("### Domain namespaces")
         for prefix, uri in ns_relevant.items():
             lines.append(f"- {prefix}: {uri}")
     return "\n".join(lines)
@@ -121,18 +123,26 @@ def _format_schema_for_prompt(schema: Any) -> str:
 _TOOLS: list[dict[str, Any]] = [
     {
         "name": "get_schema",
-        "description": "온톨로지 클래스 목록과 속성 수를 반환합니다. 먼저 이 툴로 도메인 구조를 파악하세요.",
+        "description": (
+            "Returns the full TBox overview (classes, properties, OWL "
+            "characteristics). The system prompt already embeds this — "
+            "call only if you suspect the schema changed mid-session."
+        ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "get_class_detail",
-        "description": "특정 클래스의 속성 목록, 부모/자식 클래스, 인스턴스 샘플을 반환합니다.",
+        "description": (
+            "Returns class metadata: properties whose domain is this class, "
+            "rdfs:subClassOf parents and children, and a sample of ABox "
+            "instances. Use when the schema summary lacks enough detail."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "class_uri": {
                     "type": "string",
-                    "description": "클래스 URI (예: http://xmlns.com/foaf/0.1/Person)",
+                    "description": "Class URI (verbatim from schema, e.g. http://xmlns.com/foaf/0.1/Person)",
                 }
             },
             "required": ["class_uri"],
@@ -141,9 +151,12 @@ _TOOLS: list[dict[str, Any]] = [
     {
         "name": "find_entities",
         "description": (
-            "클래스 인스턴스를 검색합니다. "
-            "엔티티 URI를 모를 때 label로 검색하려면 "
-            'filters=[{"property": "rdfs:label", "op": "=", "value": "피카츄"}] 처럼 사용하세요.'
+            "Returns ABox instances of a class (rdfs:subClassOf-aware — "
+            "subclass instances included automatically). Optional filters "
+            "are AND-combined; rdfs:label filters with `=` are "
+            "case-insensitive and language-tag-insensitive. "
+            "Result shape: list[{uri, label, class_uri, properties}]. "
+            "Empty list = no matching instances in the data graph."
         ),
         "input_schema": {
             "type": "object",
@@ -189,20 +202,29 @@ _TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "describe_entity",
-        "description": "특정 엔티티의 모든 속성과 관계를 반환합니다.",
+        "description": (
+            "Returns the full property graph of one ABox entity — outgoing "
+            "triples (predicate, object) AND incoming triples (via "
+            "owl:inverseOf when available). Use to ground a specific URI "
+            "in everything the ontology knows about it. "
+            "Result shape: {uri, label, class_uri, properties}."
+        ),
         "input_schema": {
             "type": "object",
-            "properties": {"uri": {"type": "string", "description": "엔티티 URI"}},
+            "properties": {"uri": {"type": "string", "description": "Instance URI (verbatim)."}},
             "required": ["uri"],
         },
     },
     {
         "name": "count_entities",
-        "description": "클래스 인스턴스 수를 집계합니다.",
+        "description": (
+            "Counts instances of a class (rdfs:subClassOf-aware). "
+            "Use for 'How many X' questions. Returns a single integer."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "class_uri": {"type": "string", "description": "클래스 URI"}
+                "class_uri": {"type": "string", "description": "Class URI."}
             },
             "required": ["class_uri"],
         },
@@ -210,15 +232,16 @@ _TOOLS: list[dict[str, Any]] = [
     {
         "name": "traverse_graph",
         "description": (
-            "시작 엔티티에서 특정 관계를 따라 연결된 엔티티를 **여러 홉(multi-hop / transitive closure)** 탐색합니다. "
-            "사용 규칙 (도메인 무관, TBox 메타데이터로 자동 결정): "
-            "(1) 시스템 프롬프트의 '속성/관계' 표에서 **`TRANSITIVE` 플래그가 붙은 property**가 있고, "
-            "질문이 'all/transitively/directly and indirectly/모든/전체/간접적으로' 같은 closure 어휘를 쓰면 "
-            "→ 반드시 이 도구로 (predicate=TRANSITIVE_property_URI, max_depth=3, direction=outgoing). "
-            "(2) 체인/계보/조상-후손 같은 다단 관계 질문 → max_depth=3, direction=both. "
-            "(3) inverseOf로 표시된 관계의 역방향 질문 → direction=incoming. "
-            "direction 의미: outgoing=시작→이웃, incoming=이웃→시작(역방향), both=양방향. "
-            "owl:TransitiveProperty 의미를 보존하므로 한 번 호출이면 closure 전체를 받습니다."
+            "Generic BFS up to max_depth hops from a start entity. "
+            "Use for **non-transitive** multi-hop questions where the "
+            "exact predicate or depth is unknown. "
+            "**Prefer `property_path_query`** whenever the predicate is "
+            "flagged TRANSITIVE in the schema — that gives a single "
+            "round-trip closure with a cleaner result shape. "
+            "direction: outgoing | incoming (use for inverseOf-style "
+            "reversal) | both. Result shape: {start_uri, nodes:[{uri, "
+            "label, depth}], edges:[{from, to, predicate, predicate_label}], "
+            "depth_reached}. Only nodes with depth>0 are the answer."
         ),
         "input_schema": {
             "type": "object",
@@ -245,7 +268,11 @@ _TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "find_path",
-        "description": "두 엔티티 간 최단 경로를 찾습니다.",
+        "description": (
+            "Shortest path between two known instance URIs (BFS, any "
+            "predicate). Result shape: traversal record with the path "
+            "in `nodes`/`edges`. Empty path means the two are disconnected."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
@@ -257,8 +284,55 @@ _TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "property_path_query",
+        "description": (
+            "Native owl:TransitiveProperty closure (SPARQL `predicate+`). "
+            "Predicate MUST be one flagged `TRANSITIVE` in the schema. "
+            "Three modes (provide inputs for exactly one):\n"
+            "  • Instance: pass `start_uri` — closure from that URI.\n"
+            "  • Label lookup: pass `start_label` (and optional "
+            "`start_class_uri` to disambiguate) — store does the "
+            "rdfs:label → URI lookup in the same round-trip.\n"
+            "  • Class-wide: pass only `start_class_uri` (no start_uri/label) "
+            "— closure from EVERY instance of that class, results unioned. "
+            "Use this for questions like 'any X is transitively …' / "
+            "'all members of class C transitively related via P'.\n"
+            "Result shape: list[{uri, label}]. Length > 0 ⇒ every item "
+            "is part of the answer."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "predicate_uri": {
+                    "type": "string",
+                    "description": "Predicate URI to follow transitively (must be flagged TRANSITIVE).",
+                },
+                "start_uri": {
+                    "type": "string",
+                    "description": "Instance URI to start from. Use this when known.",
+                },
+                "start_label": {
+                    "type": "string",
+                    "description": "rdfs:label of the start instance. Used when start_uri is unknown.",
+                },
+                "start_class_uri": {
+                    "type": "string",
+                    "description": "Optional class URI to disambiguate the label lookup.",
+                },
+                "limit": {"type": "integer", "default": 100},
+            },
+            "required": ["predicate_uri"],
+        },
+    },
+    {
         "name": "find_related",
-        "description": "predicate로 연결된 두 클래스 인스턴스 쌍을 찾습니다.",
+        "description": (
+            "One-hop JOIN over a single predicate: every (a, b) pair where "
+            "`?a a class_uri_a . ?a predicate ?b . ?b a class_uri_b`. "
+            "Use for direct relations between class extents. For multi-hop "
+            "or transitive variants use traverse_graph / property_path_query. "
+            "Result shape: list[{entity_a, entity_b}]."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
@@ -272,7 +346,11 @@ _TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "query_pattern",
-        "description": "JSON 트리플 패턴 DSL로 복잡한 쿼리를 실행합니다. L1 툴로 표현 불가한 경우만 사용하세요.",
+        "description": (
+            "JSON triple-pattern DSL — safe SPARQL escape hatch when no "
+            "intent tool covers the query (e.g. arbitrary multi-variable "
+            "joins). Inputs are structurally validated; no injection risk."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
@@ -497,6 +575,15 @@ class AgentLoop:
                 max_depth=args.get("max_depth", 4),
             )
             return result.model_dump()
+
+        if name == "property_path_query":
+            return await store.property_path_closure(
+                predicate_uri=args["predicate_uri"],
+                start_uri=args.get("start_uri"),
+                start_label=args.get("start_label"),
+                start_class_uri=args.get("start_class_uri"),
+                limit=args.get("limit", 100),
+            )
 
         if name == "find_related":
             return await store.find_related(

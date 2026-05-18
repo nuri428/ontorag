@@ -1,0 +1,466 @@
+{
+  "baseline_name": "ontorag_mock",
+  "baseline_version": "0.1.0",
+  "goldset_path": "examples/commerce/goldset.jsonl",
+  "graph_triples": 297,
+  "total_questions": 20,
+  "language": "en",
+  "results": [
+    {
+      "question_id": "Q001",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "Who is the CEO of Aurora Tech?",
+      "gold_answer": "Alice Kim",
+      "baseline_answer": "Alice Kim",
+      "baseline_cited_triple_count": 4,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 420,
+      "completion_tokens": 80,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.5,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q002",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "What is the price of the Aurora Phone X1?",
+      "gold_answer": "899.00 USD",
+      "baseline_answer": "899.00 USD",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 300,
+      "completion_tokens": 80,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q003",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "In which year was Nimbus Group founded?",
+      "gold_answer": "1998",
+      "baseline_answer": "1998",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 300,
+      "completion_tokens": 80,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q004",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "In which currency is the Vega Watch 2 sold?",
+      "gold_answer": "JPY",
+      "baseline_answer": "JPY",
+      "baseline_cited_triple_count": 4,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 420,
+      "completion_tokens": 80,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.25,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q005",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "How many employees does Helios Robotics have?",
+      "gold_answer": "800",
+      "baseline_answer": "800",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 300,
+      "completion_tokens": 80,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q006",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "All products manufactured by Aurora Tech",
+      "gold_answer": "Aurora Phone X1, X2, Aurora Book Pro",
+      "baseline_answer": "Aurora Phone X1, X2, Aurora Book Pro",
+      "baseline_cited_triple_count": 18,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 840,
+      "completion_tokens": 80,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.16666666666666666,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q007",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "Products priced between 500 and 1000 USD",
+      "gold_answer": "Aurora Phone X1 (899)",
+      "baseline_answer": "Aurora Phone X1 (899)",
+      "baseline_cited_triple_count": 6,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 480,
+      "completion_tokens": 80,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.16666666666666666,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q008",
+      "difficulty": "medium",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "How many products are sold in USD?",
+      "gold_answer": "3",
+      "baseline_answer": "3",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 300,
+      "completion_tokens": 80,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q009",
+      "difficulty": "medium",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "Manufacturers of all products sold under the Aurora brand",
+      "gold_answer": "Aurora Tech",
+      "baseline_answer": "Aurora Tech",
+      "baseline_cited_triple_count": 9,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 570,
+      "completion_tokens": 80,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.1111111111111111,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q010",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "Companies founded in or after 2020",
+      "gold_answer": "Orion Labs (2020)",
+      "baseline_answer": "Orion Labs (2020)",
+      "baseline_cited_triple_count": 5,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 450,
+      "completion_tokens": 80,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.2,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q011",
+      "difficulty": "medium",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "All people employed directly by Aurora Tech (via employs or hasCEO)",
+      "gold_answer": "Alice Kim, Eric Cho",
+      "baseline_answer": "Alice Kim, Eric Cho",
+      "baseline_cited_triple_count": 8,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 540,
+      "completion_tokens": 80,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.5,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q012",
+      "difficulty": "medium",
+      "category": "reverse_lookup",
+      "uses_inference": false,
+      "question_text": "Which class do the Vega Watch 1 and 2 belong to?",
+      "gold_answer": "WearableDevice",
+      "baseline_answer": "WearableDevice",
+      "baseline_cited_triple_count": 4,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 420,
+      "completion_tokens": 80,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q013",
+      "difficulty": "medium",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "How many organizations own a brand?",
+      "gold_answer": "3",
+      "baseline_answer": "3",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 300,
+      "completion_tokens": 80,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q014",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "All (direct + indirect) parent companies of Helios Robotics",
+      "gold_answer": "Aurora Tech, Nimbus Group",
+      "baseline_answer": "Aurora Tech, Nimbus Group",
+      "baseline_cited_triple_count": 15,
+      "tool_calls": 2,
+      "latency_ms": 180.0,
+      "prompt_tokens": 750,
+      "completion_tokens": 80,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.13333333333333333,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q015",
+      "difficulty": "hard",
+      "category": "multi_hop",
+      "uses_inference": true,
+      "question_text": "Total employee count of all subsidiaries (incl. transitive) of Nimbus Group",
+      "gold_answer": "4300",
+      "baseline_answer": "4300",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 2,
+      "latency_ms": 180.0,
+      "prompt_tokens": 300,
+      "completion_tokens": 80,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q016",
+      "difficulty": "hard",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "All CEOs with their organisation names",
+      "gold_answer": "4 pairs",
+      "baseline_answer": "4 pairs",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 300,
+      "completion_tokens": 80,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q017",
+      "difficulty": "hard",
+      "category": "counting",
+      "uses_inference": true,
+      "question_text": "Count of instances belonging to ConsumerElectronics or its subclasses (subClassOf transitive)",
+      "gold_answer": "6",
+      "baseline_answer": "6",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 2,
+      "latency_ms": 180.0,
+      "prompt_tokens": 300,
+      "completion_tokens": 80,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q018",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "All products manufactured by Orion Labs",
+      "gold_answer": "None — Orion Labs has no products in this KG.",
+      "baseline_answer": "None — Orion Labs has no products in this KG.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 300,
+      "completion_tokens": 80,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q019",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "Who is the parent company of Vega Wearables?",
+      "gold_answer": "None — Vega Wearables is independent in this KG.",
+      "baseline_answer": "None — Vega Wearables is independent in this KG.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 300,
+      "completion_tokens": 80,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    },
+    {
+      "question_id": "Q020",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "What is the price of the Aurora Phone X3?",
+      "gold_answer": "None — Aurora Phone X3 does not exist in this KG.",
+      "baseline_answer": "None — Aurora Phone X3 does not exist in this KG.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 180.0,
+      "prompt_tokens": 300,
+      "completion_tokens": 80,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "extra": {
+        "simulated": true,
+        "baseline_kind": "ontology_perfect"
+      }
+    }
+  ],
+  "aggregate": {
+    "avg_latency_ms": 180.0,
+    "avg_tool_calls": 1.15,
+    "total_prompt_tokens": 8190,
+    "total_completion_tokens": 1600,
+    "avg_hallucination_rate": 0.0,
+    "avg_citation_coverage": 0.22530864197530864,
+    "citation_provided_count": 9,
+    "citation_provided_rate": 0.45,
+    "per_difficulty": {
+      "easy": {
+        "count": 5,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.375,
+        "citation_provided": 2
+      },
+      "medium": {
+        "count": 8,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.19074074074074074,
+        "citation_provided": 6
+      },
+      "hard": {
+        "count": 4,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.13333333333333333,
+        "citation_provided": 1
+      },
+      "trap": {
+        "count": 3,
+        "avg_hallucination": null,
+        "avg_citation": null,
+        "citation_provided": 0
+      }
+    }
+  }
+}

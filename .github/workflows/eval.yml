@@ -1,0 +1,110 @@
+name: Eval regression gate
+
+on:
+  push:
+    branches: [main, eval-harness]
+    paths:
+      - "src/ontorag/eval/**"
+      - "src/ontorag/cli_eval.py"
+      - "examples/pure_land/**"
+      - "examples/commerce/**"
+      - "tests/test_eval_*.py"
+      - "tests/test_cli_eval.py"
+      - ".github/workflows/eval.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/ontorag/eval/**"
+      - "src/ontorag/cli_eval.py"
+      - "examples/pure_land/**"
+      - "examples/commerce/**"
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    name: eval module unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --extra dev
+      - name: Run eval module tests
+        run: |
+          uv run pytest \
+            tests/test_eval_goldset.py \
+            tests/test_eval_sparql_eq.py \
+            tests/test_eval_metrics.py \
+            tests/test_eval_report.py \
+            tests/test_cli_eval.py \
+            -v
+
+  goldset-eval:
+    name: ${{ matrix.domain }} goldset
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        domain: [pure_land, commerce]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Validate ${{ matrix.domain }} goldset
+        run: |
+          uv run ontorag eval validate examples/${{ matrix.domain }}/goldset.jsonl
+
+      - name: Run ${{ matrix.domain }} goldset eval
+        run: |
+          uv run ontorag eval run examples/${{ matrix.domain }}/goldset.jsonl \
+            --schema examples/${{ matrix.domain }}/schema.ttl \
+            --data examples/${{ matrix.domain }}/data.ttl \
+            --output ${{ matrix.domain }}_report.json
+
+      - name: Verify zero failures
+        run: |
+          uv run python -c "
+          import json, sys
+          report = json.load(open('${{ matrix.domain }}_report.json'))
+          fails = report['failures']
+          total = report['total_questions']
+          if fails != 0:
+              print(f'::error::{fails}/{total} goldset queries failed in ${{ matrix.domain }}')
+              sys.exit(1)
+          print(f'::notice::${{ matrix.domain }}: {total} questions executed, 0 failures')
+          "
+
+      - name: Generate Markdown report
+        run: |
+          uv run ontorag eval report ${{ matrix.domain }}_report.json \
+            --output ${{ matrix.domain }}_report.md
+
+      - name: Upload JSON + Markdown report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.domain }}-eval-report
+          path: |
+            ${{ matrix.domain }}_report.json
+            ${{ matrix.domain }}_report.md
+          retention-days: 30
+
+      - name: Post Markdown report as PR comment
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: ${{ matrix.domain }}-eval
+          path: ${{ matrix.domain }}_report.md
