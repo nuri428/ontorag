@@ -526,19 +526,25 @@ The four domains were deliberately chosen to vary along two axes — how
 **OWL-feature-rich** the ontology is, and how much the LLM has already
 **seen the answers during pre-training**.
 
-> **Trademark / attribution notice.** *Pokémon* and all Pokémon-related
-> names are trademarks of The Pokémon Company / Nintendo / Creatures
-> Inc. / Game Freak Inc.; the dataset in `examples/pokemon/` is an
-> unofficial fan-made educational example used solely to demonstrate
-> the framework — see [`examples/pokemon/README.md`](examples/pokemon/README.md)
-> for the full disclaimer. Technology names in `examples/techstack/`
-> are trademarks of their respective owners (Meta, Google, Vercel,
-> OpenJS Foundation, Microsoft, etc.) and are used under nominative
-> fair use. *Open Data Structures* (`examples/ods/`) is reproduced
-> under CC BY 2.5 with attribution to Pat Morin. The Pure Land
-> ontology (`examples/pure_land/`) is grounded in canonical Buddhist
-> sūtras (public domain); see its README for the disclaimer about
-> doctrinal vs. ontology-engineering modeling choices.
+> **Attribution & disclaimer policy.** Every example dataset in this
+> repository has a uniform `## Disclaimer` section near the bottom of
+> its `README.md` covering four items: (1) **rights** — who owns the
+> trademarks / copyrights / source material referenced; (2) **nature
+> of this work** — fan-made fair use, CC-attributed derivative, or
+> original modeling against public-domain sources; (3) **no
+> affiliation** with the rights holders; (4) **takedown commitment**
+> with a contact path. Per-domain summary:
+> *Pokemon* — trademarks of The Pokémon Company / Nintendo /
+> Creatures Inc. / Game Freak Inc., fan-made educational example
+> ([details](examples/pokemon/README.md#disclaimer));
+> *Techstack* — technology names are trademarks of Meta / Google /
+> Vercel / OpenJS Foundation / Microsoft etc., used under nominative
+> fair use ([details](examples/techstack/README.md#disclaimer));
+> *ODS* — CC BY 2.5 derivative with attribution to Pat Morin
+> ([details](examples/ods/README.md#disclaimer));
+> *Pure Land* — original modeling against public-domain canonical
+> sūtras, with separate doctrinal disclaimer
+> ([details](examples/pure_land/README.md#disclaimer)).
 
 ### The numbers
 

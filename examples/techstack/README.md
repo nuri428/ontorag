@@ -1,18 +1,10 @@
 # Tech Stack Ontology Example
 
-> **Trademark notice.** *React*, *Angular*, *Next.js*, *Remix*, *Vite*,
-> *webpack*, *Node.js*, *Bun*, *TypeScript*, *npm*, *pnpm*, and other
-> technology names appearing in this dataset are trademarks of their
-> respective owners (Meta Platforms, Google LLC, Vercel Inc., the
-> OpenJS Foundation, Microsoft Corporation, the Node.js project, etc.).
-> The RDF encodes **publicly available factual information** (release
-> year, license, maintainer, dependency relationships) — no logos,
-> source code, or copyrighted documentation are reproduced. Use here is
-> **nominative fair use** for the purpose of demonstrating the ontorag
-> framework. This example is **not affiliated with or endorsed by** any
-> listed organization. *기재된 모든 기술명은 각 권리자의 등록상표입니다.*
-
----
+> **Trademark notice.** Technology names in this dataset
+> (*React*, *Angular*, *Next.js*, *Node.js*, *TypeScript*, ...) are
+> trademarks of their respective owners. Use is **nominative fair
+> use** for framework demonstration only. Full disclaimer in the
+> [**Disclaimer**](#disclaimer) section below.
 
 This example shows two things ontorag can do that a plain vector-search RAG cannot:
 
@@ -192,3 +184,45 @@ Techstack은 **contamination 매우 높음 + ABox가 작음(91 triples)** → La
 | `goldset.jsonl` | 20문항 (easy 5 / medium 6 / hard 5 / trap 4) |
 | `bench_results/langchain_gpt4o.json` | LangChain RetrievalQA 벤치 결과 |
 | `bench_results/ontorag_native_gpt4o.json` | ontorag agent 벤치 결과 |
+
+---
+
+## Disclaimer
+
+**1. Rights / 권리 귀속.** Technology names in this dataset are
+trademarks of their respective owners:
+*React* of **Meta Platforms, Inc.**;
+*Angular* of **Google LLC**;
+*Next.js* of **Vercel, Inc.**;
+*Node.js* and *npm* of **the OpenJS Foundation / npm, Inc.**;
+*TypeScript* of **Microsoft Corporation**;
+*Bun* of **Oven**;
+*webpack*, *Vite*, *Remix*, *pnpm* of their respective project teams
+and contributors.
+
+**2. Nature of this work / 본 데이터의 성격.** This RDF dataset
+encodes **publicly available factual information** (release year,
+license string, maintainer organization, dependency relationships) for
+the purpose of demonstrating the ontorag framework's OWL inference
+capabilities (TransitiveProperty closures, subclass reasoning,
+LLMs4OL). **No logos, source code, copyrighted documentation, or
+trademarked iconography is reproduced.** Use of trademark names is
+**nominative fair use** — referring to the actual products to discuss
+verifiable factual relationships among them.
+
+**3. No affiliation / 비제휴 선언.** This project is **not affiliated
+with, endorsed by, or sponsored by** any of the organizations listed
+above.
+
+**4. Takedown commitment / 즉시 제거 약속.** If any trademark holder
+prefers their mark not appear in this dataset, the relevant entries
+will be **removed or renamed promptly** upon request. Contact: GitHub
+issue on the ontorag repository.
+
+## License
+
+- **Ontology files** (`schema.ttl`, `data.ttl`, `goldset.jsonl`,
+  `corpus.txt`, README) — MIT (same as ontorag).
+- **Factual content** (release years, license strings, dependency
+  facts) — not copyrightable as such; sourced from each project's
+  public documentation as of writing.

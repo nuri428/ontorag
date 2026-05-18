@@ -62,3 +62,43 @@ ODS는 Pokemon/Techstack과 다음 두 가지가 다릅니다:
 이 두 OWL 기능이 결합하여 **AnswerRelevancy +0.108**의 큰 차이를 만들었습니다. 텍스트 chunk에서 "HeapSort uses BinaryHeap; BinaryHeap uses ArrayStack"을 합성해 "HeapSort transitively uses ArrayStack"으로 잇는 추론을 vector RAG는 못 합니다.
 
 > **시사점**: TransitiveProperty/inverseOf가 많은 도메인일수록 ontorag의 우위가 커집니다. 단순 lookup 도메인은 LangChain의 chunk-quote 전략이 RAGAS judge에 유리.
+
+---
+
+## Disclaimer
+
+**1. Rights / 권리 귀속.** *Open Data Structures* is an open-access
+textbook authored by **Pat Morin (Carleton University, Canada)** and
+published at [opendatastructures.org](https://opendatastructures.org/)
+under the **Creative Commons Attribution 2.5 Canada (CC BY 2.5 CA)**
+license. The class taxonomy (`ArrayStack`, `RedBlackTree`,
+`SkiplistSSet`, ...), the chapter structure, and the complexity
+classifications encoded in this dataset are derived from that book.
+
+**2. Nature of this work / 본 데이터의 성격.** This RDF/OWL ontology
+is a **derivative work under CC BY 2.5 attribution terms**: the
+underlying ideas (class hierarchy, operations and their complexity
+bounds) are sourced from *Open Data Structures*, but the encoding
+(`ods:` namespace, `owl:TransitiveProperty` on `uses`/`specialises`,
+`owl:inverseOf` on `implements`/`implementedBy`, `rdfs:label` strings
+in English) is an original modeling layer. **No prose, figures, code
+listings, or other expressive content from the textbook is reproduced
+verbatim** — only factual classification.
+
+**3. No affiliation / 비제휴 선언.** This project is **not affiliated
+with or endorsed by** Pat Morin, Carleton University, or any publisher
+of *Open Data Structures*. The attribution is academic citation, not
+institutional endorsement.
+
+**4. Takedown commitment / 즉시 제거 약속.** If the author prefers a
+different encoding, removal, or additional attribution, the dataset
+will be **revised or removed promptly** upon request. Contact: GitHub
+issue on the ontorag repository.
+
+## License
+
+- **Ontology files** (`schema.ttl`, `data.ttl`, `goldset.jsonl`,
+  README) — **CC BY 2.5** (matching the upstream license of *Open
+  Data Structures*), with attribution to Pat Morin /
+  opendatastructures.org. Both `schema.ttl` ontology header and this
+  README carry the attribution.

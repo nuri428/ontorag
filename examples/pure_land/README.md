@@ -21,7 +21,12 @@ Ontology-aware RAG should differentiate itself from vector RAG on three axes —
 
 ---
 
-## Disclaimer / 면책 조항
+## Doctrinal Disclaimer / 교리적 면책 조항
+
+> *This section addresses **doctrinal** matters specific to religious
+> text modeling. For the **standard project disclaimer** (rights,
+> takedown, no-affiliation), see the [Disclaimer](#disclaimer) section
+> below.*
 
 This is a **knowledge-graph modeling exercise** and a **benchmark dataset** for ontology-aware retrieval. It is **not** a doctrinal authority and does not represent the position of any Buddhist sangha or school.
 
@@ -94,11 +99,42 @@ examples/pure_land/
 
 ---
 
+## Disclaimer
+
+**1. Rights / 권리 귀속.** The canonical sūtras themselves — *無量壽經*
+(Larger Sukhāvatīvyūha, T0360), *阿彌陀經* (Smaller Sukhāvatīvyūha,
+T0366), *觀無量壽經* (Amitāyurdhyāna Sūtra, T0365) — are **public
+domain**, having been composed roughly 1500–2000 years ago. Modern
+English translations (e.g. 84000 Toh 115) are under their own
+licenses (CC BY-NC-ND 3.0 for 84000); this ontology **does not
+reproduce translated prose** but only cites translation URLs via
+`dcterms:source`.
+
+**2. Nature of this work / 본 데이터의 성격.** This is an **original
+ontology engineering work** modeling the cosmology and narrative
+structure described in the canonical texts. The facts encoded
+(48 vows, 7-storey jeweled towers, named bodhisattvas) are
+**not copyrightable** as such — only the specific expression of those
+facts in prose form is. This ontology encodes the facts as RDF
+triples in its own original vocabulary (`pl:` namespace).
+
+**3. No affiliation / 비제휴 선언.** This project is **not affiliated
+with, endorsed by, or sponsored by** any Buddhist sangha, school,
+publisher, or the 84000 translation project. Attribution to source
+translations is academic citation, not institutional endorsement. See
+also the [Doctrinal Disclaimer](#doctrinal-disclaimer--교리적-면책-조항)
+above for matters of religious authority.
+
+**4. Takedown commitment / 즉시 제거 약속.** If any translator or
+publisher prefers their work not be referenced (even by URL only)
+from this dataset, references will be **removed promptly** upon
+request. Contact: GitHub issue on the ontorag repository.
+
 ## License / 라이선스
 
 - **Ontology files** (`schema.ttl`, `data.ttl`, `goldset.jsonl`) — same MIT license as ontorag.
 - **Source attribution** — Taishō references and 84000 URLs are cited via `dcterms:source`. Facts derived from canonical texts are not copyrightable; this ontology does not copy translated prose.
-- **README disclaimer** — see *Disclaimer / 면책 조항* above.
+- **Doctrinal disclaimer** — see *Doctrinal Disclaimer / 교리적 면책 조항* near the top of this README.
 
 ---
 

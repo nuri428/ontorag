@@ -68,6 +68,36 @@ examples/commerce/
 └── goldset.jsonl       # Benchmark questions (20 seed; expand to 50 later)
 ```
 
+## Disclaimer
+
+**1. Rights / 권리 귀속.** This dataset references upstream
+vocabularies (**schema.org** under CC BY-SA 4.0, **FOAF** under CC BY
+1.0, **dcterms** open, **GoodRelations** concepts) only by URI — no
+RDF/JSON-LD source from any of these vocabularies is reproduced. The
+class hierarchy in `schema.ttl` is original modeling that uses
+`rdfs:subClassOf` and `owl:equivalentClass` to align with upstream
+URIs.
+
+**2. Nature of this work / 본 데이터의 성격.** All instance data —
+companies named *Aurora Tech*, *Helios Robotics*, *Nimbus Industries*;
+products like *Aurora Phone X1*; the persons modeled as employees —
+is **entirely fictional**. Any resemblance to real companies,
+products, or persons is coincidental. The fictional instances exist
+solely to demonstrate ontology-aware retrieval on a domain that uses
+**real vocabulary with private/internal instances** — the typical
+enterprise PoC setting.
+
+**3. No affiliation / 비제휴 선언.** This project is **not affiliated
+with or endorsed by** schema.org, the FOAF project, W3C, the
+GoodRelations project, or any organization whose vocabulary is
+referenced.
+
+**4. Takedown commitment / 즉시 제거 약속.** If any vocabulary
+maintainer prefers their URIs not be referenced from this dataset, or
+if any fictional name unintentionally collides with a real entity,
+the relevant entries will be **removed or renamed promptly** upon
+request. Contact: GitHub issue on the ontorag repository.
+
 ## License
 
 - **Ontology files** — MIT (same as ontorag).
