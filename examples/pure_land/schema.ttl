@@ -1,0 +1,69 @@
+# Pure Land Ontology — TBox
+# Status: scaffolding (B-1.2 not yet executed)
+# See README.md for sources, scope, and disclaimer.
+
+@prefix pl:      <https://ontorag.dev/ns/pure_land#> .
+@prefix bdo:     <http://purl.bdrc.io/ontology/core/> .
+@prefix schema:  <https://schema.org/> .
+@prefix foaf:    <http://xmlns.com/foaf/0.1/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+@prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+
+# ── Ontology metadata ────────────────────────────────────────────────────────
+
+<https://ontorag.dev/ns/pure_land>
+    a owl:Ontology ;
+    rdfs:label "Pure Land Ontology"@en ,
+               "서방정토 온톨로지"@ko ,
+               "西方淨土本體論"@zh-Hant ;
+    dcterms:description
+        "RDF/OWL model of the Sukhāvatī cosmology described in the Pure Land sūtras (淨土三部經). Benchmark dataset for ontology-aware RAG."@en ,
+        "정토삼부경에 기술된 서방정토(극락) 우주관의 RDF/OWL 모델. 온톨로지 기반 RAG 벤치마크용 데이터셋."@ko ;
+    dcterms:source
+        <https://cbetaonline.dila.edu.tw/zh/T0360> ,   # 『無量壽經』 (Primary)
+        <https://cbetaonline.dila.edu.tw/zh/T0366> ,   # 『阿彌陀經』
+        <https://cbetaonline.dila.edu.tw/zh/T0365> ,   # 『觀無量壽經』
+        <https://84000.co/translation/toh115> ;        # English ref (CC BY-NC-ND, cited only)
+    owl:versionInfo "0.0.1-scaffolding" ;
+    dcterms:license <https://opensource.org/licenses/MIT> .
+
+# ── TBox (to be authored in B-1.2) ───────────────────────────────────────────
+#
+# Planned structure:
+#   pl:Being             (root)
+#     ├── pl:Buddha
+#     │   ├── pl:Tathagata
+#     │   └── pl:Buddha_of_Direction  (six-direction tathāgatas)
+#     ├── pl:Bodhisattva
+#     ├── pl:Sravaka
+#     ├── pl:Deva           (Brahmā, Śakra, ...)
+#     └── pl:Sentient
+#         └── pl:CelestialBird  (peacock, parrot, kalaviṅka, ...)
+#
+#   pl:Realm
+#     ├── pl:SacredRealm     (Sukhāvatī, ...)
+#     └── pl:SahaWorld
+#
+#   pl:Structure
+#     ├── pl:JeweledTower    (seven-storied)
+#     ├── pl:LotusPond       (eight waters of merit)
+#     └── pl:JeweledTree
+#
+#   pl:Vow                   (48 vows — exact cardinality)
+#   pl:Contemplation         (16 contemplations from T0365)
+#
+# Object properties:
+#   pl:locatedIn      a owl:TransitiveProperty
+#   pl:teaches        owl:inverseOf pl:taughtBy
+#   pl:vowsToSave     owl:inverseOf pl:savedBy
+#   pl:hasVow         (Buddha → Vow, cardinality 48 on Amitābha)
+#   pl:hasColor       (Lotus → Color)
+#
+# Data properties:
+#   pl:vowNumber          xsd:integer
+#   pl:contemplationOrder xsd:integer
