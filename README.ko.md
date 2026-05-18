@@ -515,6 +515,20 @@ uv run ontorag eval bench examples/commerce/goldset.jsonl \
 
 도메인은 두 축에서 변동하도록 의도적으로 선정했습니다 — **OWL 기능 풍부도**와 **LLM이 답을 이미 외우고 있는 정도**.
 
+> **상표·저작권 표시.** *포켓몬*(Pokémon) 및 본 데이터셋의 모든
+> 포켓몬 관련 명칭은 ㈜포켓몬컴퍼니 / 닌텐도 / Creatures Inc. /
+> 게임 프리크의 등록상표입니다. `examples/pokemon/`은 ontorag 프레임워크
+> 시연만을 목적으로 한 **비공식·fan-made 교육용 예제**이며 전체
+> disclaimer는 [`examples/pokemon/README.md`](examples/pokemon/README.md)
+> 참조. `examples/techstack/`의 기술명(React/Angular/Next.js 등)은 각
+> 권리자(Meta·Google·Vercel·OpenJS Foundation·Microsoft 등)의
+> 등록상표이며 nominative fair use 범위에서 사용했습니다.
+> *Open Data Structures* (`examples/ods/`)는 Pat Morin 저자의 **CC BY 2.5**
+> 라이선스 하에 attribution과 함께 사용되었으며, 서방정토 온톨로지
+> (`examples/pure_land/`)는 public domain 불교 경전을 기반으로 합니다 —
+> 교리적 권위가 아닌 온톨로지 공학적 모델링이라는 점은 해당 README
+> 참조.
+
 ### 측정 결과
 
 (domain, baseline) 쌍마다 RAGAS LLM-as-judge 3개 메트릭(Faithfulness, AnswerCorrectness, AnswerRelevancy) + 결정론적 2개 메트릭(SPARQL 근거 기반 Hallucination, Citation 제공률)을 측정. **굵게**는 도메인 내 우위.

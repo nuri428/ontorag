@@ -526,6 +526,20 @@ The four domains were deliberately chosen to vary along two axes — how
 **OWL-feature-rich** the ontology is, and how much the LLM has already
 **seen the answers during pre-training**.
 
+> **Trademark / attribution notice.** *Pokémon* and all Pokémon-related
+> names are trademarks of The Pokémon Company / Nintendo / Creatures
+> Inc. / Game Freak Inc.; the dataset in `examples/pokemon/` is an
+> unofficial fan-made educational example used solely to demonstrate
+> the framework — see [`examples/pokemon/README.md`](examples/pokemon/README.md)
+> for the full disclaimer. Technology names in `examples/techstack/`
+> are trademarks of their respective owners (Meta, Google, Vercel,
+> OpenJS Foundation, Microsoft, etc.) and are used under nominative
+> fair use. *Open Data Structures* (`examples/ods/`) is reproduced
+> under CC BY 2.5 with attribution to Pat Morin. The Pure Land
+> ontology (`examples/pure_land/`) is grounded in canonical Buddhist
+> sūtras (public domain); see its README for the disclaimer about
+> doctrinal vs. ontology-engineering modeling choices.
+
 ### The numbers
 
 For each (domain, baseline) pair we measured three RAGAS LLM-as-judge

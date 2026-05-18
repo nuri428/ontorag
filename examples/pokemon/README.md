@@ -1,5 +1,38 @@
 # Pokemon — domain example
 
+> ## ⚠️ Trademark & Copyright Disclaimer / 상표·저작권 면책 조항
+>
+> **English** — "Pokémon", all Pokémon character names (e.g. *Pikachu*,
+> *Bulbasaur*, *Charizard*), trainer names (*Ash*, *Misty*, *Brock*),
+> region names (*Kanto*), move names, and all related stats, types, and
+> evolution data are **trademarks and copyrighted works of The Pokémon
+> Company / Nintendo / Creatures Inc. / Game Freak Inc.** This RDF
+> dataset is an **unofficial, fan-made, non-commercial educational
+> example** built solely to demonstrate the technical capabilities of
+> the ontorag framework (OWL reasoning, multilingual labels, MCP tool
+> use). It is **not affiliated with, endorsed by, or sponsored by** The
+> Pokémon Company or its affiliates. No game assets (sprites, sounds,
+> code, logos, official artwork) are reproduced — only public-knowledge
+> facts encoded as RDF triples. **Upon request from any rights holder,
+> this directory will be removed from the repository immediately and
+> without dispute.**
+>
+> **한국어** — "포켓몬"(Pokémon), 본 데이터에 등장하는 모든 포켓몬 캐릭터명
+> (*피카츄·이상해씨·리자몽* 등), 트레이너 이름(*지우·이슬·웅*), 지역명
+> (*관동지방*), 기술명, 그리고 모든 stats·타입·진화 데이터는
+> **㈜포켓몬컴퍼니 / 닌텐도 / Creatures Inc. / 게임 프리크의 등록상표 및
+> 저작물**입니다. 본 RDF 데이터셋은 ontorag 프레임워크의 기술적 역량
+> (OWL 추론·다국어 라벨·MCP 툴 사용)을 시연할 목적으로만 만들어진
+> **비공식·fan-made·비영리 교육용 예제**이며, ㈜포켓몬컴퍼니 및 그
+> 계열사와 **어떠한 제휴·승인·후원 관계도 없습니다**. 게임 에셋(스프라이트·
+> 사운드·코드·로고·공식 아트워크)은 일절 복제하지 않았으며, 공개적으로
+> 알려진 사실만 RDF 트리플로 인코딩했습니다. **권리자(또는 그 대리인)의
+> 요청 시 본 디렉토리는 이의 없이 즉시 제거됩니다.**
+>
+> Contact for takedown / 제거 요청: GitHub issue on the ontorag repository.
+
+---
+
 ontorag의 첫 시연용 도메인. 한국어 라벨을 가진 1세대 포켓몬(Gen-1) 13마리, 트레이너 3명, 기술 13개, 타입 18개를 RDF/OWL로 표현합니다.
 
 ## 왜 이 도메인인가

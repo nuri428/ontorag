@@ -1,5 +1,19 @@
 # Tech Stack Ontology Example
 
+> **Trademark notice.** *React*, *Angular*, *Next.js*, *Remix*, *Vite*,
+> *webpack*, *Node.js*, *Bun*, *TypeScript*, *npm*, *pnpm*, and other
+> technology names appearing in this dataset are trademarks of their
+> respective owners (Meta Platforms, Google LLC, Vercel Inc., the
+> OpenJS Foundation, Microsoft Corporation, the Node.js project, etc.).
+> The RDF encodes **publicly available factual information** (release
+> year, license, maintainer, dependency relationships) — no logos,
+> source code, or copyrighted documentation are reproduced. Use here is
+> **nominative fair use** for the purpose of demonstrating the ontorag
+> framework. This example is **not affiliated with or endorsed by** any
+> listed organization. *기재된 모든 기술명은 각 권리자의 등록상표입니다.*
+
+---
+
 This example shows two things ontorag can do that a plain vector-search RAG cannot:
 
 1. **OWL transitive reasoning** — ask "what does Next.js depend on?" and get the full chain
