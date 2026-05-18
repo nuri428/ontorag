@@ -195,6 +195,12 @@ pl:hasColor a owl:ObjectProperty ;
     rdfs:range  pl:LotusColor ;
     rdfs:comment "Relates a LotusPond to the colour family of lotuses it contains (青/黃/赤/白). A pond may hold multiple colours."@en .
 
+pl:precedingStage a owl:ObjectProperty ;
+    rdfs:label "preceding stage"@en , "前身"@zh-Hant , "전신"@ko ;
+    rdfs:comment "Links a being to a later form of the same individual across a transformative event (e.g. Dharmākara → Amitābha after enlightenment). Distinct from owl:sameAs to avoid OWL type collapse across Buddha/Bodhisattva siblings."@en ;
+    rdfs:domain pl:Being ;
+    rdfs:range  pl:Being .
+
 pl:appearsIn a owl:ObjectProperty ;
     rdfs:label "appears in"@en , "見於"@zh-Hant , "출현하다"@ko ;
     rdfs:comment "Links any entity to a canonical text where it is described. Domain intentionally unconstrained — any individual in this ontology may appear in a source."@en ;

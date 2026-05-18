@@ -79,12 +79,12 @@ pl:Akshobhya a pl:Buddha ;
     pl:appearsIn pl:T0366 ;
     rdfs:comment "Buddha of the East in T0366's six-direction praise of Amitābha."@en .
 
-pl:Ratnasambhava a pl:Buddha ;
+pl:Ratnaketu a pl:Buddha ;
     rdfs:label "Ratnaketu"@en , "寶相佛"@zh-Hant , "보상불"@ko ;
     pl:sanskritName "Ratnaketu" ;
     pl:appearsIn pl:T0366 .
 
-pl:Amoghasiddhi a pl:Buddha ;
+pl:Bhismagarjitaghosasvara a pl:Buddha ;
     rdfs:label "Bhīṣmagarjitaghoṣasvara"@en , "難沮佛"@zh-Hant , "난저불"@ko ;
     pl:sanskritName "Bhīṣmagarjitaghoṣasvara" ;
     pl:appearsIn pl:T0366 .
@@ -93,9 +93,9 @@ pl:Dharmakara a pl:Bodhisattva ;
     rdfs:label "Dharmākara"@en , "法藏比丘"@zh-Hant , "법장비구"@ko ;
     pl:sanskritName "Dharmākara" ;
     pl:appearsIn pl:T0360 ;
-    rdfs:comment "The bodhisattva who made the 48 vows and became Amitābha. Modelled as Bodhisattva to capture the pre-buddhahood state."@en ;
-    owl:sameAs pl:Amitabha ;  # same individual at different stage; sameAs is doctrinally debatable but useful for goldset
-    rdfs:seeAlso pl:Amitabha .
+    pl:precedingStage pl:Amitabha ;
+    rdfs:seeAlso pl:Amitabha ;
+    rdfs:comment "The bodhisattva who, having fulfilled 48 vows, became Amitābha Buddha. Modelled as a distinct Bodhisattva individual linked to Amitābha via pl:precedingStage rather than owl:sameAs to avoid OWL-reasoner type collapse (Buddha ⊓ Bodhisattva)."@en .
 
 # ═════════════════════════════════════════════════════════════════════════════
 # BODHISATTVAS  (西方三聖 + Sahā-world attendants)
@@ -108,7 +108,7 @@ pl:Avalokitesvara a pl:Bodhisattva ;
     pl:residesIn pl:Sukhavati ;
     pl:assists pl:Amitabha ;
     pl:appearsIn pl:T0360 , pl:T0365 ;
-    rdfs:comment "Left attendant of Amitābha (西方三聖 left)."@en .
+    rdfs:comment "Attendant of Amitābha (one of the 西方三聖). Left/right designation depends on viewpoint convention (devotee vs. buddha's perspective) and is intentionally omitted."@en .
 
 pl:Mahasthamaprapta a pl:Bodhisattva ;
     rdfs:label "Mahāsthāmaprāpta"@en , "大勢至菩薩"@zh-Hant , "대세지보살"@ko ;
@@ -116,7 +116,7 @@ pl:Mahasthamaprapta a pl:Bodhisattva ;
     pl:residesIn pl:Sukhavati ;
     pl:assists pl:Amitabha ;
     pl:appearsIn pl:T0360 , pl:T0365 ;
-    rdfs:comment "Right attendant of Amitābha (西方三聖 right)."@en .
+    rdfs:comment "Attendant of Amitābha (one of the 西方三聖). Left/right designation depends on viewpoint convention and is intentionally omitted."@en .
 
 pl:Manjushri a pl:Bodhisattva ;
     rdfs:label "Mañjuśrī"@en , "文殊師利菩薩"@zh-Hant , "문수보살"@ko ;
