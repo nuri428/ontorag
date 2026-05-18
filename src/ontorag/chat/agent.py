@@ -46,14 +46,6 @@ _SYSTEM_BASE = """\
 - **find_entities**: list 빈 배열만 "없음". 0건이면 (a) label 다른 표기 (b) `contains` op (c) sub-class 순서로 fallback. 3회 실패 후에만 포기.
 - **find_related / property_path_query / traverse_graph 등 list 반환 도구**: list 안의 entity label을 **답 텍스트에 직접 인용**하세요 — "X is located in [label1], [label2]" 형식. URI는 답에 넣지 마세요.
 
-## Transitive closure 2-step 흐름 (TRANSITIVE property 질문 필수)
-
-"X가 모든/전체/transitively located 어디에 있나?" 같은 closure 질문은 **반드시 2-step**:
-1. **Step 1 — instance URI 찾기**: `find_entities(class_uri=<클래스URI>, filters=[{"property":"rdfs:label","value":"<X 이름>"}])` 호출. 0건이면 다른 class/label로 fallback.
-2. **Step 2 — closure 호출**: 위에서 받은 *instance URI*를 `property_path_query(start_uri=<instance_uri>, predicate_uri=<TRANSITIVE_property_URI>)`에 전달.
-
-⚠ class URI를 그대로 start_uri로 쓰면 0건 — class에는 outgoing predicate가 없습니다. instance URI를 먼저 lookup해야 합니다.
-
 ## URI 처리 규칙
 
 - URI는 반드시 툴이 반환한 값 또는 아래 '현재 스키마'에 나온 URI만 사용하세요. URI나 prefix:name을 직접 구성하거나 추측하는 것은 절대 금지입니다.
@@ -279,9 +271,7 @@ _TOOLS: list[dict[str, Any]] = [
             "모든 엔티티를 한 번에 반환합니다 (SPARQL `predicate+` semantics). "
             "schema의 '속성/관계' 표에서 `TRANSITIVE` 플래그가 붙은 predicate에 권장 — "
             "BFS 기반 traverse_graph보다 명확한 결과 형식 (단일 list[{uri, label}]). "
-            "결과 list가 비어있으면 closure 없음, 비어있지 않으면 모든 항목이 답입니다. "
-            "⚠ **start_uri는 반드시 instance URI**여야 합니다 — class URI(예: pl:CelestialBird)를 넣으면 결과 0건. "
-            "instance URI를 모르면 먼저 find_entities로 lookup하세요."
+            "결과 list가 비어있으면 closure 없음, 비어있지 않으면 모든 항목이 답입니다."
         ),
         "input_schema": {
             "type": "object",
