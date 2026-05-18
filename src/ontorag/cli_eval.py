@@ -23,6 +23,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
 from ontorag.eval.goldset import Difficulty, Goldset, GoldsetValidationError
+from ontorag.eval.report import generate_markdown_report
 
 console = Console()
 err_console = Console(stderr=True)
@@ -176,6 +177,37 @@ def eval_run(
 
     if failures:
         raise typer.Exit(code=1)
+
+
+# ── report ────────────────────────────────────────────────────────────────────
+
+
+@eval_app.command("report")
+def eval_report(
+    json_path: Path = typer.Argument(
+        ...,
+        exists=True,
+        dir_okay=False,
+        readable=True,
+        help="`ontorag eval run --output`이 생성한 JSON 리포트 파일.",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        dir_okay=False,
+        writable=True,
+        help="생성된 Markdown을 저장할 파일 (생략 시 stdout).",
+    ),
+) -> None:
+    """`eval run` JSON 리포트를 사람이 읽기 좋은 Markdown으로 변환합니다."""
+    data = json.loads(json_path.read_text(encoding="utf-8"))
+    md = generate_markdown_report(data)
+    if output:
+        output.write_text(md, encoding="utf-8")
+        console.print(f"[green]✓ Markdown report written:[/green] {output}")
+    else:
+        print(md)  # stdout, no rich formatting so pipes work
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
