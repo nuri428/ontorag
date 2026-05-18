@@ -341,29 +341,44 @@ LIMIT {limit}"""
         start_class_uri: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
-        """SPARQL property-path closure with label-based start resolution.
+        """SPARQL property-path closure with three start modes.
 
-        Accepts either an instance URI or an rdfs:label (case- and
-        lang-tag-insensitive). When ``start_label`` is given without
-        ``start_uri``, the SPARQL bundles the label lookup and the
-        closure into a single round-trip — so the LLM never has to
-        chain find_entities → property_path_query manually.
+        Mode 1 — *instance closure*: ``start_uri`` given. Runs
+            ``<start_uri> <pred>+ ?reached``.
+        Mode 2 — *label lookup + instance closure*: ``start_label``
+            given (optional ``start_class_uri`` disambiguates). Runs
+            ``?start rdfs:label "label" ; <pred>+ ?reached`` in one
+            round-trip with case-insensitive / lang-tag-insensitive
+            label match.
+        Mode 3 — *class-wide closure*: only ``start_class_uri`` given,
+            no instance start. Runs
+            ``?start a <Class> ; <pred>+ ?reached``. Use this for
+            questions like "all places where any X is transitively
+            located" — where the start is *every instance of a class*
+            rather than a single named entity.
+
+        Match the question's intent to the mode; the LLM should be
+        able to read the schema (which lists every class URI) and
+        decide which start mode applies.
         """
-        if not start_uri and not start_label:
+        if not (start_uri or start_label or start_class_uri):
             raise ValueError(
-                "property_path_closure requires either start_uri or start_label"
+                "property_path_closure requires at least one of "
+                "start_uri / start_label / start_class_uri"
             )
 
         pfx = self._pfx()
         pred = uri_ref(predicate_uri)
+        type_clause = ""
 
         if start_uri:
+            # Mode 1
             start_clause = f"BIND({uri_ref(start_uri)} AS ?start)"
-            type_clause = ""
-        else:
-            # SPARQL embeds the label lookup; LCASE/STR mirror our
-            # filter-builder fix so multilingual labels match.
-            label_val = start_label.replace('"', '\\"') if start_label else ""
+            if start_class_uri:
+                type_clause = f"?start a {uri_ref(start_class_uri)} ."
+        elif start_label:
+            # Mode 2
+            label_val = start_label.replace('"', '\\"')
             start_clause = (
                 f'?start rdfs:label ?startLabel .\n'
                 f'    FILTER(STR(?startLabel) = "{label_val}" '
@@ -371,8 +386,10 @@ LIMIT {limit}"""
             )
             if start_class_uri:
                 type_clause = f"?start a {uri_ref(start_class_uri)} ."
-            else:
-                type_clause = ""
+        else:
+            # Mode 3 — class-wide closure (no instance start)
+            assert start_class_uri is not None  # narrowing for type-checkers
+            start_clause = f"?start a {uri_ref(start_class_uri)} ."
 
         query = f"""{pfx}
 SELECT DISTINCT ?reached (SAMPLE(?l) AS ?label)

@@ -423,33 +423,32 @@ class GraphStore(Protocol):
         start_class_uri: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
-        """Return all entities reachable from a start node via predicate+.
+        """Return all entities reachable via a transitive predicate.
 
-        Equivalent to SPARQL ``<start> <pred>+ ?reached``. Native OWL
-        ``owl:TransitiveProperty`` semantics — a single round-trip
-        instead of BFS. Use this for transitive-closure questions on
-        properties flagged ``TRANSITIVE`` in the schema.
+        Three start modes (exactly one of the three groups must be given):
+
+        - **Instance closure** (``start_uri``):
+          ``<start_uri> <pred>+ ?reached``.
+        - **Label lookup + instance closure** (``start_label`` ± ``start_class_uri``):
+          single round-trip — label resolved case- and lang-tag-insensitive,
+          then closure from the matched instance.
+        - **Class-wide closure** (``start_class_uri`` alone): every
+          instance of the class is a start node: ``?start a <Class> ;
+          <pred>+ ?reached``. Use for "any X is transitively …"
+          questions.
 
         Args:
-            predicate_uri: Predicate URI to follow transitively (must be
-                an object property; SHOULD be declared
+            predicate_uri: Predicate to follow (should be
                 owl:TransitiveProperty for the result to be meaningful).
-            start_uri: Instance URI to start from. Mutually exclusive
-                with ``start_label``. Provide this when you already
-                have the URI.
-            start_label: rdfs:label of the start instance. When provided,
-                the store resolves it to an instance URI via a
-                case-insensitive / language-tag-insensitive lookup,
-                then runs the closure. Optional ``start_class_uri``
-                disambiguates when multiple classes share the same label.
-            start_class_uri: Optional class URI to scope the label
-                lookup (rdfs:subClassOf-aware).
+            start_uri: Instance URI to start from. Mode 1.
+            start_label: rdfs:label of the start instance. Mode 2.
+            start_class_uri: Class URI — disambiguates Mode 2, or
+                triggers Mode 3 on its own.
             limit: Max entities to return (default 100).
 
         Returns:
             List of ``{"uri": str, "label": str | None}`` ordered by URI.
-            Empty list means no path exists OR the label did not match
-            any instance.
+            Empty list means no closure result.
         """
         ...
 

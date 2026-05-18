@@ -286,17 +286,19 @@ _TOOLS: list[dict[str, Any]] = [
     {
         "name": "property_path_query",
         "description": (
-            "Native owl:TransitiveProperty closure: SPARQL `<start> "
-            "<predicate>+ ?reached` in one round-trip. Predicate MUST "
-            "be one flagged `TRANSITIVE` in the schema table. "
-            "Provide either start_uri (when known) or start_label "
-            "(plain entity name — the tool resolves it via "
-            "case-insensitive rdfs:label lookup, no separate "
-            "find_entities call needed). Optional start_class_uri "
-            "disambiguates labels shared across classes. "
-            "Result shape: list[{uri, label}]. Length > 0 ⇒ every "
-            "item is part of the answer; length 0 ⇒ no transitive "
-            "path OR the label matched nothing."
+            "Native owl:TransitiveProperty closure (SPARQL `predicate+`). "
+            "Predicate MUST be one flagged `TRANSITIVE` in the schema. "
+            "Three modes (provide inputs for exactly one):\n"
+            "  • Instance: pass `start_uri` — closure from that URI.\n"
+            "  • Label lookup: pass `start_label` (and optional "
+            "`start_class_uri` to disambiguate) — store does the "
+            "rdfs:label → URI lookup in the same round-trip.\n"
+            "  • Class-wide: pass only `start_class_uri` (no start_uri/label) "
+            "— closure from EVERY instance of that class, results unioned. "
+            "Use this for questions like 'any X is transitively …' / "
+            "'all members of class C transitively related via P'.\n"
+            "Result shape: list[{uri, label}]. Length > 0 ⇒ every item "
+            "is part of the answer."
         ),
         "input_schema": {
             "type": "object",
