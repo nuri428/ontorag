@@ -1,0 +1,92 @@
+name: Eval regression gate
+
+on:
+  push:
+    branches: [main, eval-harness]
+    paths:
+      - "src/ontorag/eval/**"
+      - "src/ontorag/cli_eval.py"
+      - "examples/pure_land/**"
+      - "tests/test_eval_*.py"
+      - "tests/test_cli_eval.py"
+      - ".github/workflows/eval.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/ontorag/eval/**"
+      - "src/ontorag/cli_eval.py"
+      - "examples/pure_land/**"
+  workflow_dispatch:
+
+jobs:
+  pure-land-goldset:
+    name: Pure Land goldset
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run unit tests for eval module
+        run: |
+          uv run pytest \
+            tests/test_eval_goldset.py \
+            tests/test_eval_sparql_eq.py \
+            tests/test_eval_metrics.py \
+            tests/test_eval_report.py \
+            tests/test_cli_eval.py \
+            -v
+
+      - name: Validate Pure Land goldset
+        run: |
+          uv run ontorag eval validate examples/pure_land/goldset.jsonl
+
+      - name: Run Pure Land goldset eval
+        run: |
+          uv run ontorag eval run examples/pure_land/goldset.jsonl \
+            --schema examples/pure_land/schema.ttl \
+            --data examples/pure_land/data.ttl \
+            --output pure_land_report.json
+
+      - name: Verify zero failures
+        run: |
+          uv run python -c "
+          import json, sys
+          report = json.load(open('pure_land_report.json'))
+          fails = report['failures']
+          total = report['total_questions']
+          if fails != 0:
+              print(f'::error::{fails}/{total} goldset queries failed')
+              sys.exit(1)
+          print(f'::notice::{total} questions executed, 0 failures')
+          "
+
+      - name: Generate Markdown report
+        run: |
+          uv run ontorag eval report pure_land_report.json \
+            --output pure_land_report.md
+
+      - name: Upload JSON + Markdown report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pure-land-eval-report
+          path: |
+            pure_land_report.json
+            pure_land_report.md
+          retention-days: 30
+
+      - name: Post Markdown report as PR comment
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: pure-land-eval
+          path: pure_land_report.md
