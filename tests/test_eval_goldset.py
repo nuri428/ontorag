@@ -138,28 +138,28 @@ class TestGoldsetQuestion:
 class TestGoldsetLoad:
     def test_load_pure_land_goldset(self):
         gs = Goldset.load(PURE_LAND_GOLDSET)
-        assert len(gs) == 10
+        assert len(gs) == 50
         assert all(isinstance(q, GoldsetQuestion) for q in gs)
 
     def test_pure_land_difficulty_distribution(self):
         gs = Goldset.load(PURE_LAND_GOLDSET)
         dist = gs.distribution()
-        assert dist[Difficulty.easy] == 3
-        assert dist[Difficulty.medium] == 4
-        assert dist[Difficulty.hard] == 2
-        assert dist[Difficulty.trap] == 1
+        assert dist[Difficulty.easy] == 15
+        assert dist[Difficulty.medium] == 20
+        assert dist[Difficulty.hard] == 10
+        assert dist[Difficulty.trap] == 5
 
     def test_by_difficulty_slice(self):
         gs = Goldset.load(PURE_LAND_GOLDSET)
         traps = gs.by_difficulty("trap")
-        assert len(traps) == 1
-        assert traps[0].trap_note  # non-empty
+        assert len(traps) == 5
+        assert all(t.trap_note for t in traps)
 
     def test_by_category(self):
         gs = Goldset.load(PURE_LAND_GOLDSET)
         transitive = gs.by_category("transitive_inference")
-        assert len(transitive) == 1
-        assert transitive[0].uses_inference is True
+        assert len(transitive) >= 1
+        assert all(t.uses_inference is True for t in transitive)
 
     def test_missing_file_raises(self):
         with pytest.raises(GoldsetValidationError, match="not found"):
@@ -218,8 +218,9 @@ class TestPureLandGoldsetIntegrity:
     def test_trap_question_has_empty_gold_triples(self):
         gs = Goldset.load(PURE_LAND_GOLDSET)
         traps = gs.by_difficulty("trap")
-        assert len(traps) == 1
-        assert traps[0].gold_triples == []
+        # All trap questions should have empty gold_triples: the correct
+        # answer is "absent from KG", so there are no triples to retrieve.
+        assert all(t.gold_triples == [] for t in traps)
 
     def test_inference_questions_flag_type(self):
         gs = Goldset.load(PURE_LAND_GOLDSET)
