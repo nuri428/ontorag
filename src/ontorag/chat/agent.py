@@ -287,24 +287,39 @@ _TOOLS: list[dict[str, Any]] = [
         "name": "property_path_query",
         "description": (
             "Native owl:TransitiveProperty closure: SPARQL `<start> "
-            "<predicate>+ ?reached` in one round-trip. The predicate "
-            "MUST be one flagged `TRANSITIVE` in the schema table. "
+            "<predicate>+ ?reached` in one round-trip. Predicate MUST "
+            "be one flagged `TRANSITIVE` in the schema table. "
+            "Provide either start_uri (when known) or start_label "
+            "(plain entity name — the tool resolves it via "
+            "case-insensitive rdfs:label lookup, no separate "
+            "find_entities call needed). Optional start_class_uri "
+            "disambiguates labels shared across classes. "
             "Result shape: list[{uri, label}]. Length > 0 ⇒ every "
-            "item is part of the answer; length 0 ⇒ no transitive path. "
-            "start_uri must be an instance URI (use find_entities first "
-            "to resolve a name to a URI). Class URIs return 0."
+            "item is part of the answer; length 0 ⇒ no transitive "
+            "path OR the label matched nothing."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "start_uri": {"type": "string", "description": "시작 엔티티 URI"},
                 "predicate_uri": {
                     "type": "string",
-                    "description": "transitive하게 따라갈 predicate URI (TRANSITIVE 플래그 권장)",
+                    "description": "Predicate URI to follow transitively (must be flagged TRANSITIVE).",
+                },
+                "start_uri": {
+                    "type": "string",
+                    "description": "Instance URI to start from. Use this when known.",
+                },
+                "start_label": {
+                    "type": "string",
+                    "description": "rdfs:label of the start instance. Used when start_uri is unknown.",
+                },
+                "start_class_uri": {
+                    "type": "string",
+                    "description": "Optional class URI to disambiguate the label lookup.",
                 },
                 "limit": {"type": "integer", "default": 100},
             },
-            "required": ["start_uri", "predicate_uri"],
+            "required": ["predicate_uri"],
         },
     },
     {
@@ -561,8 +576,10 @@ class AgentLoop:
 
         if name == "property_path_query":
             return await store.property_path_closure(
-                start_uri=args["start_uri"],
                 predicate_uri=args["predicate_uri"],
+                start_uri=args.get("start_uri"),
+                start_label=args.get("start_label"),
+                start_class_uri=args.get("start_class_uri"),
                 limit=args.get("limit", 100),
             )
 

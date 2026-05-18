@@ -417,11 +417,13 @@ class GraphStore(Protocol):
 
     async def property_path_closure(
         self,
-        start_uri: str,
         predicate_uri: str,
+        start_uri: str | None = None,
+        start_label: str | None = None,
+        start_class_uri: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
-        """Return all entities reachable from start_uri via predicate+ (1+ hops).
+        """Return all entities reachable from a start node via predicate+.
 
         Equivalent to SPARQL ``<start> <pred>+ ?reached``. Native OWL
         ``owl:TransitiveProperty`` semantics — a single round-trip
@@ -429,15 +431,25 @@ class GraphStore(Protocol):
         properties flagged ``TRANSITIVE`` in the schema.
 
         Args:
-            start_uri: URI of the starting entity.
             predicate_uri: Predicate URI to follow transitively (must be
                 an object property; SHOULD be declared
                 owl:TransitiveProperty for the result to be meaningful).
+            start_uri: Instance URI to start from. Mutually exclusive
+                with ``start_label``. Provide this when you already
+                have the URI.
+            start_label: rdfs:label of the start instance. When provided,
+                the store resolves it to an instance URI via a
+                case-insensitive / language-tag-insensitive lookup,
+                then runs the closure. Optional ``start_class_uri``
+                disambiguates when multiple classes share the same label.
+            start_class_uri: Optional class URI to scope the label
+                lookup (rdfs:subClassOf-aware).
             limit: Max entities to return (default 100).
 
         Returns:
             List of ``{"uri": str, "label": str | None}`` ordered by URI.
-            Empty list means no path exists.
+            Empty list means no path exists OR the label did not match
+            any instance.
         """
         ...
 

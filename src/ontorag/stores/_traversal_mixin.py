@@ -335,25 +335,52 @@ LIMIT {limit}"""
 
     async def property_path_closure(
         self,
-        start_uri: str,
         predicate_uri: str,
+        start_uri: str | None = None,
+        start_label: str | None = None,
+        start_class_uri: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
-        """SPARQL property-path closure: <start> <pred>+ ?reached.
+        """SPARQL property-path closure with label-based start resolution.
 
-        One round-trip closure (no BFS). Use this for owl:TransitiveProperty
-        questions — the result is unambiguous: an empty list means no
-        transitive path exists; otherwise every reachable entity is here
-        with its label attached.
+        Accepts either an instance URI or an rdfs:label (case- and
+        lang-tag-insensitive). When ``start_label`` is given without
+        ``start_uri``, the SPARQL bundles the label lookup and the
+        closure into a single round-trip — so the LLM never has to
+        chain find_entities → property_path_query manually.
         """
+        if not start_uri and not start_label:
+            raise ValueError(
+                "property_path_closure requires either start_uri or start_label"
+            )
+
         pfx = self._pfx()
-        start = uri_ref(start_uri)
         pred = uri_ref(predicate_uri)
+
+        if start_uri:
+            start_clause = f"BIND({uri_ref(start_uri)} AS ?start)"
+            type_clause = ""
+        else:
+            # SPARQL embeds the label lookup; LCASE/STR mirror our
+            # filter-builder fix so multilingual labels match.
+            label_val = start_label.replace('"', '\\"') if start_label else ""
+            start_clause = (
+                f'?start rdfs:label ?startLabel .\n'
+                f'    FILTER(STR(?startLabel) = "{label_val}" '
+                f'|| LCASE(STR(?startLabel)) = LCASE("{label_val}"))'
+            )
+            if start_class_uri:
+                type_clause = f"?start a {uri_ref(start_class_uri)} ."
+            else:
+                type_clause = ""
+
         query = f"""{pfx}
 SELECT DISTINCT ?reached (SAMPLE(?l) AS ?label)
 WHERE {{
   GRAPH <{_DATA}> {{
-    {start} {pred}+ ?reached .
+    {start_clause}
+    {type_clause}
+    ?start {pred}+ ?reached .
     OPTIONAL {{ ?reached rdfs:label ?l . }}
   }}
 }}
