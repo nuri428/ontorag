@@ -2,6 +2,53 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.3.3 — 2026-05-18
+
+### Fixed — multilingual rdfs:label equality (silent 0-row bug)
+
+- **`core/sparql.py:build_filter_sparql`** — `?label = "Peacock"` previously
+  failed to match `"Peacock"@en` under RDF semantics, so any
+  multilingual rdfs:label filter silently returned 0 rows. The `=`
+  operator now OR-disjuncts plain equality with `STR(?label) = "Peacock"`,
+  matching both plain and language-tagged literals. Other operators are
+  unchanged. Discovered while benchmarking against the Pure Land
+  multilingual goldset; affects any ontology with `"value"@lang` literals.
+
+### Added — TBox-driven prompt generalisation
+
+- **`stores/base.py:PropertySummary`** — gains `is_transitive: bool = False`
+  and `inverse_of_uri: str | None = None`. Backward-compatible (defaults).
+- **`stores/fuseki.py:FusekiStore.get_schema()`** — single SPARQL round-trip
+  now pulls `owl:TransitiveProperty` and `owl:inverseOf` in addition to
+  the existing class/property metadata. Per-property aggregation makes
+  flags sticky across multiple row matches.
+- **`chat/agent.py:_format_schema_for_prompt`** — schema context now lists
+  every property with URI, label, type, `domain → range`, and a
+  `TRANSITIVE` / `inverseOf=…` flag column. The LLM no longer has to
+  guess predicate URIs from labels.
+- **`chat/agent.py:_TOOLS[traverse_graph]`** — description previously
+  hard-coded Pokemon examples (`evolvesFrom`, "X가 진화하면?"). Now
+  references the TBox `TRANSITIVE` flag + closure vocabulary instead —
+  domain-agnostic.
+- **`chat/agent.py:_SYSTEM_BASE`** — explicit fallback rule
+  (find_entities 0 rows → try other label / sub-class) + explicit guard
+  against pasting natural-language labels into URI slots.
+
+### Why this matters
+
+These are not eval-harness scaffolding — they are ontorag chat-agent
+behaviour fixes. Together they let `gpt-4o-mini` synthesise correct
+schema-aware tool calls on a multilingual ontology and follow `owl:TransitiveProperty`
+closures via `traverse_graph`. Measured impact on the v0.3.2 benchmark
+goldsets (see `BENCHMARK_RESULTS.md` for details):
+
+| Domain | Citation provided | RAGAS Answer Correctness |
+|---|---|---|
+| Commerce 20q | 1/20 → **11/20** (11×) | 0.17 → **0.31** (+82 %) |
+| Pure Land 50q | 14/50 → **28/50** (2×) | 0.20 → **0.27** (+35 %) |
+
+Hallucination rate held at 0.000 on both runs.
+
 ## v0.3.2 — 2026-05-18
 
 ### Added — TBox/ABox Dump
