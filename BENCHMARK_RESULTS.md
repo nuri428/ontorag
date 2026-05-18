@@ -408,6 +408,82 @@ Five candidate causes (in order of how much we believe each):
 | RAGAS Faithfulness ≥ LangChain on gpt-4o-mini | **Disproven for this LLM** | 0.28–0.38 vs LangChain 0.58 — open question whether a larger LLM closes this |
 | RAGAS Answer Correctness ≥ LangChain on gpt-4o-mini | **Near parity** | best ontorag 0.374 (v4) vs LangChain 0.363 |
 
+## ODS (Open Data Structures) — third-domain generalisation
+
+Same v7 code, same RAGAS setup (gpt-4o-mini both agent and judge). New
+ontology: Pat Morin's *Open Data Structures* (Carleton University,
+CC BY 2.5). 11 classes, 8 properties (2 TRANSITIVE: `uses`,
+`specialises`; 1 inverseOf pair: `implements`/`implementedBy`),
+~35 ABox instances spanning array-based / linked / tree / hash / heap
+/ trie / sort-algorithm categories. 20-question goldset
+(easy 5 / medium 6 / hard 5 / trap 4).
+
+**Critical caveat for this domain**: ODS is open-access academic text
+that almost certainly appears in gpt-4o-mini training data. LangChain
+gets *direct LLM recall* in addition to vector retrieval — this is the
+hardest domain for ontorag to win on accuracy metrics. We added 4 trap
+questions (AuroraTree / SplayTree / Ch15 / TimSort) so contamination
+would be measurable.
+
+### Head-to-head (both gpt-4o-mini)
+
+| Metric | **LangChain** | **ontorag_native** | Δ |
+|---|---:|---:|---|
+| RAGAS Faithfulness | **0.537** | 0.400 | LC ahead −0.14 |
+| RAGAS Answer Correctness | **0.490** | 0.466 | near-parity (−0.02) |
+| **RAGAS Answer Relevancy** | 0.646 | **0.745** | **🏆 ontorag +0.10 (+15%)** |
+| **Citation provided** | 0 / 20 | **10 / 20** | **🏆 structural** |
+| **Hallucination rate** | N/A | **0.000** | **🏆 structural** |
+| Trap refusal rate | 4 / 4 | 4 / 4 | tie (both correct) |
+| Avg latency (ms) | 1 233 | 4 191 | LC faster |
+
+### Transitive questions (5 of 20) — split verdict
+
+| Q | gold | LangChain (rc) | ontorag (rc) |
+|---|---|---:|---:|
+| Q012 HeapSort uses+ | BinaryHeap, ArrayStack | 0.76 | **0.75** |
+| Q013 YFastTrie specialises+ | XFastTrie, BinaryTrie | 0.49 | 0.17 (wrong tool) |
+| Q014 Ch13 instances uses+ | ChainedHashTable, ArrayStack, Treap | 0.03 (failed multi-source) | **🏆 0.94** |
+| Q015 Treap specialises+ | BinarySearchTree, BinaryTree | 0.55 (added wrong entity) | **🏆 0.89** |
+| Q016 SortAlg uses+ CountingSort | RadixSort | 0.64 | 0.08 (wrong tool) |
+
+Each system gets the closures the *other one* struggles with. LangChain
+trips on **multi-source closures** (Q014: "every Ch13 structure's
+transitive uses" — chunks don't UNION cleanly). ontorag trips when the
+LLM **picks the wrong tool** (Q013 chose `find_path` instead of
+`property_path_query`; Q016 chose `find_related`). Both failure modes
+have a clear next-iteration fix (LC: better retrieval; ontorag: tool
+description disambiguation), but neither is fixed here.
+
+### Trap questions — both refuse, ontorag more informative
+
+All four trap questions (AuroraTree / SplayTree / Ch15 / TimSort) get
+"I don't know" from LangChain and "no such instance in the ontology"
+from ontorag. RAGAS scores both low (0.04–0.20) because the gold
+answer's wording ("No information in this ontology …") differs from
+each system's natural refusal — *the metric understates both systems'
+correct behaviour*. Operationally both pass; ontorag's "no instance
+named X in the data graph" is more debuggable for a real user.
+
+### What ODS adds to the cross-domain narrative
+
+| Domain | LLM contamination | Citation moat | Relevancy | Correctness winner |
+|---|---|---|---|---|
+| Pure Land (Buddhism, multilingual, fictional) | very low | ontorag 50% / LC 0% | ontorag +31% (v7) | ontorag (v8 with gpt-4o) |
+| Commerce (schema.org, fictional firms) | low | ontorag 50% / LC 0% | ontorag +11% (v7) | ontorag (mock parity, LC narrow win on real metric) |
+| **ODS (data structures, public textbook)** | **high** | **ontorag 50% / LC 0%** | **ontorag +15%** | **LangChain (modest)** |
+
+**Reading**: ontorag's structural moats (triple-level citation,
+0-hallucination measurability) hold *every domain regardless of LLM
+contamination*. ontorag's Relevancy advantage also holds across all
+three. Faithfulness and Correctness, in contrast, move with the
+ontology designer's text density and with whether the LLM has prior
+knowledge of the domain. ODS is the worst case for ontorag on those
+two metrics, and the result is *still near-parity* (Correctness
+−0.02). That bounds the downside.
+
+---
+
 ## v8 — gpt-4o agent single-shot (executed, ~$6)
 
 After the v2–v7 zigzag we ran one decisive single-shot: same v7 code,
