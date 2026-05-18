@@ -173,6 +173,14 @@ def build_filter_sparql(
             filter_parts.append(f"CONTAINS(STR({fvar}), {val})")
         elif f.op == FilterOp.starts_with:
             filter_parts.append(f"STRSTARTS(STR({fvar}), {val})")
+        elif f.op.value == "=":
+            # Lang-tagged literals ("Peacock"@en) are NOT equal to plain
+            # ("Peacock") under RDF semantics, so multilingual rdfs:label
+            # filters would silently return 0 rows. STR() strips the lang
+            # tag and datatype, restoring intuitive equality. We keep the
+            # original ?fv = "..." disjunct so URI-valued filters and
+            # exact-typed-literal matches still work.
+            filter_parts.append(f"({fvar} = {val} || STR({fvar}) = {val})")
         else:
             filter_parts.append(f"{fvar} {f.op.value} {val}")
 

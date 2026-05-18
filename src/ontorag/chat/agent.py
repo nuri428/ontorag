@@ -27,21 +27,26 @@ _SYSTEM_BASE = """\
 1. 모든 클래스의 인스턴스 수가 0 (온톨로지가 비어 있음)
 2. 인사·감사·날씨 등 온톨로지 도메인과 전혀 무관한 질문 (엔티티나 관계를 묻지 않음)
 
-## 질문 유형 → 추천 툴
+## 질문 유형 → 추천 툴 (도메인 무관 — TBox 메타데이터로 판단)
 
 | 질문 유형 | 추천 툴 |
 |-----------|---------|
-| "X가 진화하면?", "X의 부모는?", "X에 속한 Y" 등 관계 탐색 | traverse_graph (direction 주의) 또는 find_related |
-| "X는 어떤 포켓몬이야?" 단일 엔티티 상세 | describe_entity |
-| "모든 불 타입 포켓몬" 클래스 필터 검색 | find_entities (filters 사용) |
-| "A와 B는 어떻게 연결돼?" 두 엔티티 경로 | find_path |
-| 스키마/클래스 구조 파악 필요 시 | get_schema, get_class_detail |
+| "transitively/directly and indirectly/모든·전체 X" + 위 '속성/관계' 표에 `TRANSITIVE` 플래그 있는 property 매칭 | **traverse_graph** (predicate=해당 URI, max_depth=3) — 필수, find_entities/find_related로 대체 불가 |
+| 단일 홉 관계 (X의 직속 P) | find_related 또는 traverse_graph(max_depth=1) |
+| 단일 엔티티의 전체 속성/관계 | describe_entity |
+| 클래스 + 필터로 인스턴스 검색 | find_entities (filters에 rdfs:label 권장) |
+| 두 엔티티 간 경로 | find_path |
+| 스키마/클래스 구조 파악 | get_schema, get_class_detail |
 
 ## URI 처리 규칙
 
 - URI는 반드시 툴이 반환한 값 또는 아래 '현재 스키마'에 나온 URI만 사용하세요. URI나 prefix:name을 직접 구성하거나 추측하는 것은 절대 금지입니다.
+- **predicate 자리에는 반드시 위 '속성/관계' 섹션의 URI를 그대로 복사해 넣으세요.** label(예: 'Chief Executive Officer')을 predicate URI로 쓰면 절대 안 됩니다 — Fuseki가 "Invalid URI" 오류를 던집니다.
 - 인스턴스 URI를 모를 때: find_entities(class_uri=<알고있는클래스URI>, filters=[{{"property": "rdfs:label", "op": "=", "value": "이름"}}])로 조회하세요.
-- 조회 결과가 없으면 아래 스키마에서 정확한 클래스 URI를 확인하세요.
+- find_entities가 0건이면 다음 순서로 fallback:
+  1. 다른 label로 재시도 (영문/한글, "Tech" 같은 부분 일치 contains op)
+  2. 같은 도메인의 sub-class에서 검색 (예: Organization 대신 Company)
+  3. 그래도 안 되면 "정보 없음" 답변 — 추측 금지
 - 최종 답변에 URI를 절대 노출하지 마세요. 이름(label)만 사용하세요.
 
 ## 답변 스타일
@@ -67,6 +72,37 @@ def _format_schema_for_prompt(schema: Any) -> str:
         parent = f" ← {_local_name(cls.parent_uri)}" if cls.parent_uri else ""
         lines.append(
             f"- {cls.uri} | {label}{parent} | 속성:{cls.property_count} | 인스턴스:{cls.instance_count}"
+        )
+
+    # Properties block — LLM otherwise has no way to know exact predicate URIs,
+    # which it MUST use as-is (no string concatenation, no label guessing).
+    # Flags surfaced here (TRANSITIVE / inverseOf) are read from the TBox so
+    # the prompt stays domain-agnostic: any ontology declaring those OWL
+    # constructs gets them propagated automatically.
+    props = getattr(schema, "properties", None) or []
+    if props:
+        lines.append("")
+        lines.append("### 속성/관계 (URI | label | 유형 | domain → range | 플래그)")
+        for p in props:
+            label = p.label or "-"
+            dom = _local_name(p.domain_uri) if p.domain_uri else "?"
+            rng = _local_name(p.range_uri) if p.range_uri else "?"
+            flags: list[str] = []
+            if getattr(p, "is_transitive", False):
+                flags.append("TRANSITIVE")
+            inv = getattr(p, "inverse_of_uri", None)
+            if inv:
+                flags.append(f"inverseOf={_local_name(inv)}")
+            flag_str = (" | " + ", ".join(flags)) if flags else ""
+            lines.append(
+                f"- {p.uri} | {label} | {p.prop_type} | {dom} → {rng}{flag_str}"
+            )
+        lines.append("")
+        lines.append(
+            "> 위 URI를 그대로 사용하세요. predicate 자리에 label을 넣지 마세요."
+        )
+        lines.append(
+            "> `TRANSITIVE` 플래그가 붙은 property에 대해 'all/transitively/모든/전체' 같은 closure 질문이 오면 **반드시 traverse_graph(predicate=해당 URI, max_depth=3)**를 사용하세요."
         )
 
     ns_relevant = {
@@ -174,13 +210,15 @@ _TOOLS: list[dict[str, Any]] = [
     {
         "name": "traverse_graph",
         "description": (
-            "시작 엔티티에서 특정 관계를 따라 연결된 엔티티를 탐색합니다. "
-            "다음 질문 유형에 이 툴을 우선 사용하세요: "
-            "(1) 'X가 진화하면?' → direction=incoming으로 evolvesFrom 역방향 탐색 "
-            "(2) 'X의 전체 진화 체인?' → max_depth=3, direction=both "
-            "(3) 'X의 부모/자식 관계?' → direction=outgoing 또는 incoming "
-            "(4) 'X에 속한 것들?' → outgoing으로 소속 관계 탐색. "
-            "direction 규칙: predicate 방향이 '결과→시작' 이면 incoming, '시작→결과' 이면 outgoing."
+            "시작 엔티티에서 특정 관계를 따라 연결된 엔티티를 **여러 홉(multi-hop / transitive closure)** 탐색합니다. "
+            "사용 규칙 (도메인 무관, TBox 메타데이터로 자동 결정): "
+            "(1) 시스템 프롬프트의 '속성/관계' 표에서 **`TRANSITIVE` 플래그가 붙은 property**가 있고, "
+            "질문이 'all/transitively/directly and indirectly/모든/전체/간접적으로' 같은 closure 어휘를 쓰면 "
+            "→ 반드시 이 도구로 (predicate=TRANSITIVE_property_URI, max_depth=3, direction=outgoing). "
+            "(2) 체인/계보/조상-후손 같은 다단 관계 질문 → max_depth=3, direction=both. "
+            "(3) inverseOf로 표시된 관계의 역방향 질문 → direction=incoming. "
+            "direction 의미: outgoing=시작→이웃, incoming=이웃→시작(역방향), both=양방향. "
+            "owl:TransitiveProperty 의미를 보존하므로 한 번 호출이면 closure 전체를 받습니다."
         ),
         "input_schema": {
             "type": "object",
