@@ -26,6 +26,15 @@ dev = [
     "pytest-cov>=5.0.0",
     "ruff>=0.4.0",
 ]
+bench = [
+    # External baselines for Phase B comparison (LangChain vector RAG).
+    # Optional — install only when running `ontorag eval` against
+    # non-ontorag baselines. Requires OPENAI_API_KEY at runtime.
+    "langchain>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "langchain-chroma>=0.1.0",
+    "chromadb>=0.5.0",
+]
 
 [project.scripts]
 ontorag = "ontorag.cli:app"
