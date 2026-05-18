@@ -1,12 +1,7 @@
-# Benchmark Results — Phase B (mock simulation)
+# Benchmark Results — Phase B
 
-> **Honest disclaimer**: these numbers are from **deterministic mock
-> baselines**, not live LLM API calls. They demonstrate the evaluation
-> harness end-to-end and show what shape the comparison will take when
-> real LangChain + OpenAI numbers are produced. They are *not* a claim
-> about real-world ontorag vs LangChain performance.
->
-> See **How to reproduce with real APIs** below.
+> **Status**: mock simulation for both domains + **real LangChain
+> + OpenAI run on Commerce** (2026-05-18). Pure Land real run pending.
 
 ---
 
@@ -37,15 +32,22 @@ Combined: 4 bench runs (2 domains × 2 baselines) + 2 comparison files.
 
 ### Commerce (20 questions, 297 triples)
 
-| Metric | ontorag_mock | vector_rag_mock |
-|---|---:|---:|
-| Avg latency (ms) | 180 | 420 |
-| Avg tool calls | 1.15 | 0.00 |
-| Avg hallucination rate | **0.000** | *(N/A)* |
-| Avg citation coverage | 0.225 | *(N/A)* |
-| Citation provided (count / rate) | **9 / 20 (45 %)** | **0 / 20 (0 %)** |
-| Total prompt tokens | 8 190 | 10 400 |
-| Total completion tokens | 1 600 | 1 200 |
+| Metric | ontorag_mock | vector_rag_mock | **langchain (real)** |
+|---|---:|---:|---:|
+| Avg latency (ms) | 180 | 420 | **1 770** |
+| Avg tool calls | 1.15 | 0.00 | 0.00 |
+| Avg hallucination rate | **0.000** | *(N/A)* | *(N/A)* |
+| Avg citation coverage | 0.225 | *(N/A)* | *(N/A)* |
+| Citation provided (count / rate) | **9 / 20 (45 %)** | **0 / 20 (0 %)** | **0 / 20 (0 %)** |
+
+**Real LangChain qualitative findings** (`gpt-4o-mini` + Chroma + `text-embedding-3-small`, k=5, 31 indexed chunks):
+
+* **Easy questions (Q001–Q005)**: all answered correctly — "The CEO of Aurora Tech is Alice Kim", "$899.00", "1998", "Japanese Yen", "800 employees".
+* **Trap questions (Q018–Q020)**: all three returned `"I don't know."` — **the correct answer for KG-grounded benchmarks**. LangChain did not hallucinate Aurora Phone X3 / Orion Labs products / Vega Wearables parent company.
+* **Citation provided: 0 / 20.** Vector RAG produces text chunks, not triple-level citations — by construction. The user cannot click a fact to see the supporting triple.
+* **Cost**: ~$0.02 for the 20-question run (gpt-4o-mini is cheap).
+
+So on a small commerce KG with clean labels, **LangChain matched ontorag on answer correctness**. What LangChain *cannot* do — structurally — is provide triple-level citations or compute KG-grounded hallucination rate. That structural gap is the ontorag differentiator, *not* answer accuracy on small clean datasets.
 
 ### What this tells us (about the mock)
 
@@ -139,12 +141,13 @@ JSON output.
 
 | Claim | Status |
 |---|---|
-| The evaluation harness end-to-end works | **Proven** (4 successful bench runs, 2 comparisons) |
+| The evaluation harness end-to-end works | **Proven** (5 successful bench runs, 3 comparisons) |
 | Per-question reports + per-difficulty rollups generate cleanly | **Proven** |
-| Vector RAG cannot produce triple-level citations | **Structural fact** — true by construction of vector RAG |
-| ontorag beats vector RAG on accuracy in *these* domains | **Not proven** — needs real LangChain run |
-| Hallucination rate of real LangChain on these goldsets | **Unknown** — would require real run |
-| Real RAGAS Faithfulness numbers | **Unknown** — would require RAGAS LLM judge calls |
+| Vector RAG cannot produce triple-level citations | **Proven (real run)** — LangChain returned 0 / 20 cited triples on Commerce |
+| ontorag beats vector RAG on accuracy on small clean Commerce domain | **Disproven** — LangChain answered easy + trap questions correctly |
+| LangChain hallucinates on KG-absent facts | **Disproven for Commerce** — returned "I don't know" on all 3 trap questions |
+| Pure Land (multilingual, 50 questions, inference-heavy) real run | **Unknown** — pending (~$0.25 estimated) |
+| RAGAS Faithfulness / Answer Correctness numbers | **Unknown** — pending (`--with-ragas` flag, ~+$0.40) |
 
 Open issues:
 - ~~`--baseline langchain` is not wired into the orchestrator CLI yet.~~

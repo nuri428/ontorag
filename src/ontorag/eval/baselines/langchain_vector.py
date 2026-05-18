@@ -45,9 +45,18 @@ _DEFAULT_TOP_K = 5
 
 
 def _require_deps() -> dict[str, Any]:
-    """Lazy-import LangChain/Chroma deps; raise a clear error if missing."""
+    """Lazy-import LangChain/Chroma deps; raise a clear error if missing.
+
+    LangChain 1.x moved ``chains`` into the ``langchain_classic`` package.
+    We try both import paths so the baseline works against 0.3.x and 1.x.
+    """
     try:
-        from langchain.chains import RetrievalQA  # noqa: PLC0415
+        try:
+            from langchain.chains import RetrievalQA  # type: ignore[import-untyped]  # noqa: PLC0415
+        except ImportError:
+            from langchain_classic.chains import (  # type: ignore[import-untyped]  # noqa: PLC0415
+                RetrievalQA,
+            )
         from langchain_chroma import Chroma  # noqa: PLC0415
         from langchain_openai import (  # noqa: PLC0415
             ChatOpenAI,
