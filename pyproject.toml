@@ -4,6 +4,34 @@ version = "0.3.2"
 description = "Ontology-aware RAG framework. Ontology as the source of truth."
 readme = "README.md"
 requires-python = ">=3.12"
+license = { file = "LICENSE" }
+authors = [{ name = "Jaeho Kang", email = "greennuri@gmail.com" }]
+maintainers = [{ name = "Jaeho Kang", email = "greennuri@gmail.com" }]
+keywords = [
+    "rag",
+    "ontology",
+    "owl",
+    "rdf",
+    "sparql",
+    "mcp",
+    "llm",
+    "knowledge-graph",
+    "fuseki",
+    "llms4ol",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: Linguistic",
+    "Typing :: Typed",
+]
 dependencies = [
     "fastapi[standard]>=0.115.0",
     "fastapi-mcp>=0.4.0",
@@ -38,6 +66,12 @@ bench = [
     "ragas>=0.2.0",
     "datasets>=2.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/nuri428/ontorag"
+Repository = "https://github.com/nuri428/ontorag"
+Issues = "https://github.com/nuri428/ontorag/issues"
+Changelog = "https://github.com/nuri428/ontorag/blob/main/CHANGELOG.md"
 
 [project.scripts]
 ontorag = "ontorag.cli:app"

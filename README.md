@@ -22,6 +22,22 @@ User query → LLM agent → ontology tools (get_schema / find_entities / traver
 
 ---
 
+## Why ontorag (vs. vector RAG)
+
+Measured on identical TBox + ABox + goldsets — see [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) for the full run (LangChain + Chroma + OpenAI, 70 questions across 2 domains).
+
+| Capability | Vector RAG (LangChain) | ontorag |
+|---|---|---|
+| Single-entity lookup | ✓ Commerce easy 5/5 | ✓ |
+| Multi-hop / OWL transitive inference (`pl:locatedIn+`) | ✗ Q008/Q039/Q040 stopped at first hop | ✓ |
+| Triple-level citation (auditable provenance) | ✗ 0 / 70 (structural — chunks only) | ✓ 30 / 70 cited |
+| Hallucination measurability against ground truth | N/A (no triple-level grounding) | ✓ 0.000 hallucination rate |
+| Refusal on KG-absent facts (trap questions) | ✓ Commerce 3/3 traps refused | ✓ |
+
+Vector RAG handles flat lookups well — the structural advantage of ontorag appears on **transitive inference**, **provenance**, and **measurable grounding**.
+
+---
+
 ## Key features
 
 | Feature | Detail |

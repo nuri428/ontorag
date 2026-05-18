@@ -22,6 +22,22 @@
 
 ---
 
+## ontorag을 쓰는 이유 (vector RAG 대비)
+
+동일한 TBox + ABox + goldset으로 측정한 결과입니다 — 전체 실행 내역은 [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) (LangChain + Chroma + OpenAI, 2개 도메인 합산 70 문항).
+
+| 능력 | Vector RAG (LangChain) | ontorag |
+|---|---|---|
+| 단일 엔티티 조회 | ✓ Commerce easy 5/5 | ✓ |
+| 멀티 홉 / OWL 전이 추론 (`pl:locatedIn+`) | ✗ Q008/Q039/Q040은 첫 홉에서 멈춤 | ✓ |
+| 트리플 단위 인용 (감사 가능한 출처) | ✗ 0 / 70 (구조적 한계 — 청크만 반환) | ✓ 30 / 70 인용 |
+| 정답 대비 환각 측정 가능성 | N/A (트리플 단위 grounding 없음) | ✓ 환각률 0.000 |
+| KG에 없는 사실에 대한 거절 (trap 문항) | ✓ Commerce 3/3 거절 | ✓ |
+
+Vector RAG는 단순 조회에 강합니다. ontorag의 구조적 우위는 **전이 추론·출처 인용·정량 grounding**에서 나타납니다.
+
+---
+
 ## 주요 기능
 
 | 기능 | 설명 |
