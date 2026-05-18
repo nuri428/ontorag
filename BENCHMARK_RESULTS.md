@@ -1,9 +1,10 @@
 # Benchmark Results — Phase B
 
-> **Status**: real head-to-head measurement complete (2026-05-18).
-> Both domains run with **real LangChain + RAGAS** *and* **real ontorag
-> chat agent (`ontorag_native`)** using gpt-4o-mini as the LLM for both
-> baselines. Mock columns retained as the "perfect retrieval" upper bound.
+[한국어 문서](BENCHMARK_RESULTS.ko.md)
+
+> **Status**: 4-domain RAGAS final measurement complete (2026-05-19,
+> v9 section). The earlier v2–v8 iteration history is preserved below
+> as the record of how this result was reached.
 
 ---
 
@@ -556,40 +557,41 @@ the head-to-head narrative this iteration loop set out to produce.
 
 ---
 
-## v9 — 4-도메인 RAGAS final (gpt-4o agent + gpt-4o judge, 2026-05)
+## v9 — 4-domain RAGAS final (gpt-4o agent + gpt-4o judge, 2026-05)
 
-> v8에서 미해결로 남겼던 "judge model swap (gpt-4o-mini → gpt-4o
-> judge)"를 이번에 실제로 실행하고, 동시에 도메인 표면을 **4개**로
-> 확장했습니다. agent는 **gpt-4o**, judge도 **gpt-4o** 동일 모델.
+> Closes the "judge model swap (gpt-4o-mini → gpt-4o judge)" gap that
+> v8 left open, and at the same time **expands the domain surface to
+> four**. Agent is **gpt-4o**, judge is also **gpt-4o** — same model on
+> both sides.
 
-### 측정 설계
+### Measurement design
 
-- 4 도메인 × 2 baseline × {RAGAS Faithfulness, AnswerCorrectness,
-  AnswerRelevancy, Hallucination, Citation} = 8회 측정
+- 4 domains × 2 baselines × {RAGAS Faithfulness, AnswerCorrectness,
+  AnswerRelevancy, Hallucination, Citation} = 8 measurement runs
 - Baselines: `langchain` (RetrievalQA + Chroma + OpenAI embed +
   gpt-4o), `ontorag_native` (FusekiStore + AgentLoop + gpt-4o)
-- Judge: `gpt-4o`, temperature 0 (RAGAS_JUDGE_MODEL env var)
-- Goldset 분포: easy/medium/hard/trap (Pokemon·Techstack·ODS는
-  5/6/5/4 = 20; Pure Land는 15/20/10/5 = 50)
-- 측정 사이 ~30초 rate-limit cooldown
-- Fuseki는 도메인 전환마다 `DROP GRAPH` + reload
+- Judge: `gpt-4o`, temperature 0 (via `RAGAS_JUDGE_MODEL` env var)
+- Goldset distribution: easy/medium/hard/trap — Pokemon · Techstack ·
+  ODS are 5/6/5/4 = 20 each; Pure Land is 15/20/10/5 = 50
+- ~30 s rate-limit cooldown between runs
+- Fuseki is `DROP GRAPH`-ed and reloaded for each domain switch
 
-### 4-도메인 결과표
+### 4-domain result table
 
-| 도메인 | TBox 특징 | baseline | Faithfulness | Correctness | Relevancy | Hallucination | Citation% |
+| Domain | TBox features | Baseline | Faithfulness | Correctness | Relevancy | Hallucination | Citation% |
 |---|---|---|---|---|---|---|---|
-| **Pokemon** | TransProp 1 (`evolvesFrom`), 작은 ABox | LangChain | **0.677** | 0.448 | 0.342 | — | 0% |
-| (20q, 한국어) | LegendaryPokemon⊑Pokemon | ontorag_native | 0.423 | **0.466** | **0.349** | **0.000** | **65%** |
-| **Techstack** | TransProp 1 (`dependsOn`), 작은 ABox | LangChain | **0.808** | **0.523** | **0.420** | — | 0% |
-| (20q, 한국어) | 7개 subclass 위계 | ontorag_native | 0.333 | 0.382 | 0.279 | **0.000** | **45%** |
-| **ODS** | TransProp 2 (`uses`, `specialises`) | LangChain | 0.521 | 0.493 | 0.641 | — | 0% |
-| (20q, 영어) | inverseOf 쌍 (`implements`↔`implementedBy`) | ontorag_native | **0.551** | **0.515** | **0.749** | **0.000** | **65%** |
-| **Pure Land** | TransProp (`locatedIn`), multilingual | LangChain | 0.345 | 0.260 | 0.180 | — | 0% |
-| (50q, 한국어) | 큰 ABox(717 triples), 낮은 contamination | ontorag_native | **0.422** | **0.381** | **0.357** | **0.000** | **66%** |
+| **Pokemon** | 1 TransProp (`evolvesFrom`), small ABox | LangChain | **0.677** | 0.448 | 0.342 | — | 0% |
+| (20q, Korean) | `LegendaryPokemon ⊑ Pokemon` | ontorag_native | 0.423 | **0.466** | **0.349** | **0.000** | **65%** |
+| **Techstack** | 1 TransProp (`dependsOn`), small ABox | LangChain | **0.808** | **0.523** | **0.420** | — | 0% |
+| (20q, Korean) | 7-level subclass hierarchy | ontorag_native | 0.333 | 0.382 | 0.279 | **0.000** | **45%** |
+| **ODS** | 2 TransProp (`uses`, `specialises`) | LangChain | 0.521 | 0.493 | 0.641 | — | 0% |
+| (20q, English) | inverseOf pair (`implements` ↔ `implementedBy`) | ontorag_native | **0.551** | **0.515** | **0.749** | **0.000** | **65%** |
+| **Pure Land** | TransProp (`locatedIn`), multilingual labels | LangChain | 0.345 | 0.260 | 0.180 | — | 0% |
+| (50q, Korean) | Large ABox (717 triples), low contamination | ontorag_native | **0.422** | **0.381** | **0.357** | **0.000** | **66%** |
 
-(굵게 표시: 같은 도메인 내 baseline-간 우위)
+(**Bold** marks the within-domain winner for each metric.)
 
-### 도메인별 우위 패턴
+### Per-domain win pattern
 
 ```
                        Faithfulness  Correctness  Relevancy  Hallucination  Citation
@@ -603,50 +605,78 @@ Pure Land  LangChain        -            -            -            -            
            ontorag_native   ●            ●            ●            ●            ●
 ```
 
-### 패턴 해석
+### Reading the pattern — three findings
 
-세 가지 발견이 있었습니다:
+#### Finding 1 — Faithfulness is shaped by LLM-judge style bias
 
-#### Finding 1 — Faithfulness는 LLM judge의 style bias에 좌우됨
+LangChain Faithfulness on Pokemon · Techstack is very high (0.677 /
+0.808), but **Citation is 0% and Hallucination is not measurable** —
+the baseline simply quotes text chunks back. RAGAS Faithfulness rewards
+*lexical overlap* with the retrieved context, so the chunk-quote
+strategy gets an artificial score bump.
 
-Pokemon·Techstack에서 LangChain Faithfulness가 0.677/0.808로 매우 높지만, **Citation은 0%이고 Hallucination은 측정 불가**(텍스트 chunk를 그대로 인용했을 뿐). RAGAS Faithfulness는 "원문과 어휘가 얼마나 겹치는가"를 본질적으로 좋아하므로 chunk-quote 전략이 인위적으로 높은 점수를 받습니다.
+ontorag_native rephrases SPARQL results as fluent prose → the judge
+penalizes the divergence from source wording. **But when the answer is
+factually correct, Correctness follows** (Pokemon 0.466 vs 0.448).
 
-ontorag_native는 SPARQL 결과를 자연어로 재구성 → judge가 원문 표현과 다르다고 페널티. 그러나 **답이 정확하면 Correctness는 따라옴** (Pokemon 0.466 vs 0.448).
-
-#### Finding 2 — OWL 기능이 풍부할수록 ontorag 우위
+#### Finding 2 — The richer the OWL feature set, the bigger ontorag's edge
 
 ```
-        TransProp 개수  inverseOf  multilingual  ontorag 종합 우위
+        TransProp count  inverseOf  Multilingual  ontorag wins (of 5 metrics)
 Pokemon         1            ×           ×              3/5
 Techstack       1            ×           ×              2/5
 ODS             2            ✓           ×              5/5
 Pure Land       1            ✓           ✓              5/5
 ```
 
-OWL 기능이 1축뿐인 도메인(Pokemon/Techstack)에선 graph 추론의 우위가 RAGAS judge의 style bias를 못 이겨냄. 2축 이상(ODS의 두 TransitiveProperty + inverseOf, Pure Land의 multilingual+TransProp+큰 ABox)에선 ontorag가 모든 RAGAS 메트릭을 이김.
+When the ontology only exercises a single axis of OWL inference
+(Pokemon / Techstack), graph reasoning cannot overcome the judge's
+style bias on the score metrics. When the ontology exercises **two or
+more axes** (ODS's two TransitiveProperties + inverseOf; Pure Land's
+multilingual + TransProp + large ABox), ontorag wins every RAGAS
+metric — including Faithfulness.
 
-#### Finding 3 — Hallucination/Citation은 모든 도메인에서 ontorag 독점
+#### Finding 3 — Hallucination / Citation are ontorag-exclusive across every domain
 
-4 도메인 × 50% trap 비율(평균 20%) 환경에서:
-- **Hallucination 0.000**: ontorag_native는 모든 도메인에서 0 hallucination — SPARQL이 empty rows를 반환하면 답을 만들지 않음.
-- **Citation 45-66%**: 답변에 RDF 트리플 인용을 첨부 → 결정론적 검증 가능.
-- LangChain은 두 지표 모두 측정 불가 (citation을 출력하지 않으니 hallucination 정의 자체가 안 됨).
+With 20% trap-question density on average:
+- **Hallucination 0.000**: ontorag_native never fabricates — when
+  SPARQL returns empty rows, the agent refuses instead of generating.
+- **Citation 45–66%**: answers carry RDF-triple-level citations,
+  enabling deterministic audit.
+- LangChain's "—" is **not** "zero" — it's "not measurable", because
+  the baseline emits no citations and hallucination cannot be defined
+  without them.
 
-### 결론 — 4-도메인 narrative
+### Conclusion — the 4-domain narrative
 
-이번 측정이 v8과 합쳐서 보여주는 것:
+Combined with the v8 single-shot, this measurement says:
 
-1. **모델을 키우면(gpt-4o-mini → gpt-4o)** ontorag가 v8에서 Pure Land Correctness +11%로 이김 — agent의 도구 사용 능력이 임계점을 넘으면 OWL 추론 우위가 정확도로 직결.
-2. **judge를 키워도(gpt-4o-mini → gpt-4o)** Faithfulness gap의 일부는 여전히 style bias로 남음 — 특히 작은 ABox + 작은 chunk 도메인에서. Karpathy의 "judge bias가 진짜 gap인지 확인" 권고대로 측정해보니 일부는 진짜 bias.
-3. **OWL feature가 풍부한 도메인(ODS, Pure Land)에서 ontorag가 모든 RAGAS 메트릭을 이김** — TransitiveProperty 2축, inverseOf, multilingual 라벨이 모두 vector RAG가 약한 지점.
-4. **모든 도메인에서 Hallucination 0% + Citation 45-66%** — 운영 환경에서 "답을 만들지 않음"이 비용을 결정하는 영역(법률·의료·연구)에서 ontorag가 구조적 우위.
+1. **Scaling the agent model (gpt-4o-mini → gpt-4o)** flipped ontorag
+   to win Correctness in v8 (+11% on Pure Land) — once the agent
+   clears a reasoning threshold, the OWL inference advantage shows up
+   in accuracy too.
+2. **Scaling the judge model (gpt-4o-mini → gpt-4o)** does *not* close
+   the Faithfulness gap fully — part of the gap is genuine style bias,
+   especially on small-ABox + small-chunk domains. Karpathy's "is the
+   judge bias a real gap?" advice applied here: turns out, partially.
+3. **On OWL-feature-rich domains (ODS, Pure Land), ontorag wins every
+   RAGAS metric** — two TransitiveProperty axes, inverseOf, and
+   multilingual labels are all places vector embedding is weakest.
+4. **Across every domain, Hallucination 0% + Citation 45–66%** —
+   ontorag's structural moat in environments where the cost of
+   confidently-wrong answers dominates (legal, medical, scholarly KG).
 
-> **운영 권장**: contamination이 매우 높고 사실 인용이 중요한 가벼운 도메인(documentation Q&A 등) → LangChain. OWL 추론·다국어·hallucination 비용이 중요한 도메인(legal/medical/scholarly KG, multi-locale catalog) → ontorag.
+> **Practical guidance**: pick **LangChain** for heavy-contamination
+> + small-ABox domains where chunk-quote accuracy is acceptable
+> (documentation Q&A and similar). Pick **ontorag** for domains where
+> OWL inference, multilingual access, or hallucination cost dominate
+> (legal / medical / scholarly KGs, multi-locale catalogs).
 
-### 비용 측정 (gpt-4o agent + gpt-4o judge, 8회 실측)
+### Cost (gpt-4o agent + gpt-4o judge, 8 measured runs)
 
-- Pokemon (20q): ~$0.60 (agent + judge 합산)
+- Pokemon (20q): ~$0.60 (agent + judge combined)
 - Techstack (20q): ~$0.45
 - ODS (20q): ~$0.65
 - Pure Land (50q): ~$3.50
-- **총 8회 measurement: ~$7-9** (실제 청구는 OpenAI billing 확인 필요)
+- **Total 8 measurements: ~$7–9** (verify against OpenAI billing for
+  the exact figure)
