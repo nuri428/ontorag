@@ -418,13 +418,76 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 ---
 
+## 평가 하네스 — `ontorag eval`
+
+`eval-harness` 브랜치에서 사용 가능한 내장 평가 도구. ontorag을
+벡터 RAG baseline과 정량 비교하기 위한 goldset+metric 파이프라인.
+
+### 제공 기능
+
+- **두 벤치마크 도메인** — `examples/pure_land/` (50문항, fictional+religious — 다국어 라벨 서방정토 우주관) + `examples/commerce/` (20문항, schema.org 표준 어휘 + 가상 회사 인스턴스)
+- **Goldset 형식** — JSONL with `gold_sparql`, `gold_answer`, `gold_triples`, `uses_inference`. Pydantic 검증.
+- **5개 메트릭** — `sparql_result_equivalent`, `inference_utilization`, `hallucination_rate`, `citation_coverage`, RAGAS (`faithfulness`, `answer_correctness`, `answer_relevancy`)
+- **Baseline** — `ontorag_mock` (perfect retrieval 상한), `vector_rag_mock` (70/20/10 bucket 시뮬), `langchain` (실제 RetrievalQA + Chroma + OpenAI — `--extra bench` + API key 필요)
+- **Markdown 리포트** — PR 코멘트/블로그 포스트에 그대로 부착 가능
+- **CI 통합** — GitHub Actions matrix가 두 도메인 모두 PR마다 실행 + artifact upload + sticky comment
+
+### 명령어
+
+```bash
+# Goldset 검증
+uv run ontorag eval validate examples/commerce/goldset.jsonl
+
+# gold_sparql을 graph에 실행 (데이터 위생 체크)
+uv run ontorag eval run examples/commerce/goldset.jsonl \
+    --schema examples/commerce/schema.ttl \
+    --data examples/commerce/data.ttl \
+    --output report.json
+
+# Baseline + 메트릭 통합 실행
+uv run ontorag eval bench examples/commerce/goldset.jsonl \
+    --baseline ontorag_mock \
+    --schema examples/commerce/schema.ttl \
+    --data examples/commerce/data.ttl \
+    --output ontorag.json
+
+# 두 결과 비교 Markdown
+uv run ontorag eval compare ontorag.json langchain.json \
+    --name-a ontorag --name-b langchain \
+    --output comparison.md
+
+# JSON → Markdown 리포트
+uv run ontorag eval report ontorag.json --output report.md
+```
+
+### 실제 LangChain baseline + RAGAS (~$1/실행)
+
+```bash
+uv sync --extra bench
+export OPENAI_API_KEY=sk-...
+
+uv run ontorag eval bench examples/commerce/goldset.jsonl \
+    --baseline langchain \
+    --schema examples/commerce/schema.ttl \
+    --data examples/commerce/data.ttl \
+    --with-ragas \
+    --output langchain_real.json
+```
+
+현재 mock simulation 결과와 "실제 API 비용 없이 증명된 것 / 증명되지
+않은 것"의 정직한 정리는 [`BENCHMARK_RESULTS.md`](BENCHMARK_RESULTS.md)
+를 참조하세요.
+
+---
+
 ## 로드맵
 
 - **v0.1** — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE 스트리밍 ✅
 - **v0.2** — Web UI (Schema/Data/Playground) · 브라우저 RDF 업로드 · 레이트 리밋 UX · 온톨로지 데이터 존재 시 툴 호출 강제 ✅
 - **v0.3** — LLMs4OL: `ontorag learn` CLI (용어 타이핑 · 분류 발견 · 관계 추출) · `type_term` + `extract_triples` MCP 툴 · 기술 스택 예제 ✅
 - **v0.3.1** — 구조화 ABox 확장: `populate-structured`로 CSV/JSON/JSONL 읽기 → LLM으로 컬럼을 TBox에 매핑 → RDF 트리플 → Fuseki; 매핑 캐시, uuid5 멱등 URI, 배치 체크포인팅 ✅
-- **v0.3.2** (현재) — TBox/ABox 덤프: `ontorag dump schema|data|all` · `GET /dump` REST 엔드포인트 · Web UI 다운로드 버튼 · TTL / JSON / JSONL / XLSX 포맷 ✅
+- **v0.3.2** — TBox/ABox 덤프: `ontorag dump schema|data|all` · `GET /dump` REST 엔드포인트 · Web UI 다운로드 버튼 · TTL / JSON / JSONL / XLSX 포맷 ✅
+- **v0.4 (eval-harness 브랜치, 현재)** — Phase B 평가 하네스: 2개 벤치마크 도메인 (Pure Land 50q + Commerce 20q) · Goldset JSONL + Pydantic loader · 4개 결정론적 메트릭 + RAGAS wrapper · LangChain 벡터 baseline · `ontorag eval` CLI (validate/run/bench/compare/report) · GitHub Actions matrix CI · BenchRunner orchestrator ✅
 - **v0.5** — Neo4j + n10s 어댑터 · `GRAPH_STORE` 환경 변수 · 벡터 유사도 툴 (`find_similar`) · 멀티 온톨로지 지원
 
 ---

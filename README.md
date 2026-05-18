@@ -424,13 +424,76 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 ---
 
+## Evaluation Harness — `ontorag eval`
+
+A built-in evaluation harness for comparing ontorag against vector RAG
+baselines on benchmark goldsets. Available on the `eval-harness` branch.
+
+### What it provides
+
+- **Two benchmark domains** — `examples/pure_land/` (50 questions, fictional+religious — Sukhāvatī cosmology with multilingual labels) and `examples/commerce/` (20 questions, schema.org real vocabulary with fictional companies)
+- **Goldset format** — JSONL with `gold_sparql`, `gold_answer`, `gold_triples`, `uses_inference` per question. Pydantic-validated.
+- **5 metrics** — `sparql_result_equivalent`, `inference_utilization`, `hallucination_rate`, `citation_coverage`, plus RAGAS (`faithfulness`, `answer_correctness`, `answer_relevancy`)
+- **Baselines** — `ontorag_mock` (perfect retrieval upper bound), `vector_rag_mock` (lossy 70/20/10 bucket simulation), `langchain` (real RetrievalQA + Chroma + OpenAI — `--extra bench` + API key)
+- **Markdown reports** — automatic generation suitable for PR comments / blog posts
+- **CI integration** — GitHub Actions matrix runs both domains on every PR; report uploaded as artifact + posted as sticky comment
+
+### Commands
+
+```bash
+# Validate a goldset
+uv run ontorag eval validate examples/commerce/goldset.jsonl
+
+# Run gold_sparql against schema+data (data hygiene check)
+uv run ontorag eval run examples/commerce/goldset.jsonl \
+    --schema examples/commerce/schema.ttl \
+    --data examples/commerce/data.ttl \
+    --output report.json
+
+# End-to-end bench with a baseline + metrics
+uv run ontorag eval bench examples/commerce/goldset.jsonl \
+    --baseline ontorag_mock \
+    --schema examples/commerce/schema.ttl \
+    --data examples/commerce/data.ttl \
+    --output ontorag.json
+
+# Side-by-side comparison Markdown
+uv run ontorag eval compare ontorag.json langchain.json \
+    --name-a ontorag --name-b langchain \
+    --output comparison.md
+
+# Markdown report from JSON
+uv run ontorag eval report ontorag.json --output report.md
+```
+
+### Real LangChain baseline + RAGAS (~$1 / run)
+
+```bash
+uv sync --extra bench
+export OPENAI_API_KEY=sk-...
+
+uv run ontorag eval bench examples/commerce/goldset.jsonl \
+    --baseline langchain \
+    --schema examples/commerce/schema.ttl \
+    --data examples/commerce/data.ttl \
+    --with-ragas \
+    --output langchain_real.json
+```
+
+See [`BENCHMARK_RESULTS.md`](BENCHMARK_RESULTS.md) for the current
+mock-simulation results and an honest accounting of what is and isn't
+proven without real API spend.
+
+---
+
 ## Roadmap
 
 - **v0.1** — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE streaming ✅
 - **v0.2** — Web UI (Schema/Data/Playground) · RDF upload from browser · Rate-limit UX · Forced tool-use when ontology has data ✅
 - **v0.3** — LLMs4OL: `ontorag learn` CLI (Term Typing · Taxonomy Discovery · Relation Extraction) · `type_term` + `extract_triples` MCP tools · Tech Stack example ✅
 - **v0.3.1** — Structured ABox population: `populate-structured` reads CSV/JSON/JSONL → maps columns to TBox via LLM → RDF triples → Fuseki; mapping cache, uuid5 idempotent URIs, batch checkpointing ✅
-- **v0.3.2** (current) — TBox/ABox dump: `ontorag dump schema|data|all` · `GET /dump` REST endpoint · Web UI download buttons · TTL / JSON / JSONL / XLSX formats ✅
+- **v0.3.2** — TBox/ABox dump: `ontorag dump schema|data|all` · `GET /dump` REST endpoint · Web UI download buttons · TTL / JSON / JSONL / XLSX formats ✅
+- **v0.4 (eval-harness branch, current)** — Phase B evaluation harness: 2 benchmark domains (Pure Land 50q + Commerce 20q) · Goldset JSONL + Pydantic loader · 4 deterministic metrics + RAGAS wrapper · LangChain vector baseline · `ontorag eval` CLI (validate/run/bench/compare/report) · GitHub Actions matrix CI · BenchRunner orchestrator ✅
 - **v0.5** — Neo4j + n10s adapter · `GRAPH_STORE` env var · Vector similarity tool (`find_similar`) · Multi-ontology support
 
 ---
