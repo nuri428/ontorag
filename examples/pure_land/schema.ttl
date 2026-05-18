@@ -1,5 +1,5 @@
 # Pure Land Ontology — TBox
-# Status: scaffolding (B-1.2 not yet executed)
+# Status: v0.0.2 — B-1.2 draft (classes + properties), pending B-1.3 review.
 # See README.md for sources, scope, and disclaimer.
 
 @prefix pl:      <https://ontorag.dev/ns/pure_land#> .
@@ -25,45 +25,207 @@
         "RDF/OWL model of the Sukhāvatī cosmology described in the Pure Land sūtras (淨土三部經). Benchmark dataset for ontology-aware RAG."@en ,
         "정토삼부경에 기술된 서방정토(극락) 우주관의 RDF/OWL 모델. 온톨로지 기반 RAG 벤치마크용 데이터셋."@ko ;
     dcterms:source
-        <https://cbetaonline.dila.edu.tw/zh/T0360> ,   # 『無量壽經』 (Primary)
-        <https://cbetaonline.dila.edu.tw/zh/T0366> ,   # 『阿彌陀經』
-        <https://cbetaonline.dila.edu.tw/zh/T0365> ,   # 『觀無量壽經』
-        <https://84000.co/translation/toh115> ;        # English ref (CC BY-NC-ND, cited only)
-    owl:versionInfo "0.0.1-scaffolding" ;
+        <https://cbetaonline.dila.edu.tw/zh/T0360> ,
+        <https://cbetaonline.dila.edu.tw/zh/T0366> ,
+        <https://cbetaonline.dila.edu.tw/zh/T0365> ,
+        <https://84000.co/translation/toh115> ;
+    owl:versionInfo "0.0.2-tbox-draft" ;
     dcterms:license <https://opensource.org/licenses/MIT> .
 
-# ── TBox (to be authored in B-1.2) ───────────────────────────────────────────
+# ═════════════════════════════════════════════════════════════════════════════
+# CLASSES
+# ═════════════════════════════════════════════════════════════════════════════
+
+# ── Beings ──────────────────────────────────────────────────────────────────
+
+pl:Being a owl:Class ;
+    rdfs:label "Being"@en , "有情類"@zh-Hant , "중생류"@ko ;
+    rdfs:comment "Root class of any sentient or transcendent entity."@en .
+
+pl:Buddha a owl:Class ;
+    rdfs:subClassOf pl:Being , bdo:Person ;
+    rdfs:label "Buddha"@en , "佛"@zh-Hant , "부처"@ko ;
+    skos:altLabel "Tathāgata"@en , "如來"@zh-Hant , "여래"@ko ;
+    rdfs:comment "An awakened being; in this ontology specifically those named in the Pure Land sūtras."@en .
+
+pl:Bodhisattva a owl:Class ;
+    rdfs:subClassOf pl:Being , bdo:Person ;
+    rdfs:label "Bodhisattva"@en , "菩薩"@zh-Hant , "보살"@ko ;
+    rdfs:comment "A being on the path to buddhahood; in T0360 includes those reborn in Sukhāvatī."@en .
+
+pl:Sravaka a owl:Class ;
+    rdfs:subClassOf pl:Being , bdo:Person ;
+    rdfs:label "Śrāvaka"@en , "聲聞"@zh-Hant , "성문"@ko ;
+    rdfs:comment "Disciple-hearer; in T0360 the named śrāvakas of Śākyamuni's assembly."@en .
+
+pl:Deva a owl:Class ;
+    rdfs:subClassOf pl:Being ;
+    rdfs:label "Deva"@en , "天人"@zh-Hant , "천인"@ko ;
+    rdfs:comment "Celestial being (e.g. Brahmā 梵天, Śakra 帝釋天)."@en .
+
+pl:Sentient a owl:Class ;
+    rdfs:subClassOf pl:Being ;
+    rdfs:label "Sentient being"@en , "衆生"@zh-Hant , "중생"@ko .
+
+pl:CelestialBird a owl:Class ;
+    rdfs:subClassOf pl:Sentient ;
+    rdfs:label "Celestial bird"@en , "瑞鳥"@zh-Hant , "서조"@ko ;
+    rdfs:comment "Birds of Sukhāvatī that proclaim the Dharma (peacocks 孔雀, parrots 鸚鵡, kalaviṅkas 迦陵頻伽)."@en .
+
+# ── Realms ──────────────────────────────────────────────────────────────────
+
+pl:Realm a owl:Class ;
+    rdfs:subClassOf schema:Place ;
+    rdfs:label "Realm"@en , "世界"@zh-Hant , "세계"@ko .
+
+pl:SacredRealm a owl:Class ;
+    rdfs:subClassOf pl:Realm ;
+    rdfs:label "Sacred realm"@en , "淨土"@zh-Hant , "정토"@ko ;
+    rdfs:comment "A buddha-field (buddhakṣetra). Sukhāvatī is the canonical instance."@en .
+
+pl:SahaWorld a owl:Class ;
+    rdfs:subClassOf pl:Realm ;
+    rdfs:label "Sahā world"@en , "娑婆世界"@zh-Hant , "사바세계"@ko ;
+    rdfs:comment "The world of endurance — our world, where Śākyamuni teaches."@en .
+
+# ── Structures (within Sukhāvatī) ──────────────────────────────────────────
+
+pl:Structure a owl:Class ;
+    rdfs:subClassOf schema:Place ;
+    rdfs:label "Structure"@en , "建造物"@zh-Hant , "구조물"@ko .
+
+pl:JeweledTower a owl:Class ;
+    rdfs:subClassOf pl:Structure ;
+    rdfs:label "Jeweled tower"@en , "寶樓閣"@zh-Hant , "보배누각"@ko ;
+    rdfs:comment "Multi-storied jewel-adorned tower. T0360 describes seven stories (七層)."@en .
+
+pl:LotusPond a owl:Class ;
+    rdfs:subClassOf pl:Structure ;
+    rdfs:label "Lotus pond"@en , "七寶池"@zh-Hant , "칠보지"@ko ;
+    rdfs:comment "Pond of the seven jewels, containing the water of eight virtues (八功德水)."@en .
+
+pl:JeweledTree a owl:Class ;
+    rdfs:subClassOf pl:Structure ;
+    rdfs:label "Jeweled tree"@en , "寶樹"@zh-Hant , "보배나무"@ko ;
+    rdfs:comment "Tree composed of precious materials whose foliage proclaims the Dharma."@en .
+
+# ── Vows, Contemplations, Colours ───────────────────────────────────────────
+
+pl:Vow a owl:Class ;
+    rdfs:label "Vow"@en , "本願"@zh-Hant , "본원"@ko ;
+    rdfs:comment "A buddha's foundational aspiration. Amitābha (as Dharmākara 法藏比丘) has exactly 48 vows."@en .
+
+pl:Contemplation a owl:Class ;
+    rdfs:label "Contemplation"@en , "觀法"@zh-Hant , "관법"@ko ;
+    rdfs:comment "One of the sixteen visualisations described in 『觀無量壽經』 (T0365)."@en .
+
+pl:LotusColor a owl:Class ;
+    rdfs:label "Lotus colour"@en , "蓮花色相"@zh-Hant , "연꽃 색상"@ko ;
+    rdfs:comment "One of the four lotus colours in Sukhāvatī: blue 青, yellow 黃, red 赤, white 白."@en .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# OBJECT PROPERTIES
+# ═════════════════════════════════════════════════════════════════════════════
+
+pl:locatedIn a owl:ObjectProperty , owl:TransitiveProperty ;
+    rdfs:label "located in"@en , "在於"@zh-Hant , "위치하다"@ko ;
+    rdfs:comment "Spatial containment. Transitive: bird ⊑ tree ⊑ pond ⊑ Sukhāvatī ⇒ bird in Sukhāvatī."@en ;
+    rdfs:range  schema:Place .
+    # NOTE: rdfs:domain intentionally omitted — both Beings and Structures can be located.
+
+pl:residesIn a owl:ObjectProperty ;
+    rdfs:subPropertyOf pl:locatedIn ;
+    rdfs:label "resides in"@en , "住於"@zh-Hant , "거주하다"@ko ;
+    rdfs:comment "Buddha or bodhisattva permanently dwelling in a realm. Implies locatedIn via subPropertyOf."@en ;
+    rdfs:domain pl:Being ;
+    rdfs:range  pl:Realm .
+
+pl:teaches a owl:ObjectProperty ;
+    rdfs:label "teaches"@en , "教導"@zh-Hant , "가르치다"@ko ;
+    owl:inverseOf pl:taughtBy ;
+    rdfs:domain pl:Being ;
+    rdfs:range  pl:Being .
+
+pl:taughtBy a owl:ObjectProperty ;
+    rdfs:label "taught by"@en , "受教於"@zh-Hant , "가르침을 받다"@ko ;
+    owl:inverseOf pl:teaches .
+
+pl:assists a owl:ObjectProperty ;
+    rdfs:label "assists"@en , "脅侍"@zh-Hant , "협시하다"@ko ;
+    owl:inverseOf pl:assistedBy ;
+    rdfs:comment "Bodhisattva attendant of a buddha (e.g. Avalokiteśvara assists Amitābha)."@en ;
+    rdfs:domain pl:Bodhisattva ;
+    rdfs:range  pl:Buddha .
+
+pl:assistedBy a owl:ObjectProperty ;
+    rdfs:label "assisted by"@en , "由…脅侍"@zh-Hant , "협시를 받다"@ko ;
+    owl:inverseOf pl:assists .
+
+pl:vowsToSave a owl:ObjectProperty ;
+    rdfs:label "vows to save"@en , "誓救"@zh-Hant , "구제를 발원하다"@ko ;
+    owl:inverseOf pl:savedBy ;
+    rdfs:domain pl:Buddha ;
+    rdfs:range  pl:Being .
+
+pl:savedBy a owl:ObjectProperty ;
+    rdfs:label "saved by"@en , "蒙救於"@zh-Hant , "구제받다"@ko ;
+    owl:inverseOf pl:vowsToSave .
+
+pl:hasVow a owl:ObjectProperty ;
+    rdfs:label "has vow"@en , "發願"@zh-Hant , "발원하다"@ko ;
+    rdfs:comment "Relates a buddha to one of its foundational vows."@en ;
+    rdfs:domain pl:Buddha ;
+    rdfs:range  pl:Vow .
+
+pl:hasContemplation a owl:ObjectProperty ;
+    rdfs:label "subject of contemplation"@en , "屬於觀法"@zh-Hant , "관법의 대상"@ko ;
+    rdfs:range  pl:Contemplation .
+
+pl:hasColor a owl:ObjectProperty ;
+    rdfs:label "has colour"@en , "之色相"@zh-Hant , "색상을 띠다"@ko ;
+    rdfs:range  pl:LotusColor .
+
+pl:appearsIn a owl:ObjectProperty ;
+    rdfs:label "appears in"@en , "見於"@zh-Hant , "출현하다"@ko ;
+    rdfs:comment "Links an entity to a canonical text where it is described."@en ;
+    rdfs:range  dcterms:BibliographicResource .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# DATA PROPERTIES
+# ═════════════════════════════════════════════════════════════════════════════
+
+pl:vowNumber a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "vow number"@en , "願次第"@zh-Hant , "본원 번호"@ko ;
+    rdfs:domain pl:Vow ;
+    rdfs:range  xsd:integer ;
+    rdfs:comment "Ordinal index of a vow (1..48 for Amitābha as Dharmākara)."@en .
+
+pl:contemplationOrder a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "contemplation order"@en , "觀次第"@zh-Hant , "관 순서"@ko ;
+    rdfs:domain pl:Contemplation ;
+    rdfs:range  xsd:integer ;
+    rdfs:comment "Ordinal index of a contemplation (1..16 in T0365)."@en .
+
+pl:storyCount a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "story count"@en , "層數"@zh-Hant , "층수"@ko ;
+    rdfs:domain pl:JeweledTower ;
+    rdfs:range  xsd:positiveInteger .
+
+pl:sanskritName a owl:DatatypeProperty ;
+    rdfs:label "Sanskrit name"@en , "梵名"@zh-Hant , "산스크리트명"@ko ;
+    rdfs:range  xsd:string ;
+    rdfs:comment "Romanised Sanskrit form (IAST). Use alongside multilingual rdfs:label."@en .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# CARDINALITY POLICY
+# ═════════════════════════════════════════════════════════════════════════════
 #
-# Planned structure:
-#   pl:Being             (root)
-#     ├── pl:Buddha
-#     │   ├── pl:Tathagata
-#     │   └── pl:Buddha_of_Direction  (six-direction tathāgatas)
-#     ├── pl:Bodhisattva
-#     ├── pl:Sravaka
-#     ├── pl:Deva           (Brahmā, Śakra, ...)
-#     └── pl:Sentient
-#         └── pl:CelestialBird  (peacock, parrot, kalaviṅka, ...)
+# Hard cardinality constraints (e.g. "Amitābha has exactly 48 vows", "JeweledTower
+# has exactly 7 stories") are NOT modelled as owl:Restriction on Buddha or
+# JeweledTower in general — those statements are specific to particular individuals
+# (法藏比丘 / 阿彌陀佛) or to the canonical description, not to the class as a whole.
 #
-#   pl:Realm
-#     ├── pl:SacredRealm     (Sukhāvatī, ...)
-#     └── pl:SahaWorld
+# Such constraints will be expressed in Phase C via SHACL shapes targeting specific
+# individuals (sh:targetNode pl:Amitabha) rather than classes. See README §Phase C.
 #
-#   pl:Structure
-#     ├── pl:JeweledTower    (seven-storied)
-#     ├── pl:LotusPond       (eight waters of merit)
-#     └── pl:JeweledTree
-#
-#   pl:Vow                   (48 vows — exact cardinality)
-#   pl:Contemplation         (16 contemplations from T0365)
-#
-# Object properties:
-#   pl:locatedIn      a owl:TransitiveProperty
-#   pl:teaches        owl:inverseOf pl:taughtBy
-#   pl:vowsToSave     owl:inverseOf pl:savedBy
-#   pl:hasVow         (Buddha → Vow, cardinality 48 on Amitābha)
-#   pl:hasColor       (Lotus → Color)
-#
-# Data properties:
-#   pl:vowNumber          xsd:integer
-#   pl:contemplationOrder xsd:integer
+# In B-1.4 (ABox) we will simply assert all 48 Vow individuals and 7 Tower stories.
