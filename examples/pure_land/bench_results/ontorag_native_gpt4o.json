@@ -1,0 +1,2520 @@
+{
+  "baseline_name": "ontorag_native",
+  "baseline_version": "0.1.0",
+  "goldset_path": "examples/pure_land/goldset.jsonl",
+  "graph_triples": 948,
+  "total_questions": 50,
+  "language": "ko",
+  "results": [
+    {
+      "question_id": "Q001",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "아미타불의 산스크리트 이름은 무엇인가?",
+      "gold_answer": "Amitābha",
+      "baseline_answer": "",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 92246.48079182953,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "Amitābha"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 3,
+        "error": "Error code: 429 - {'error': {'message': 'Request too large for gpt-4o in organization org-To13SUYYsbypl6VPari9gm0M on tokens per min (TPM): Limit 30000, Requested 36871. The input or output tokens must be reduced in order to run successfully. Visit https://platform.openai.com/account/rate-limits to learn more.', 'type': 'tokens', 'param': None, 'code': 'rate_limit_exceeded'}}"
+      }
+    },
+    {
+      "question_id": "Q002",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "관세음보살이 협시하는 부처는 누구인가?",
+      "gold_answer": "아미타불 (Amitābha)",
+      "baseline_answer": "관세음보살(관세음)은 아미타불(阿彌陀佛)을 협시하는 보살입니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 1861.406708136201,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.6184896306354316,
+      "ragas_answer_relevancy": 0.42877891483507796,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "관세음보살"
+                }
+              ],
+              "limit": 1
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 1
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q003",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "『무량수경』의 Taishō 번호는?",
+      "gold_answer": "T0360",
+      "baseline_answer": "데이터베이스에 『무량수경』이 검색되지 않았습니다. Taishō 번호에 관한 정보를 찾을 수 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2652.682416839525,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.0556429438251759,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "query_pattern"
+        ],
+        "tool_trace": [
+          {
+            "tool": "query_pattern",
+            "args": {
+              "select": [
+                "?resource"
+              ],
+              "where": [
+                {
+                  "s": "?resource",
+                  "p": "dcterms:title",
+                  "o": "\"無量壽經\""
+                },
+                {
+                  "s": "?resource",
+                  "p": "dcterms:relation",
+                  "o": "?relation"
+                },
+                {
+                  "s": "?relation",
+                  "p": "foaf:page",
+                  "o": "\"T0260\""
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "dict",
+              "keys": [
+                "columns",
+                "rows",
+                "total"
+              ],
+              "nodes_len": null
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q004",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "극락(Sukhāvatī)에 거주하는 모든 보살을 나열하라.",
+      "gold_answer": "관세음보살, 대세지보살",
+      "baseline_answer": "데이터에 따르면 극락에는 보살이 거주하고 있지 않습니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 2,
+      "latency_ms": 3221.1612921673805,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.07320680292219772,
+      "ragas_answer_relevancy": 0.5801614333055928,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "property_path_query"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#SacredRealm"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          },
+          {
+            "tool": "property_path_query",
+            "args": {
+              "predicate_uri": "https://ontorag.dev/ns/pure_land#residesIn",
+              "start_uri": "https://ontorag.dev/ns/pure_land#Sukhavati"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q005",
+      "difficulty": "medium",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "사바세계에 거주하는 부처가 가르치는 성문 제자들을 모두 나열하라.",
+      "gold_answer": "사리불, 마하목건련, 마하가섭, 아난, 수보리",
+      "baseline_answer": "사바세계에 거주하는 부처는 석가모니불입니다. 그가 가르치는 성문 제자들은 다음과 같습니다:\n\n- 마하목건련 (Mahāmaudgalyāyana)\n- 아난 (Ānanda)\n- 마하가섭 (Mahākāśyapa)\n- 수보리 (Subhūti)\n- 사리불 (Śāriputra) \n\n이 제자들은 석가모니불로부터 가르침을 받습니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 2,
+      "latency_ms": 22427.853957982734,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.7072748584704137,
+      "ragas_answer_relevancy": 0.20897441895799462,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#residesIn",
+                  "value": "https://ontorag.dev/ns/pure_land#SahaWorld"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Sravaka"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 15
+            }
+          }
+        ],
+        "rate_limit_hits": 2,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q006",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "극락의 보배 연못에 있는 연꽃의 색깔을 모두 나열하라.",
+      "gold_answer": "청색(青), 황색(黃), 적색(赤), 백색(白)",
+      "baseline_answer": "극락의 보배 연못에는 다음과 같은 연꽃 색깔이 있습니다: 하얀색, 파란색, 빨간색, 노란색.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 22858.309833100066,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.75,
+      "ragas_answer_correctness": 0.7203582998584265,
+      "ragas_answer_relevancy": 0.33593213047329623,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#LotusPond"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 3,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q007",
+      "difficulty": "medium",
+      "category": "reverse_lookup",
+      "uses_inference": false,
+      "question_text": "16관법 중 9번째 관(觀)의 대상이 되는 존재는?",
+      "gold_answer": "아미타불 (Amitābha)",
+      "baseline_answer": "데이터에 따르면 16관법 중 9번째 관(觀)의 대상으로 명기된 존재는 없습니다. 이는 데이터 그래프에 특정 존재가 기록되지 않았음을 의미합니다.",
+      "baseline_cited_triple_count": 10,
+      "tool_calls": 2,
+      "latency_ms": 20538.04474999197,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.024559133795638115,
+      "ragas_answer_relevancy": 0.5592918751072035,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Contemplation",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#contemplationOrder",
+                  "value": "9"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          },
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Being",
+              "predicate": "https://ontorag.dev/ns/pure_land#hasContemplation",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Contemplation",
+              "limit": 10
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 3,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q008",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "공작(Peacock)이 위치한 모든 장소(직접 + 간접)를 나열하라.",
+      "gold_answer": "보배나무 (JeweledTree_Canonical), 극락 (Sukhavati)",
+      "baseline_answer": "공작이 위치한 장소들은 다음과 같습니다: 보수(寶樹), 극락세계(極樂世界).",
+      "baseline_cited_triple_count": 10,
+      "tool_calls": 1,
+      "latency_ms": 12889.243916142732,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.8351419346485137,
+      "ragas_answer_relevancy": 0.43906995845400804,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "property_path_query"
+        ],
+        "tool_trace": [
+          {
+            "tool": "property_path_query",
+            "args": {
+              "predicate_uri": "https://ontorag.dev/ns/pure_land#locatedIn",
+              "start_label": "공작",
+              "start_class_uri": "https://ontorag.dev/ns/pure_land#CelestialBird"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 2
+            }
+          }
+        ],
+        "rate_limit_hits": 2,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q009",
+      "difficulty": "hard",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "아미타불이 발원한 본원(本願)은 총 몇 가지인가?",
+      "gold_answer": "48가지",
+      "baseline_answer": "아미타불(Dharmākara)이 발원한 본원은 총 48가지입니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 1491.3403750397265,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.6169318008617369,
+      "ragas_answer_relevancy": 0.24635545863258249,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "count_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Vow"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q010",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "석가모니불이 발원한 본원은 몇 가지인가?",
+      "gold_answer": "이 온톨로지에는 정보가 없습니다 (0건). 본 온톨로지는 법장비구→아미타불의 48원만 모델링하며, 석가모니불의 별도 본원은 포함하지 않습니다.",
+      "baseline_answer": "석가모니불이 발원한 본원은 총 48가지입니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 6823.294540867209,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.08335567569414878,
+      "ragas_answer_relevancy": 0.7529677882608573,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "count_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Vow"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          }
+        ],
+        "rate_limit_hits": 1,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q011",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "대세지보살의 산스크리트 이름은?",
+      "gold_answer": "Mahāsthāmaprāpta",
+      "baseline_answer": "대세지보살의 산스크리트 이름은 \"Mahāsthāmaprāpta\"입니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 23540.260500041768,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.6043486515082565,
+      "ragas_answer_relevancy": 0.38802277363531634,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "대세지보살"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 2,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q012",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "무량수경의 한역자는 누구인가?",
+      "gold_answer": "康僧鎧 (Saṅghavarman, attr.)",
+      "baseline_answer": "\"무량수경\"의 한역자는 현재의 데이터 그래프에 포함되어 있지 않은 것 같습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 7008.762167068198,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.004951411818878666,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Being",
+              "filters": [
+                {
+                  "property": "dcterms:source",
+                  "op": "contains",
+                  "value": "T0360"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 1,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q013",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "아미타불의 또 다른 이름은? (skos:altLabel)",
+      "gold_answer": "Amitāyus",
+      "baseline_answer": "",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 92122.50058399513,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "阿彌陀佛"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 3,
+        "error": "Error code: 429 - {'error': {'message': 'Request too large for gpt-4o in organization org-To13SUYYsbypl6VPari9gm0M on tokens per min (TPM): Limit 30000, Requested 36871. The input or output tokens must be reduced in order to run successfully. Visit https://platform.openai.com/account/rate-limits to learn more.', 'type': 'tokens', 'param': None, 'code': 'rate_limit_exceeded'}}"
+      }
+    },
+    {
+      "question_id": "Q014",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "가릉빈가는 어디에 직접 위치하는가?",
+      "gold_answer": "보배나무 (JeweledTree_Canonical)",
+      "baseline_answer": "가릉빈가(迦陵頻伽)는 보배나무(寶樹)에 직접 위치합니다.",
+      "baseline_cited_triple_count": 15,
+      "tool_calls": 1,
+      "latency_ms": 2069.7914578486234,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.5961388080006489,
+      "ragas_answer_relevancy": 0.5060747855345809,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#CelestialBird",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "迦陵頻伽"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q015",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "첫 번째 관법(觀法)의 이름은?",
+      "gold_answer": "일상관 (日想觀)",
+      "baseline_answer": "첫 번째 관법의 이름은 \"일상관(日想觀)\"입니다.",
+      "baseline_cited_triple_count": 10,
+      "tool_calls": 1,
+      "latency_ms": 1801.9310829695314,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.6273502272294142,
+      "ragas_answer_relevancy": 0.8160819033312258,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Contemplation",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#contemplationOrder",
+                  "op": "=",
+                  "value": "1"
+                }
+              ],
+              "limit": 1
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 1
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q016",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "보배 연못의 한문 명칭은?",
+      "gold_answer": "七寶池",
+      "baseline_answer": "보배 연못의 한문 명칭은 \"七寶池\"입니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 1464.102542027831,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.891106731559961,
+      "ragas_answer_relevancy": 0.21132794674713615,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#LotusPond"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q017",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "미륵보살의 또 다른 이름은? (T0360)",
+      "gold_answer": "Ajita",
+      "baseline_answer": "미륵보살은 '아지타(Ajita)'라는 또 다른 이름으로도 알려져 있습니다.",
+      "baseline_cited_triple_count": 15,
+      "tool_calls": 1,
+      "latency_ms": 1976.375584024936,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.8352175822643589,
+      "ragas_answer_relevancy": 0.5705838678690391,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "Maitreya"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q018",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "사바세계에 거주하는 부처는?",
+      "gold_answer": "석가모니불",
+      "baseline_answer": "사바세계에 거주하는 부처는 석가모니불입니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 24320.136417169124,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.8819313489545293,
+      "ragas_answer_relevancy": 0.26908786179777616,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#residesIn",
+                  "value": "https://ontorag.dev/ns/pure_land#SahaWorld"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 3,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q019",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "법장비구의 한국어 라벨은?",
+      "gold_answer": "법장비구",
+      "baseline_answer": "데이터에는 '법장비구'의 한국어 라벨에 해당하는 정보가 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 12437.820667168126,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.13474603511404498,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Being",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#sanskritName",
+                  "value": "Dharmākara"
+                }
+              ],
+              "limit": 1
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 2,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q020",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "관무량수경의 Taishō 번호는?",
+      "gold_answer": "T0365",
+      "baseline_answer": "\"관무량수경\"의 Taishō 번호는 T0365입니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 20267.68933306448,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.8767719078269883,
+      "ragas_answer_relevancy": 0.8529568497284975,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "get_schema"
+        ],
+        "tool_trace": [
+          {
+            "tool": "get_schema",
+            "args": {},
+            "result_summary": {
+              "kind": "dict",
+              "keys": [
+                "total_classes",
+                "total_properties",
+                "namespaces",
+                "classes",
+                "properties"
+              ],
+              "nodes_len": null
+            }
+          }
+        ],
+        "rate_limit_hits": 3,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q021",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "제석천의 한문 명칭은?",
+      "gold_answer": "帝釋天",
+      "baseline_answer": "제석천의 한문 명칭은 \"帝釋天\"입니다.",
+      "baseline_cited_triple_count": 15,
+      "tool_calls": 1,
+      "latency_ms": 12034.113375004381,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.8600275824265464,
+      "ragas_answer_relevancy": 0.6267118197469439,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Deva",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "제석천"
+                }
+              ],
+              "limit": 1
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 1
+            }
+          }
+        ],
+        "rate_limit_hits": 2,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q022",
+      "difficulty": "easy",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "칠보누각의 층수는?",
+      "gold_answer": "7층",
+      "baseline_answer": "칠보누각은 7층입니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 14770.35279199481,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.9049100437927394,
+      "ragas_answer_relevancy": 0.8886683091461475,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#JeweledTower"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 2,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q023",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "T0366에 출현하는 모든 부처를 나열",
+      "gold_answer": "여러 부처 (Amitabha, Sakyamuni, Akshobhya, Ratnaketu, Bhismagarjitaghosasvara)",
+      "baseline_answer": "",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 97182.03041702509,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": null,
+      "ragas_answer_relevancy": null,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 15
+            }
+          }
+        ],
+        "rate_limit_hits": 4,
+        "error": "Error code: 429 - {'error': {'message': 'Request too large for gpt-4o in organization org-To13SUYYsbypl6VPari9gm0M on tokens per min (TPM): Limit 30000, Requested 46725. The input or output tokens must be reduced in order to run successfully. Visit https://platform.openai.com/account/rate-limits to learn more.', 'type': 'tokens', 'param': None, 'code': 'rate_limit_exceeded'}}"
+      }
+    },
+    {
+      "question_id": "Q024",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "극락에 거주하는 모든 존재(부처+보살)",
+      "gold_answer": "아미타불, 관세음보살, 대세지보살",
+      "baseline_answer": "데이터에는 극락에 거주하는 부처와 보살 정보가 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 1457.817749818787,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.05515114526132734,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "property_path_query"
+        ],
+        "tool_trace": [
+          {
+            "tool": "property_path_query",
+            "args": {
+              "predicate_uri": "https://ontorag.dev/ns/pure_land#residesIn",
+              "start_class_uri": "https://ontorag.dev/ns/pure_land#SacredRealm"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q025",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "보배나무에 위치한 모든 새",
+      "gold_answer": "공작, 앵무, 가릉빈가, 공명조",
+      "baseline_answer": "데이터에는 보배나무에 위치한 새에 대한 정보가 없습니다.",
+      "baseline_cited_triple_count": 5,
+      "tool_calls": 1,
+      "latency_ms": 3737.839999841526,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.036687129992158674,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "property_path_query"
+        ],
+        "tool_trace": [
+          {
+            "tool": "property_path_query",
+            "args": {
+              "predicate_uri": "https://ontorag.dev/ns/pure_land#locatedIn",
+              "start_class_uri": "https://ontorag.dev/ns/pure_land#JeweledTree"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 1
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q026",
+      "difficulty": "medium",
+      "category": "reverse_lookup",
+      "uses_inference": false,
+      "question_text": "18번째 본원의 한문 명칭은?",
+      "gold_answer": "念佛往生願",
+      "baseline_answer": "18번째 본원의 한문 명칭은 \"염불왕생원\"입니다.",
+      "baseline_cited_triple_count": 10,
+      "tool_calls": 1,
+      "latency_ms": 1471.215542173013,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.041557291736499385,
+      "ragas_answer_relevancy": 0.44181414073851916,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Vow",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#vowNumber",
+                  "value": "18"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q027",
+      "difficulty": "medium",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "처음 10개 관법(1-10번)의 개수",
+      "gold_answer": "10",
+      "baseline_answer": "데이터 그래프에 '처음 10개 관법(1-10번)'에 해당하는 개체가 없습니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 2,
+      "latency_ms": 2365.041207987815,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.06824035414857642,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Contemplation",
+              "limit": 10
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 10
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Contemplation",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#contemplationOrder",
+                  "op": "<=",
+                  "value": "10"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q028",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "산스크리트 이름이 명시된 모든 보살",
+      "gold_answer": "Avalokiteśvara, Mahāsthāmaprāpta, Mañjuśrī, Maitreya, Samantabhadra, Gandhahastin, Dharmākara",
+      "baseline_answer": "산스크리트 이름이 명시된 보살들은 다음과 같습니다:\n\n1. **마이트레야** (Maitreya) - 미래의 부처로서 T0360의 후반부에서 아지타(Ajita)로 불리우는 분입니다.\n2. **아발로키테슈바라** (Avalokiteśvara) - 아미타불을 돕는 분으로, 극락정토에 거주합니다.\n3. **대세지보살** (Mahāsthāmaprāpta) - 아미타불을 돕는 분으로, 극락정토에 거주합니다.\n4. **문수보살** (Mañjuśrī) - 석가모니의 집회에 참석한 위대한 보살 중 한 분입니다.\n5. **가가바스트린** (Gandhahastin) - 향룡보살로, T0366에 등장합니다.\n6. **법장보살** (Dharmākara) - 48개의 원을 성취한 뒤 아미타불이 된 보살로, 아미타불과 pl:precedingStage로 연결되어 있습니다.\n7. **보현보살** (Samantabhadra) - T0360에 등장하는 보살로 진리와 자비를 상징합니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 43535.68125003949,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.1,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.125,
+      "ragas_answer_correctness": 0.46313029747024015,
+      "ragas_answer_relevancy": 0.12913352285340024,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#sanskritName",
+                  "op": "contains",
+                  "value": ""
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 20
+            }
+          }
+        ],
+        "rate_limit_hits": 2,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q029",
+      "difficulty": "medium",
+      "category": "reverse_lookup",
+      "uses_inference": false,
+      "question_text": "협시 보살을 두는 부처를 모두 찾아라",
+      "gold_answer": "아미타불 (관세음보살, 대세지보살이 협시)",
+      "baseline_answer": "협시 보살을 두는 부처는 아미타불입니다.",
+      "baseline_cited_triple_count": 15,
+      "tool_calls": 1,
+      "latency_ms": 12316.924249986187,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.5317141352431679,
+      "ragas_answer_relevancy": 0.1439534466459972,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "predicate": "https://ontorag.dev/ns/pure_land#assists",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Buddha"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 18
+            }
+          }
+        ],
+        "rate_limit_hits": 2,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q030",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "contemplationOrder가 5 이하인 모든 관법의 한국어 라벨",
+      "gold_answer": "일상관, 수상관, 지상관, 보수관, 보지관",
+      "baseline_answer": "데이터에 contemplationOrder가 5 이하인 관법이 존재하지 않습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 11855.941500049084,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.06074547486450885,
+      "ragas_answer_relevancy": 0.7357242984143667,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Contemplation",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#contemplationOrder",
+                  "op": "<=",
+                  "value": "5"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 2,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q031",
+      "difficulty": "medium",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "극락에 거주하는 부처가 발원한 본원의 개수",
+      "gold_answer": "48",
+      "baseline_answer": "극락에 거주하는 부처가 발원한 본원의 개수는 48개입니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 1234.972583130002,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.8286697194405326,
+      "ragas_answer_relevancy": 0.12715704419722615,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "count_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Vow"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q032",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "모든 LotusColor 인스턴스",
+      "gold_answer": "BlueLotus, YellowLotus, RedLotus, WhiteLotus",
+      "baseline_answer": "모든 Lotus 색상 인스턴스는 다음과 같습니다:\n\n1. 백색백광 (White lotus)\n2. 청색청광 (Blue lotus)\n3. 적색적광 (Red lotus)\n4. 황색황광 (Yellow lotus) \n\n이 각각의 연꽃 색상은 'Smaller Sukhāvatīvyūha Sūtra'에 언급되어 있습니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 21041.203666944057,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.2,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.2,
+      "ragas_answer_correctness": 0.17046661478921032,
+      "ragas_answer_relevancy": 0.49074623847320503,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#LotusColor"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 12
+            }
+          }
+        ],
+        "rate_limit_hits": 3,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q033",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "sanskritName이 'Mañjuśrī'인 entity",
+      "gold_answer": "문수보살 (pl:Manjushri)",
+      "baseline_answer": "데이터에 'Mañjuśrī'라는 산스크리트 이름을 가진 객체가 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 1548.5313748940825,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.059996789829040914,
+      "ragas_answer_relevancy": 0.7336258629812443,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Being",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#sanskritName",
+                  "value": "Mañjuśrī"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q034",
+      "difficulty": "medium",
+      "category": "reverse_lookup",
+      "uses_inference": false,
+      "question_text": "어떤 존재가 어떤 관법의 대상인가? (hasContemplation 관계 모두)",
+      "gold_answer": "Amitabha-9, Avalokitesvara-10, Mahasthamaprapta-11",
+      "baseline_answer": "데이터에는 \"관법의 대상\"이 되는 존재에 대한 정보가 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 1800.58379098773,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.013370756182801704,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Being",
+              "predicate": "https://ontorag.dev/ns/pure_land#hasContemplation",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Contemplation",
+              "limit": 48
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q035",
+      "difficulty": "medium",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "vowNumber가 25 이상인 본원의 개수",
+      "gold_answer": "24",
+      "baseline_answer": "데이터에 기준에 따라 `vowNumber`가 25 이상인 본원은 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 5,
+      "latency_ms": 40719.081667019054,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.05835831948646976,
+      "ragas_answer_relevancy": 0.7269898012442892,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "query_pattern",
+          "count_entities",
+          "query_pattern",
+          "query_pattern",
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "query_pattern",
+            "args": {
+              "select": [
+                "?vow"
+              ],
+              "where": [
+                {
+                  "s": "?vow",
+                  "p": "https://ontorag.dev/ns/pure_land#vowNumber",
+                  "o": "?number"
+                },
+                {
+                  "s": "?vow",
+                  "p": "a",
+                  "o": "https://ontorag.dev/ns/pure_land#Vow"
+                },
+                {
+                  "s": "?number",
+                  "p": "rdf:value",
+                  "o": "?numFilter"
+                }
+              ],
+              "limit": null
+            },
+            "result_summary": {
+              "kind": "dict",
+              "keys": [
+                "error"
+              ],
+              "nodes_len": null
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Vow"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "query_pattern",
+            "args": {
+              "select": [
+                "?vow"
+              ],
+              "where": [
+                {
+                  "s": "?vow",
+                  "p": "https://ontorag.dev/ns/pure_land#vowNumber",
+                  "o": "?number"
+                }
+              ],
+              "limit": 0
+            },
+            "result_summary": {
+              "kind": "dict",
+              "keys": [
+                "error"
+              ],
+              "nodes_len": null
+            }
+          },
+          {
+            "tool": "query_pattern",
+            "args": {
+              "select": [
+                "?vow"
+              ],
+              "where": [
+                {
+                  "s": "?vow",
+                  "p": "https://ontorag.dev/ns/pure_land#vowNumber",
+                  "o": "?number"
+                },
+                {
+                  "s": "?number",
+                  "p": "rdf:value",
+                  "o": "?numFilter"
+                }
+              ],
+              "limit": 100
+            },
+            "result_summary": {
+              "kind": "dict",
+              "keys": [
+                "error"
+              ],
+              "nodes_len": null
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Vow",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#vowNumber",
+                  "op": ">=",
+                  "value": "25"
+                }
+              ],
+              "limit": 100
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 6,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q036",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "마지막 관법(16번)의 한국어 명칭",
+      "gold_answer": "하배생상관",
+      "baseline_answer": "마지막 관법(16번)의 한국어 명칭은 \"하배생상관\"입니다.",
+      "baseline_cited_triple_count": 10,
+      "tool_calls": 1,
+      "latency_ms": 7371.090250089765,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.8655442036682861,
+      "ragas_answer_relevancy": 0.6179734938308332,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Contemplation",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#contemplationOrder",
+                  "op": "=",
+                  "value": "16"
+                }
+              ],
+              "limit": 1
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 1
+            }
+          }
+        ],
+        "rate_limit_hits": 1,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q037",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "보배연못의 모든 연꽃 색상의 한문 명칭",
+      "gold_answer": "青色青光, 黃色黃光, 赤色赤光, 白色白光",
+      "baseline_answer": "보배연못에 있는 모든 연꽃 색상의 한문 명칭은 다음과 같습니다:\n\n- 백색백광 (白色白光)\n- 청색청광 (青色青光)\n- 적색적광 (赤色赤光)\n- 황색황광 (黃色黃光)",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 20518.988541094586,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.75,
+      "ragas_answer_correctness": 0.8720770594293428,
+      "ragas_answer_relevancy": 0.4597177138052313,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#LotusPond"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 2,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q038",
+      "difficulty": "medium",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "극락에 거주하는 보살의 산스크리트 이름",
+      "gold_answer": "Avalokiteśvara, Mahāsthāmaprāpta",
+      "baseline_answer": "데이터에 따르면 극락(정토)에 거주하는 보살은 존재하지 않습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 9044.245083117858,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.010598309697908046,
+      "ragas_answer_relevancy": 0.47544322851610765,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#residesIn",
+                  "value": "https://ontorag.dev/ns/pure_land#SacredRealm"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 1,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q039",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "공작이 위치한 모든 장소(직간접)",
+      "gold_answer": "보배나무, 극락",
+      "baseline_answer": "공작이 위치한 모든 장소는 보수(寶樹)와 극락세계입니다.",
+      "baseline_cited_triple_count": 10,
+      "tool_calls": 1,
+      "latency_ms": 6919.514833949506,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.5,
+      "ragas_answer_correctness": 0.06988839050562268,
+      "ragas_answer_relevancy": 0.5354680498299468,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "property_path_query"
+        ],
+        "tool_trace": [
+          {
+            "tool": "property_path_query",
+            "args": {
+              "predicate_uri": "https://ontorag.dev/ns/pure_land#locatedIn",
+              "start_class_uri": "https://ontorag.dev/ns/pure_land#CelestialBird",
+              "start_label": "공작"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 2
+            }
+          }
+        ],
+        "rate_limit_hits": 1,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q040",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "모든 새가 transitive하게 위치한 장소(중복 제외)",
+      "gold_answer": "보배나무, 극락 (2곳)",
+      "baseline_answer": "모든 천상의 새들이 위치한 장소로는 보수(寶樹)와 극락세계(極樂世界)가 있습니다.",
+      "baseline_cited_triple_count": 10,
+      "tool_calls": 1,
+      "latency_ms": 7185.245000058785,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.38049307473015453,
+      "ragas_answer_relevancy": 0.36877120644407463,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "property_path_query"
+        ],
+        "tool_trace": [
+          {
+            "tool": "property_path_query",
+            "args": {
+              "predicate_uri": "https://ontorag.dev/ns/pure_land#locatedIn",
+              "start_class_uri": "https://ontorag.dev/ns/pure_land#CelestialBird"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 2
+            }
+          }
+        ],
+        "rate_limit_hits": 1,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q041",
+      "difficulty": "hard",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "산스크리트 이름이 명시된 모든 존재의 수",
+      "gold_answer": "15+ (Buddha + Bodhisattva + Devas + 일부 새/장소)",
+      "baseline_answer": "산스크리트 이름이 명시된 모든 존재의 수는 총 23개입니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 6,
+      "latency_ms": 2959.18562496081,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.036812594884475414,
+      "ragas_answer_relevancy": 0.8188134154979235,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "count_entities",
+          "count_entities",
+          "count_entities",
+          "count_entities",
+          "count_entities",
+          "count_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Being"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#CelestialBird"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Sravaka"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Deva"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q042",
+      "difficulty": "hard",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "부처 X와 부처 X의 협시 보살 Y, Y가 거주하는 장소 모두 매칭",
+      "gold_answer": "아미타불-관세음보살-극락, 아미타불-대세지보살-극락",
+      "baseline_answer": "부처 아미타불(Amitābha)의 협시 보살과 그들의 거주지는 다음과 같습니다:\n\n1. **관세음보살(Avalokiteśvara)**\n   - 아미타불의 협시 보살로, 극락세계(Sukhāvatī)에 거주합니다.\n\n2. **대세지보살(Mahāsthāmaprāpta)**\n   - 아미타불의 협시 보살로, 마찬가지로 극락세계(Sukhāvatī)에 거주합니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 3,
+      "latency_ms": 32367.73179215379,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.8808054896534823,
+      "ragas_answer_relevancy": 0.276280230472641,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_related",
+          "describe_entity",
+          "describe_entity"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "predicate": "https://ontorag.dev/ns/pure_land#assists",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Buddha"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 18
+            }
+          },
+          {
+            "tool": "describe_entity",
+            "args": {
+              "uri": "https://ontorag.dev/ns/pure_land#Avalokitesvara"
+            },
+            "result_summary": {
+              "kind": "dict",
+              "keys": [
+                "uri",
+                "label",
+                "class_uri",
+                "properties",
+                "inferred"
+              ],
+              "nodes_len": null
+            }
+          },
+          {
+            "tool": "describe_entity",
+            "args": {
+              "uri": "https://ontorag.dev/ns/pure_land#Mahasthamaprapta"
+            },
+            "result_summary": {
+              "kind": "dict",
+              "keys": [
+                "uri",
+                "label",
+                "class_uri",
+                "properties",
+                "inferred"
+              ],
+              "nodes_len": null
+            }
+          }
+        ],
+        "rate_limit_hits": 3,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q043",
+      "difficulty": "hard",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "무량수경(T0360)에만 출현하고 다른 경전에는 없는 부처는?",
+      "gold_answer": "없음 (모든 부처는 T0366 또는 T0365에도 출현)",
+      "baseline_answer": "무량수경(T0360)에만 출현하고 다른 경전에는 없는 부처는 데이터에 없습니다. 모든 부처가 다른 경전에서도 언급되었습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2010.0618340075016,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.11173001067381266,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#appearsIn",
+                  "value": "T0360"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q044",
+      "difficulty": "hard",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "법장비구의 preceding-stage 관계가 가리키는 존재의 클래스",
+      "gold_answer": "Buddha (precedingStage는 Amitabha를 가리키며, Amitabha는 Buddha)",
+      "baseline_answer": "법장비구의 **preceding-stage** 관계가 가리키는 존재는 \"아미타불\"이며, 아미타불은 **부처** 클래스에 속합니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 2,
+      "latency_ms": 42170.4385841731,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.5,
+      "ragas_answer_correctness": 0.3970355994969659,
+      "ragas_answer_relevancy": 0.8683457007053809,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "traverse_graph",
+          "describe_entity"
+        ],
+        "tool_trace": [
+          {
+            "tool": "traverse_graph",
+            "args": {
+              "start_uri": "https://ontorag.dev/ns/pure_land#Dharmakara",
+              "predicate": "https://ontorag.dev/ns/pure_land#precedingStage",
+              "max_depth": 1,
+              "direction": "outgoing"
+            },
+            "result_summary": {
+              "kind": "dict",
+              "keys": [
+                "start_uri",
+                "end_uri",
+                "nodes",
+                "edges",
+                "depth_reached"
+              ],
+              "nodes_len": 2
+            }
+          },
+          {
+            "tool": "describe_entity",
+            "args": {
+              "uri": "https://ontorag.dev/ns/pure_land#Amitabha"
+            },
+            "result_summary": {
+              "kind": "dict",
+              "keys": [
+                "uri",
+                "label",
+                "class_uri",
+                "properties",
+                "inferred"
+              ],
+              "nodes_len": null
+            }
+          }
+        ],
+        "rate_limit_hits": 4,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q045",
+      "difficulty": "hard",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "보배누각의 층수와 보배연못의 연꽃 색상 수의 합",
+      "gold_answer": "11 (7 + 4)",
+      "baseline_answer": "보배누각의 층수는 7층입니다. 그러나 보배연못의 연꽃 색상 수를 찾을 수 없었습니다. 따라서 두 값을 더할 수 없습니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 2,
+      "latency_ms": 18117.722583003342,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.3333333333333333,
+      "ragas_answer_correctness": 0.05941383479092624,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "describe_entity"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#JeweledTower",
+              "limit": 1
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 1
+            }
+          },
+          {
+            "tool": "describe_entity",
+            "args": {
+              "uri": "https://ontorag.dev/ns/pure_land#LotusPond"
+            },
+            "result_summary": {
+              "kind": "dict",
+              "keys": [
+                "error"
+              ],
+              "nodes_len": null
+            }
+          }
+        ],
+        "rate_limit_hits": 3,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q046",
+      "difficulty": "hard",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "hasContemplation 관계로 16관법의 대상이 명시된 존재의 수",
+      "gold_answer": "3 (아미타불, 관세음보살, 대세지보살)",
+      "baseline_answer": "관계 hasContemplation으로 16관법의 대상이 명시된 존재는 데이터에 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 7760.03483380191,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.05804338691944944,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "count_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Being"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          }
+        ],
+        "rate_limit_hits": 1,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q047",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "제석천이 발원한 본원은 몇 가지인가?",
+      "gold_answer": "0 — 제석천은 Deva이며 본 온톨로지에는 Buddha의 본원만 모델링됨. hasVow의 도메인은 Buddha.",
+      "baseline_answer": "현재 제석천(Śakra)이 발원한 구체적인 본원에 대한 데이터는 제공되지 않았습니다.",
+      "baseline_cited_triple_count": 15,
+      "tool_calls": 1,
+      "latency_ms": 7673.542167060077,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.08567766377705546,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Deva",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "제석천"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 1,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q048",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "아미타불이 가르치는 성문(śrāvaka) 제자들은?",
+      "gold_answer": "없음 — 아미타불은 극락에 거주하며 본 온톨로지의 사리불·아난 등 성문은 사바세계에서 석가모니불에게 가르침을 받음.",
+      "baseline_answer": "아미타불이 직접 가르치는 성문 제자는 정보에 나타나지 않습니다. 그러나 석가모니불이 가르치는 성문 제자로는 마하목건련(마하마우드갈리야야나), 아난다, 마하가섭이 있습니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 12397.515249904245,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.5,
+      "ragas_answer_correctness": 0.12170827420517981,
+      "ragas_answer_relevancy": 0.14418888203462554,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Sravaka",
+              "predicate": "https://ontorag.dev/ns/pure_land#taughtBy",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Buddha"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 20
+            }
+          }
+        ],
+        "rate_limit_hits": 2,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q049",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "18번째 관법(觀法)의 대상은 누구인가?",
+      "gold_answer": "없음 — 관무량수경(T0365)에는 16관법만 있음. 18번째 관법은 존재하지 않음.",
+      "baseline_answer": "데이터에 18번째 관법(觀法)의 대상은 존재하지 않습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 1878.7696671206504,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.45798302666144586,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Contemplation",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#contemplationOrder",
+                  "value": "18"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q050",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "공작(Peacock)이 발원한 본원은 몇 가지인가?",
+      "gold_answer": "0 — 공작은 CelestialBird (Sentient의 하위)이며 본원의 주체가 될 수 없음 (hasVow의 도메인은 Buddha).",
+      "baseline_answer": "이 데이터 그래프에는 공작을 포함한 천상조(Celestial bird)의 개체 수는 4이며, 각 천상조는 발원과 관련된 속성이 없습니다. 따라서 공작이 직접 발원한 본원은 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2285.4570830240846,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.14632613180440626,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "count_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#CelestialBird"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    }
+  ],
+  "aggregate": {
+    "avg_latency_ms": 16435.0012642378,
+    "avg_tool_calls": 1.34,
+    "total_prompt_tokens": 0,
+    "total_completion_tokens": 0,
+    "avg_hallucination_rate": 0.0,
+    "avg_citation_coverage": 0.009090909090909092,
+    "citation_provided_count": 33,
+    "citation_provided_rate": 0.66,
+    "avg_ragas_faithfulness": 0.42194444444444446,
+    "avg_ragas_answer_correctness": 0.38073801043725736,
+    "avg_ragas_answer_relevancy": 0.3569190291967721,
+    "per_difficulty": {
+      "easy": {
+        "count": 15,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.0,
+        "citation_provided": 12
+      },
+      "medium": {
+        "count": 20,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.023076923076923078,
+        "citation_provided": 13
+      },
+      "hard": {
+        "count": 10,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.0,
+        "citation_provided": 6
+      },
+      "trap": {
+        "count": 5,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.0,
+        "citation_provided": 2
+      }
+    }
+  }
+}

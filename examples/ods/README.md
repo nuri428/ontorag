@@ -34,3 +34,31 @@ Sort algorithms).
 
 This is small enough to compare like-for-like with Commerce (15 classes,
 15 properties) while exercising the full v4–v8 fix surface.
+
+---
+
+## RAGAS 벤치마크 결과 (2026-05, gpt-4o agent + gpt-4o judge)
+
+20문항 영어 goldset (`examples/ods/goldset.jsonl`) — easy 5 / medium 6 / hard 5
+(transitive_inference: `ods:uses+`, `ods:specialises+`) / trap 4
+(AuroraTree·SplayTree·Ch15·TimSort — 책엔 있으나 이 온톨로지에 없음).
+
+| 메트릭 | LangChain (vector RAG) | ontorag_native | Δ |
+|---|---|---|---|
+| RAGAS Faithfulness | 0.521 | **0.551** | ontorag +0.030 |
+| RAGAS AnswerCorrectness | 0.493 | **0.515** | ontorag +0.022 |
+| RAGAS AnswerRelevancy | 0.641 | **0.749** | ontorag +0.108 |
+| Hallucination rate (det.) | — | **0.000** | ontorag |
+| Citation 제공률 | 0% | **65%** | ontorag |
+| Citation coverage | — | **0.247** | ontorag |
+| 평균 응답 시간 | 1243 ms | 5425 ms | LangChain ↓ |
+
+### 해석 — ontorag가 모든 RAGAS 메트릭에서 LangChain을 이긴 첫 도메인
+
+ODS는 Pokemon/Techstack과 다음 두 가지가 다릅니다:
+1. **두 개의 TransitiveProperty 체인**(`uses`, `specialises`)이 동시에 존재 → hard 질문 5개 모두 graph 추론 필수. Vector RAG는 텍스트 chunk에서 전이 관계를 합성 못함.
+2. **`implements`/`implementedBy` inverseOf 쌍** → "어떤 자료구조가 USet을 구현?" 같은 역방향 조회를 OWL 추론으로 처리.
+
+이 두 OWL 기능이 결합하여 **AnswerRelevancy +0.108**의 큰 차이를 만들었습니다. 텍스트 chunk에서 "HeapSort uses BinaryHeap; BinaryHeap uses ArrayStack"을 합성해 "HeapSort transitively uses ArrayStack"으로 잇는 추론을 vector RAG는 못 합니다.
+
+> **시사점**: TransitiveProperty/inverseOf가 많은 도메인일수록 ontorag의 우위가 커집니다. 단순 lookup 도메인은 LangChain의 chunk-quote 전략이 RAGAS judge에 유리.

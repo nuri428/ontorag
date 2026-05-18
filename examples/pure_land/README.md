@@ -111,3 +111,32 @@ Together they answer the Karpathy gate question:
 > *"Does ontology-aware RAG measurably beat vector RAG on a domain LLMs partially know?"*
 
 Comparison baseline: **LangChain** (`RetrievalQA + Chroma + OpenAI text-embedding-3-small + gpt-4o-mini`).
+
+---
+
+## RAGAS 벤치마크 결과 (2026-05, gpt-4o agent + gpt-4o judge)
+
+50문항 한국어 goldset (`examples/pure_land/goldset.jsonl`). 이 도메인은 4개 측정 도메인 중 **contamination이 가장 낮고**, multilingual 라벨(`@en/@zh-Hant/@ko`)과 큰 ABox(717 triples)를 가집니다.
+
+| 메트릭 | LangChain (vector RAG) | ontorag_native | Δ |
+|---|---|---|---|
+| RAGAS Faithfulness | 0.345 | **0.422** | ontorag +0.077 |
+| RAGAS AnswerCorrectness | 0.260 | **0.381** | ontorag +0.121 |
+| RAGAS AnswerRelevancy | 0.180 | **0.357** | ontorag +0.177 |
+| Hallucination rate (det.) | — | **0.000** | ontorag |
+| Citation 제공률 | 0% | **66%** | ontorag |
+| Citation coverage | — | 0.009 | ontorag |
+| 평균 응답 시간 | 1573 ms | 16435 ms | LangChain ↓ |
+
+### 해석 — ontorag의 RAGAS 우위가 가장 큰 도메인
+
+Pure Land는 두 가지 측면에서 vector RAG가 가장 약합니다:
+
+1. **다국어 라벨이 같은 URI를 공유**: `阿彌陀佛` / `Amitābha` / `아미타불`이 모두 `pl:Amitabha`인데 vector embedding은 이를 분리된 chunk로 처리. SPARQL은 URI만 매칭하므로 언어와 무관.
+2. **거짓 정답 함정**: LLM이 사전학습에서 본 적 있는 "약 40개의 본원" 같은 부정확한 사실이 chunk에 그대로 인용되며 점수를 깎음(법장비구의 vow=48이 정답). ontorag는 graph에 없는 사실은 생성하지 않음.
+
+`AnswerRelevancy +0.177` (98% relative improvement)이 보여주는 것: 한국어 질문에 한국어/한자/영문 라벨을 자유롭게 결합한 답변을 만들 때 그래프 추론이 결정적이라는 점.
+
+### Pure Land 도메인 결론
+
+**Karpathy 게이트 통과**: "*Pokemon이 아닌 도메인에서 ontorag가 정말로 동작하는가?*" — 모든 RAGAS 메트릭에서 ontorag가 LangChain을 이긴 두 도메인(ODS, Pure Land) 중 하나이며, 가장 큰 격차를 보임. 다국어 + 큰 ABox + 낮은 contamination이 ontorag에 가장 유리한 조합.

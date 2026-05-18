@@ -85,7 +85,7 @@ def _require_ragas() -> Any:
     return ragas
 
 
-_DEFAULT_JUDGE_MODEL = "gpt-4o-mini"
+_DEFAULT_JUDGE_MODEL = os.environ.get("RAGAS_JUDGE_MODEL", "gpt-4o-mini")
 
 
 def evaluate_with_ragas(
