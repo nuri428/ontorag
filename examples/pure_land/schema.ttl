@@ -65,7 +65,8 @@ pl:Deva a owl:Class ;
 
 pl:Sentient a owl:Class ;
     rdfs:subClassOf pl:Being ;
-    rdfs:label "Sentient being"@en , "衆生"@zh-Hant , "중생"@ko .
+    rdfs:label "Sentient being"@en , "衆生"@zh-Hant , "중생"@ko ;
+    rdfs:comment "Ordinary sentient beings — those who have not yet awakened. Includes humans, animals, and the celestial birds of Sukhāvatī."@en .
 
 pl:CelestialBird a owl:Class ;
     rdfs:subClassOf pl:Sentient ;
@@ -76,7 +77,8 @@ pl:CelestialBird a owl:Class ;
 
 pl:Realm a owl:Class ;
     rdfs:subClassOf schema:Place ;
-    rdfs:label "Realm"@en , "世界"@zh-Hant , "세계"@ko .
+    rdfs:label "Realm"@en , "世界"@zh-Hant , "세계"@ko ;
+    rdfs:comment "A cosmological world. Buddha-fields (淨土) and the Sahā world are subclasses."@en .
 
 pl:SacredRealm a owl:Class ;
     rdfs:subClassOf pl:Realm ;
@@ -92,7 +94,8 @@ pl:SahaWorld a owl:Class ;
 
 pl:Structure a owl:Class ;
     rdfs:subClassOf schema:Place ;
-    rdfs:label "Structure"@en , "建造物"@zh-Hant , "구조물"@ko .
+    rdfs:label "Structure"@en , "建造物"@zh-Hant , "구조물"@ko ;
+    rdfs:comment "Architectural or natural feature within a realm — towers, ponds, trees. Distinguished from Realm: a Structure is contained within a Realm, not a world of its own."@en .
 
 pl:JeweledTower a owl:Class ;
     rdfs:subClassOf pl:Structure ;
@@ -148,7 +151,8 @@ pl:teaches a owl:ObjectProperty ;
 
 pl:taughtBy a owl:ObjectProperty ;
     rdfs:label "taught by"@en , "受教於"@zh-Hant , "가르침을 받다"@ko ;
-    owl:inverseOf pl:teaches .
+    owl:inverseOf pl:teaches ;
+    rdfs:comment "Inverse of pl:teaches. Domain/range derived by OWL semantics from the inverse declaration."@en .
 
 pl:assists a owl:ObjectProperty ;
     rdfs:label "assists"@en , "脅侍"@zh-Hant , "협시하다"@ko ;
@@ -159,7 +163,8 @@ pl:assists a owl:ObjectProperty ;
 
 pl:assistedBy a owl:ObjectProperty ;
     rdfs:label "assisted by"@en , "由…脅侍"@zh-Hant , "협시를 받다"@ko ;
-    owl:inverseOf pl:assists .
+    owl:inverseOf pl:assists ;
+    rdfs:comment "Inverse of pl:assists. Domain/range derived by OWL semantics."@en .
 
 pl:vowsToSave a owl:ObjectProperty ;
     rdfs:label "vows to save"@en , "誓救"@zh-Hant , "구제를 발원하다"@ko ;
@@ -169,7 +174,8 @@ pl:vowsToSave a owl:ObjectProperty ;
 
 pl:savedBy a owl:ObjectProperty ;
     rdfs:label "saved by"@en , "蒙救於"@zh-Hant , "구제받다"@ko ;
-    owl:inverseOf pl:vowsToSave .
+    owl:inverseOf pl:vowsToSave ;
+    rdfs:comment "Inverse of pl:vowsToSave. Domain/range derived by OWL semantics."@en .
 
 pl:hasVow a owl:ObjectProperty ;
     rdfs:label "has vow"@en , "發願"@zh-Hant , "발원하다"@ko ;
@@ -179,15 +185,19 @@ pl:hasVow a owl:ObjectProperty ;
 
 pl:hasContemplation a owl:ObjectProperty ;
     rdfs:label "subject of contemplation"@en , "屬於觀法"@zh-Hant , "관법의 대상"@ko ;
-    rdfs:range  pl:Contemplation .
+    rdfs:domain pl:Being ;
+    rdfs:range  pl:Contemplation ;
+    rdfs:comment "Links a being to one of the sixteen contemplations of which it is the object (e.g. Amitābha is the object of the 9th contemplation)."@en .
 
 pl:hasColor a owl:ObjectProperty ;
     rdfs:label "has colour"@en , "之色相"@zh-Hant , "색상을 띠다"@ko ;
-    rdfs:range  pl:LotusColor .
+    rdfs:domain pl:LotusPond ;
+    rdfs:range  pl:LotusColor ;
+    rdfs:comment "Relates a LotusPond to the colour family of lotuses it contains (青/黃/赤/白). A pond may hold multiple colours."@en .
 
 pl:appearsIn a owl:ObjectProperty ;
     rdfs:label "appears in"@en , "見於"@zh-Hant , "출현하다"@ko ;
-    rdfs:comment "Links an entity to a canonical text where it is described."@en ;
+    rdfs:comment "Links any entity to a canonical text where it is described. Domain intentionally unconstrained — any individual in this ontology may appear in a source."@en ;
     rdfs:range  dcterms:BibliographicResource .
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -214,7 +224,7 @@ pl:storyCount a owl:DatatypeProperty , owl:FunctionalProperty ;
 pl:sanskritName a owl:DatatypeProperty ;
     rdfs:label "Sanskrit name"@en , "梵名"@zh-Hant , "산스크리트명"@ko ;
     rdfs:range  xsd:string ;
-    rdfs:comment "Romanised Sanskrit form (IAST). Use alongside multilingual rdfs:label."@en .
+    rdfs:comment "Romanised Sanskrit form (IAST). Domain intentionally unconstrained — applicable to any named individual. Use alongside multilingual rdfs:label."@en .
 
 # ═════════════════════════════════════════════════════════════════════════════
 # CARDINALITY POLICY
