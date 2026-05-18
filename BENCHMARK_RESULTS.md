@@ -22,26 +22,66 @@ Combined: 4 bench runs (2 domains × 2 baselines) + 2 comparison files.
 
 ### Pure Land (50 questions, 948 triples) — real head-to-head
 
-Two ontorag_native runs are reported: the first exposed several latent bugs
-(lang-tagged literal equality, schema context missing properties, no TBox
-metadata for transitive/inverse hints), all fixed in the second run.
+Six successive `ontorag_native` iterations against the same Pure Land
+goldset, same gpt-4o-mini LLM, same Fuseki setup. Each version's diff
+to its predecessor is listed below the table; see the eval-harness
+branch commits for code-level detail.
 
-| Metric | ontorag_mock<br>*(perfect-retrieval)* | **langchain (real, +RAGAS)** | **ontorag_native v1**<br>*(pre-fix)* | **ontorag_native v2**<br>*(5-fix, post)* |
-|---|---:|---:|---:|---:|
-| Avg latency (ms) | 180 | **1 317** | 4 542 | **5 638** |
-| Avg tool calls | 1.06 | 0.00 | 1.52 | **1.58** |
-| Avg hallucination rate | 0.000 | *(N/A)* | 0.000 | **0.000** |
-| Avg citation coverage | 0.010 | *(N/A)* | 0.057 | 0.062 |
-| Citation provided (count / rate) | 21 / 50 (42 %) | **0 / 50 (0 %)** | 14 / 50 (28 %) | **28 / 50 (56 %)** |
-| **Avg RAGAS Faithfulness** | — | **0.58** | 0.32 | **0.34** |
-| **Avg RAGAS Answer Correctness** | — | **0.36** | 0.20 | **0.27** |
-| **Avg RAGAS Answer Relevancy** | — | **0.54** | 0.36 | **0.48** |
+| Metric | LangChain | v2 | v3 | v4 | v5 | v6 | **v7** |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **Faithfulness** | **0.581** | 0.342 | 0.284 | 0.307 | 0.377 | 0.377 | 0.279 |
+| **Correctness** | 0.363 | 0.274 | 0.257 | **0.374** | 0.355 | 0.326 | 0.347 |
+| **Relevancy** | 0.537 | 0.479 | 0.460 | 0.540 | 0.684 | **0.725** | 0.703 |
+| Citation count | 0 / 50 | 28 | 26 | **29** | 25 | 26 | 25 |
+| Citation coverage | — | 0.062 | 0.071 | 0.057 | 0.063 | 0.060 | 0.064 |
+| Hallucination rate | N/A | **0.000** | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 |
+| Avg tool calls / q | 0.00 | 1.58 | 1.96 | 1.70 | 1.58 | 1.64 | **1.82** |
+| Avg latency (ms) | **1 317** | 5 638 | 4 968 | 3 584 | 5 333 | 5 307 | 4 557 |
+| Transitive 3 q rc | 0.05/0.05/0.05 | 0.00/0.00/0.05 | 0.06/0.05/0.02 | 0.00/0.05/0.05 | 0.05/0.04/0.05 | 0.04/**0.54**/0.05 | 0.11/**0.92**/**0.92** |
 
-**Δ from the 5 fixes (v1 → v2)**: Citation **+100 %** (14 → 28), Answer
-Correctness **+35 %** (0.20 → 0.27), Answer Relevancy **+33 %** (0.36 →
-0.48). Faithfulness barely moved (0.32 → 0.34) — the LLM is now retrieving
-more triples, but still struggles to *interpret* multi-hop results into a
-faithful natural-language answer.
+#### Code changes per iteration
+
+* **v2** — multilingual `=` lang-literal fix, schema context lists all
+  property URIs, TBox metadata (TRANSITIVE / inverseOf) auto-extracted
+  via SPARQL and surfaced as schema-context flags. Established the
+  baseline narrative (Citation ↑↑, Correctness slightly trails LC).
+* **v3** — added an explicit "transitive-question → 2-step
+  (find_entities then property_path_query)" rule to the system
+  prompt. **Regressed across the board** (Faithfulness 0.34→0.28,
+  Correctness 0.27→0.26); the rule fired on simple questions too and
+  added noise. Reverted.
+* **v4** — kept v2 + reverted v3 + added case-insensitive `=` for
+  rdfs:label (Q039 "peacock" lowercase was missing the data). Hit
+  Correctness 0.374 — the *first version to beat LangChain on
+  Correctness*.
+* **v5** — refactored to ontology-driven prompting: rdfs:comment /
+  skos:definition automatically extracted from the TBox and rendered
+  inline; tool descriptions rewritten in OWL-semantics terms
+  (`rdfs:subClassOf-aware`, `owl:TransitiveProperty closure`, etc.);
+  system prompt shrunk 60→25 lines. Relevancy jumped 0.54→0.68
+  (LangChain +27%).
+* **v6** — `property_path_query` accepts `start_label`; the tool itself
+  resolves label → instance URI in a single SPARQL round-trip
+  (case-/lang-tag-insensitive). Removes the need to chain
+  find_entities → property_path_query via the prompt. Relevancy
+  reached 0.725 (LC +35%).
+* **v7** — `property_path_query` gains **Mode 3 — class-wide closure**:
+  pass only `start_class_uri` and SPARQL `?start a <Class> ; <pred>+
+  ?reached` unions the closures from every instance. Q040 ("any
+  celestial bird is transitively located") and Q039 both score
+  **rc=0.92**. Faithfulness regressed (0.38→0.28) because the LLM
+  emits longer, more discursive answers — that lever needs separate
+  work (see "Open work").
+
+#### What this iteration arc demonstrates
+
+| Lever | Direction | Evidence |
+|---|---|---|
+| Prompt rule accumulation | ❌ avoid | v3 regressed every metric vs v2 |
+| Lang/case fix at SPARQL builder | ✅ pure win | v4 hit best Correctness with one filter-line change |
+| Rendering TBox `rdfs:comment` in prompt | ✅ huge | v5 Relevancy +0.14, Faithfulness +0.07 |
+| OWL semantics in tool API (label resolve, class closure) | ✅ targeted | v6/v7 jumped transitive questions from rc<0.10 to rc=0.92 |
+| System-prompt closure-keyword routing | ❌ leaky | v3 regression; v5+ dropped it entirely |
 
 **Real LangChain qualitative findings** (`gpt-4o-mini`, k=5, 90 indexed ABox chunks):
 

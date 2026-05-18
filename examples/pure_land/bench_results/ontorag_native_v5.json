@@ -1,0 +1,2613 @@
+{
+  "baseline_name": "ontorag_native",
+  "baseline_version": "0.1.0",
+  "goldset_path": "examples/pure_land/goldset.jsonl",
+  "graph_triples": 948,
+  "total_questions": 50,
+  "language": "en",
+  "results": [
+    {
+      "question_id": "Q001",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "What is the Sanskrit name of Amitābha?",
+      "gold_answer": "Amitābha",
+      "baseline_answer": "The Sanskrit name of Amitābha is \"Amitābha.\"",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 11525.405500084162,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.9320230650015733,
+      "ragas_answer_relevancy": 0.9999993954980692,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#sanskritName",
+                  "op": "=",
+                  "value": "Amitābha"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q002",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "Which buddha does Avalokiteśvara assist?",
+      "gold_answer": "Amitābha",
+      "baseline_answer": "Avalokiteśvara assists Amitābha.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 2985.9177919570357,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.9190426874729276,
+      "ragas_answer_relevancy": 0.7493489613960361,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#sanskritName",
+                  "value": "Avalokiteśvara"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q003",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "What is the Taishō number of the Larger Sukhāvatīvyūha Sūtra?",
+      "gold_answer": "T0360",
+      "baseline_answer": "The data does not contain any information about the Taishō number of the Larger Sukhāvatīvyūha Sūtra.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2919.878834160045,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.041154412784975336,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#appearsIn",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "Larger Sukhāvatīvyūha Sūtra"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q004",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "List all bodhisattvas residing in Sukhāvatī.",
+      "gold_answer": "Avalokiteśvara, Mahāsthāmaprāpta",
+      "baseline_answer": "There are no bodhisattvas residing in Sukhāvatī.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 2,
+      "latency_ms": 4507.539208047092,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.0899926976232715,
+      "ragas_answer_relevancy": 0.8718811561525529,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#residesIn",
+                  "value": "https://ontorag.dev/ns/pure_land#SacredRealm"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#residesIn",
+                  "value": "https://ontorag.dev/ns/pure_land#Realm"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q005",
+      "difficulty": "medium",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "List all śrāvaka disciples taught by the buddha residing in the Sahā world.",
+      "gold_answer": "Śāriputra, Mahāmaudgalyāyana, Mahākāśyapa, Ānanda, Subhūti",
+      "baseline_answer": "There are no śrāvaka disciples taught by the Buddha residing in the Sahā world.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 7113.853208022192,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.09112815531197907,
+      "ragas_answer_relevancy": 0.8298754662258659,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Sravaka",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#taughtBy",
+                  "value": "https://ontorag.dev/ns/pure_land#Buddha"
+                },
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#residesIn",
+                  "value": "https://ontorag.dev/ns/pure_land#SahaWorld"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q006",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "List all colours of lotus flowers in the jeweled pond of Sukhāvatī.",
+      "gold_answer": "Blue, Yellow, Red, White",
+      "baseline_answer": "The lotus flowers in the jeweled pond of Sukhāvatī come in four colors:\n\n1. White lotus (白色白光)\n2. Blue lotus (青色青光)\n3. Red lotus (赤色赤光)\n4. Yellow lotus (黃色黃光)",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 10263.19941598922,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.15,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.6,
+      "ragas_answer_correctness": 0.7697207536569786,
+      "ragas_answer_relevancy": 0.8959796096466771,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#LotusPond"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q007",
+      "difficulty": "medium",
+      "category": "reverse_lookup",
+      "uses_inference": false,
+      "question_text": "Who is the subject of the 9th of the sixteen contemplations?",
+      "gold_answer": "Amitābha",
+      "baseline_answer": "The subject of the 9th of the sixteen contemplations is called \"Amitābha-body contemplation.\" However, there are no specific beings in the ontology directly linked to this contemplation.",
+      "baseline_cited_triple_count": 10,
+      "tool_calls": 2,
+      "latency_ms": 5707.357665989548,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.1,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.5,
+      "ragas_answer_correctness": 0.5081516806836677,
+      "ragas_answer_relevancy": 0.9250669640396904,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Contemplation",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#contemplationOrder",
+                  "value": "9"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          },
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Contemplation",
+              "predicate": "https://ontorag.dev/ns/pure_land#hasContemplation",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Being"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q008",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "List all places where the Peacock is located (direct and indirect).",
+      "gold_answer": "JeweledTree_Canonical, Sukhāvatī",
+      "baseline_answer": "The Peacock is not located in any places according to the ontology data.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 7272.731458069757,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.05201602059590962,
+      "ragas_answer_relevancy": 0.6564505036634453,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "property_path_query"
+        ],
+        "tool_trace": [
+          {
+            "tool": "property_path_query",
+            "args": {
+              "start_uri": "https://ontorag.dev/ns/pure_land#CelestialBird",
+              "predicate_uri": "https://ontorag.dev/ns/pure_land#locatedIn"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q009",
+      "difficulty": "hard",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "How many vows did Amitābha make in total?",
+      "gold_answer": "48",
+      "baseline_answer": "Amitābha made a total of 48 vows.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 1825.7683331612498,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.8097794098401634,
+      "ragas_answer_relevancy": 0.9753911035493456,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "count_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Vow"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q010",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "How many vows did Śākyamuni Buddha make?",
+      "gold_answer": "No information in this ontology (0). This dataset models only the 48 vows of Dharmākara→Amitābha; Śākyamuni's separate vows are not represented.",
+      "baseline_answer": "Śākyamuni Buddha made a total of 48 vows.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 3,
+      "latency_ms": 12687.927500111982,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.14234181254584272,
+      "ragas_answer_relevancy": 1.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "count_entities",
+          "find_entities",
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#hasVow"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "dict",
+              "keys": [
+                "error"
+              ],
+              "nodes_len": null
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 15
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q011",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "What is the Sanskrit name of Mahāsthāmaprāpta?",
+      "gold_answer": "Mahāsthāmaprāpta",
+      "baseline_answer": "The Sanskrit name of Mahāsthāmaprāpta is \"Mahāsthāmaprāpta\".",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 9056.761624990031,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.9351332541664139,
+      "ragas_answer_relevancy": 0.9999992394521592,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#sanskritName",
+                  "op": "=",
+                  "value": "Mahāsthāmaprāpta"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q012",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "Who is the Chinese translator of the Larger Sukhāvatīvyūha Sūtra?",
+      "gold_answer": "康僧鎧 (Saṅghavarman, attr.)",
+      "baseline_answer": "The ontology data does not include any specific information about the Chinese translator of the Larger Sukhāvatīvyūha Sūtra.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 3,
+      "latency_ms": 7213.458374841139,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.05866199448240269,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_entities",
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#appearsIn",
+                  "value": "Larger Sukhāvatīvyūha Sūtra"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#appearsIn",
+                  "value": "Larger Sukhāvatīvyūha Sūtra"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Sravaka",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#appearsIn",
+                  "value": "Larger Sukhāvatīvyūha Sūtra"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q013",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "What is the alternative name of Amitābha?",
+      "gold_answer": "Amitāyus",
+      "baseline_answer": "Amitābha is also known as Dharmākara.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2479.990917025134,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.5252327342190224,
+      "ragas_answer_relevancy": 0.9242804204977909,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#sanskritName",
+                  "op": "=",
+                  "value": "Dharmākara"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q014",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "Where is Kalaviṅka directly located?",
+      "gold_answer": "JeweledTree_Canonical",
+      "baseline_answer": "Kalaviṅka is directly located in the Jeweled tree.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 8019.65512521565,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.05,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.6179523150630043,
+      "ragas_answer_relevancy": 0.9155605088553975,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#CelestialBird"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 12
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q015",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "What is the name of the first contemplation?",
+      "gold_answer": "Sun contemplation",
+      "baseline_answer": "The name of the first contemplation is \"Sun contemplation\" (일상의관).",
+      "baseline_cited_triple_count": 10,
+      "tool_calls": 1,
+      "latency_ms": 3132.0646659005433,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.1,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.5,
+      "ragas_answer_correctness": 0.661431130930046,
+      "ragas_answer_relevancy": 1.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Contemplation",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#contemplationOrder",
+                  "value": "1"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q016",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "What is the Chinese name of the jeweled lotus pond?",
+      "gold_answer": "七寶池",
+      "baseline_answer": "The Chinese name of the jeweled lotus pond is \"七宝池\".",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 2576.5528751071543,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.8873414218141864,
+      "ragas_answer_relevancy": 0.9999995655141806,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#LotusPond"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q017",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "What is the alternative name of Maitreya in T0360?",
+      "gold_answer": "Ajita",
+      "baseline_answer": "The alternative name of Maitreya in T0360 is Ajita.",
+      "baseline_cited_triple_count": 15,
+      "tool_calls": 1,
+      "latency_ms": 2345.6356248352677,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.2,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.863811735123835,
+      "ragas_answer_relevancy": 0.9999994651060273,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#sanskritName",
+                  "value": "Maitreya"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q018",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "Which buddha resides in the Sahā world?",
+      "gold_answer": "Śākyamuni",
+      "baseline_answer": "The buddha residing in the Sahā world is Śākyamuni.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 7920.441249851137,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.05,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.885047499811531,
+      "ragas_answer_relevancy": 0.9366629077074006,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#residesIn",
+                  "value": "https://ontorag.dev/ns/pure_land#SahaWorld"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q019",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "What is the Korean label of Dharmākara?",
+      "gold_answer": "법장비구",
+      "baseline_answer": "The ontology does not contain an entry for Dharmākara.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2094.630458857864,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": -0.00166331974812969,
+      "ragas_answer_relevancy": 0.6215876603421568,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#sanskritName",
+                  "value": "Dharmākara"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q020",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "What is the Taishō number of the Contemplation Sūtra?",
+      "gold_answer": "T0365",
+      "baseline_answer": "The Contemplation Sūtra is referred to as the Amitāyurdhyāna Sūtra, with the Taishō number being T0365.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 6019.141207914799,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.1,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.5854901418116187,
+      "ragas_answer_relevancy": 0.9045915953222625,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Contemplation"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 20
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q021",
+      "difficulty": "easy",
+      "category": "single_entity",
+      "uses_inference": false,
+      "question_text": "What is the Chinese name of Śakra?",
+      "gold_answer": "帝釋天",
+      "baseline_answer": "The Chinese name of Śakra is \"帝释天\".",
+      "baseline_cited_triple_count": 15,
+      "tool_calls": 1,
+      "latency_ms": 2511.7930001579225,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.10903397065896193,
+      "ragas_answer_relevancy": 1.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Deva",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#sanskritName",
+                  "value": "Śakra"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q022",
+      "difficulty": "easy",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "How many stories does the jeweled tower have?",
+      "gold_answer": "7",
+      "baseline_answer": "The jeweled tower has 7 stories.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 8663.14045805484,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.8316197869236182,
+      "ragas_answer_relevancy": 0.9999999999999999,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#JeweledTower"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q023",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "List all buddhas that appear in T0366",
+      "gold_answer": "Multiple buddhas",
+      "baseline_answer": "There are no buddhas that appear in T0366.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2671.7522079125047,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.15050463127146044,
+      "ragas_answer_relevancy": 0.8896932535812008,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#appearsIn",
+                  "value": "T0366"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q024",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "All beings residing in Sukhāvatī (buddhas + bodhisattvas)",
+      "gold_answer": "Amitābha, Avalokiteśvara, Mahāsthāmaprāpta",
+      "baseline_answer": "There are no beings, including buddhas and bodhisattvas, residing in Sukhāvatī according to the ontology data.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 2,
+      "latency_ms": 4656.33233403787,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.35607003010764665,
+      "ragas_answer_relevancy": 0.7226656507538843,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#residesIn",
+                  "value": "https://ontorag.dev/ns/pure_land#SacredRealm"
+                }
+              ],
+              "limit": 100
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#residesIn",
+                  "value": "https://ontorag.dev/ns/pure_land#SacredRealm"
+                }
+              ],
+              "limit": 100
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q025",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "All birds located in the jeweled tree",
+      "gold_answer": "Peacock, Parrot, Kalaviṅka, Jīvajīvaka",
+      "baseline_answer": "The birds located in the jeweled tree are:\n\n- Peacock (孔雀)\n- Jīvajīvaka (共命鳥)\n- Parrot (鸚鵡)\n- Kalavinka (迦陵頻伽)",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 2,
+      "latency_ms": 6679.309875005856,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.15,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.5,
+      "ragas_answer_correctness": 0.9269692109933106,
+      "ragas_answer_relevancy": 0.9103449892599128,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "property_path_query",
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "property_path_query",
+            "args": {
+              "start_uri": "https://ontorag.dev/ns/pure_land#JeweledTree",
+              "predicate_uri": "https://ontorag.dev/ns/pure_land#locatedIn"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#CelestialBird"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 12
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q026",
+      "difficulty": "medium",
+      "category": "reverse_lookup",
+      "uses_inference": false,
+      "question_text": "What is the Chinese name of the 18th vow?",
+      "gold_answer": "念佛往生願",
+      "baseline_answer": "The Chinese name of the 18th vow is \"念佛往生愿\" (Nianfo Wangsheng Yuan).",
+      "baseline_cited_triple_count": 10,
+      "tool_calls": 1,
+      "latency_ms": 2563.848749967292,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.5,
+      "ragas_answer_correctness": 0.6542454814487038,
+      "ragas_answer_relevancy": 1.0000000000000002,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Vow",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#vowNumber",
+                  "value": "18"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q027",
+      "difficulty": "medium",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "Count of the first 10 contemplations (1-10)",
+      "gold_answer": "10",
+      "baseline_answer": "There are a total of 16 contemplations described in the ontology.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 1939.6753751207143,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.053381114347166136,
+      "ragas_answer_relevancy": 0.6225195968544817,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "count_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Contemplation"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q028",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "All bodhisattvas with explicit Sanskrit names",
+      "gold_answer": "7 bodhisattvas with sanskritName",
+      "baseline_answer": "The following bodhisattvas have explicit Sanskrit names:\n\n1. **Manjushri** (Sanskrit: *Mañjuśrī*)\n2. **Gandhahastin** (Sanskrit: *Gandhahastin*)\n3. **Dharmakara** (Sanskrit: *Dharmākara*)\n4. **Samantabhadra** (Sanskrit: *Samantabhadra*)\n5. **Avalokitesvara** (Sanskrit: *Avalokiteśvara*)\n6. **Mahasthamaprapta** (Sanskrit: *Mahāsthāmaprāpta*)\n7. **Maitreya** (Sanskrit: *Maitreya*)",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 15645.876416936517,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.2,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.25,
+      "ragas_answer_correctness": 0.9306586546653663,
+      "ragas_answer_relevancy": 0.9003609473047356,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#sanskritName",
+                  "op": "!=",
+                  "value": ""
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 20
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q029",
+      "difficulty": "medium",
+      "category": "reverse_lookup",
+      "uses_inference": false,
+      "question_text": "All buddhas that have attendant bodhisattvas",
+      "gold_answer": "Amitābha (assisted by Avalokiteśvara, Mahāsthāmaprāpta)",
+      "baseline_answer": "There are no buddhas that have attendant bodhisattvas in the ontology.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2632.701624883339,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.11059315140136869,
+      "ragas_answer_relevancy": 0.8440438770777273,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Buddha",
+              "predicate": "https://ontorag.dev/ns/pure_land#assists",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Bodhisattva"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q030",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "Korean labels of all contemplations with order <= 5",
+      "gold_answer": "5 Korean contemplation labels",
+      "baseline_answer": "요청하신 순서가 5 이하인 관점에 대한 정보가 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2212.139541981742,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.06808610097710074,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Contemplation",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#contemplationOrder",
+                  "op": "<=",
+                  "value": "5"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q031",
+      "difficulty": "medium",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "Count of vows made by the buddha residing in Sukhāvatī",
+      "gold_answer": "48",
+      "baseline_answer": "There are no instances of buddhas residing in Sukhāvatī or any realm within the ontology data. Therefore, I cannot provide the count of vows made by such buddhas.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 2,
+      "latency_ms": 4562.016875017434,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.01676769772383437,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#residesIn",
+                  "value": "https://ontorag.dev/ns/pure_land#SacredRealm"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#residesIn",
+                  "value": "https://ontorag.dev/ns/pure_land#Realm"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q032",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "All LotusColor instances",
+      "gold_answer": "4 instances",
+      "baseline_answer": "There are several instances of lotus colors:\n\n1. **White lotus**\n2. **Blue lotus**\n3. **Red lotus**\n4. **Yellow lotus** \n\nThese colors are associated with the lotuses described in the context of the ontology.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 2690.1752080302685,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.15,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.8333333333333334,
+      "ragas_answer_correctness": 0.07822890329934053,
+      "ragas_answer_relevancy": 0.6620569797555101,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#LotusColor"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 12
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q033",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "Entity whose sanskritName is 'Mañjuśrī'",
+      "gold_answer": "pl:Manjushri",
+      "baseline_answer": "There is no entity in the ontology with the Sanskrit name 'Mañjuśrī'.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 3084.1223751194775,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.09912396292439306,
+      "ragas_answer_relevancy": 0.8187906284395924,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Being",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#sanskritName",
+                  "value": "Mañjuśrī"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q034",
+      "difficulty": "medium",
+      "category": "reverse_lookup",
+      "uses_inference": false,
+      "question_text": "All hasContemplation relationships",
+      "gold_answer": "3 pairs",
+      "baseline_answer": "데이터에는 `hasContemplation` 관계가 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2480.8594998903573,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.03319175922473499,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Being",
+              "predicate": "https://ontorag.dev/ns/pure_land#hasContemplation",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Contemplation"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q035",
+      "difficulty": "medium",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "Count of vows with vowNumber >= 25",
+      "gold_answer": "24",
+      "baseline_answer": "데이터에는 25 이상의 vowNumber를 가진 서원이 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2625.965458108112,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.06333059242331386,
+      "ragas_answer_relevancy": 0.7040137441046186,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Vow",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#vowNumber",
+                  "op": ">=",
+                  "value": "25"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q036",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "Korean label of the last (16th) contemplation",
+      "gold_answer": "Lower-grade birth contemplation (Korean)",
+      "baseline_answer": "마지막(16번째) 관상은 \"하급생상관\"입니다.",
+      "baseline_cited_triple_count": 10,
+      "tool_calls": 1,
+      "latency_ms": 2350.6389579270035,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.5,
+      "ragas_answer_correctness": 0.4506211031520069,
+      "ragas_answer_relevancy": 0.395115093112266,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Contemplation",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#contemplationOrder",
+                  "op": "=",
+                  "value": "16"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q037",
+      "difficulty": "medium",
+      "category": "filter_join",
+      "uses_inference": false,
+      "question_text": "Chinese names of all lotus colours in the pond",
+      "gold_answer": "4 Chinese labels",
+      "baseline_answer": "연못에 있는 연꽃의 색상은 다음과 같습니다:\n\n- 백련 (White lotus)\n- 청련 (Blue lotus)\n- 적련 (Red lotus)\n- 황련 (Yellow lotus)",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 5494.817916071042,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.15,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.8091773726343778,
+      "ragas_answer_relevancy": 0.8307277522789969,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#LotusColor"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 12
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q038",
+      "difficulty": "medium",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "Sanskrit names of bodhisattvas residing in Sukhāvatī",
+      "gold_answer": "Avalokiteśvara, Mahāsthāmaprāpta",
+      "baseline_answer": "데이터에 따르면, Sukhāvatī에 거주하는 보살의 인스턴스가 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2793.766458053142,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.046381185170925564,
+      "ragas_answer_relevancy": 0.5184917653986378,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#residesIn",
+                  "value": "https://ontorag.dev/ns/pure_land#SacredRealm"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q039",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "All places where the peacock is located (direct + indirect)",
+      "gold_answer": "JeweledTree, Sukhāvatī",
+      "baseline_answer": "The peacock is not located in any places according to the ontology data.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2478.3992080483586,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.0448448943871993,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "property_path_query"
+        ],
+        "tool_trace": [
+          {
+            "tool": "property_path_query",
+            "args": {
+              "start_uri": "https://ontorag.dev/ns/pure_land#CelestialBird",
+              "predicate_uri": "https://ontorag.dev/ns/pure_land#locatedIn"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q040",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "All places where any celestial bird is transitively located",
+      "gold_answer": "JeweledTree, Sukhāvatī",
+      "baseline_answer": "There are no places where any celestial bird is transitively located.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2866.582125192508,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.05205241479009536,
+      "ragas_answer_relevancy": 0.6520284641293149,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "property_path_query"
+        ],
+        "tool_trace": [
+          {
+            "tool": "property_path_query",
+            "args": {
+              "start_uri": "https://ontorag.dev/ns/pure_land#CelestialBird",
+              "predicate_uri": "https://ontorag.dev/ns/pure_land#locatedIn"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q041",
+      "difficulty": "hard",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "Count of all entities with sanskritName",
+      "gold_answer": "15+",
+      "baseline_answer": "The total count of entities with a `sanskritName` in the ontology is 24, comprising:\n\n- Bodhisattva: 7 instances\n- Buddha: 5 instances\n- Śrāvaka: 5 instances\n- Celestial Bird: 4 instances\n- Deva: 2 instances\n- Sacred Realm: 1 instance\n- Sahā World: 1 instance\n- Jeweled Tower: 1 instance\n- Jeweled Tree: 1 instance\n- Lotus Pond: 1 instance",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 11,
+      "latency_ms": 14914.914916967973,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.03721688482590935,
+      "ragas_answer_relevancy": 0.7354558315192854,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "count_entities",
+          "count_entities",
+          "count_entities",
+          "count_entities",
+          "count_entities",
+          "count_entities",
+          "count_entities",
+          "count_entities",
+          "count_entities",
+          "count_entities",
+          "count_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Being"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Sravaka"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#CelestialBird"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Deva"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#SacredRealm"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#SahaWorld"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#JeweledTower"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#JeweledTree"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#LotusPond"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q042",
+      "difficulty": "hard",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "Match triples of (Buddha X, attendant bodhisattva Y, place Y resides in)",
+      "gold_answer": "Amitābha-Avalokiteśvara-Sukhavati, Amitābha-Mahāsthāmaprāpta-Sukhavati",
+      "baseline_answer": "There are no matching triples of the form (Buddha X, attendant bodhisattva Y, place Y resides in) in the ontology.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 3,
+      "latency_ms": 6322.5515419617295,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.08765676402112511,
+      "ragas_answer_relevancy": 0.8335537093880792,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_related",
+          "find_related",
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Buddha",
+              "predicate": "https://ontorag.dev/ns/pure_land#assists",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Bodhisattva"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Buddha",
+              "predicate": "https://ontorag.dev/ns/pure_land#residesIn",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Bodhisattva"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "predicate": "https://ontorag.dev/ns/pure_land#residesIn",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Realm"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q043",
+      "difficulty": "hard",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "Buddhas that appear ONLY in T0360 and nowhere else",
+      "gold_answer": "None",
+      "baseline_answer": "The Buddhas that appear only in T0360 and nowhere else are:\n\n- Sakyamuni\n- Ratnaketu\n- Akshobhya\n- Bhismagarjitaghosasvara\n- Amitabha\n\nThese Buddhas are specifically mentioned in the context of T0360 in the ontology.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 10256.012124940753,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.05,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.06281657669355623,
+      "ragas_answer_relevancy": 0.8210826669194272,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#appearsIn",
+                  "op": "!=",
+                  "value": "T0360"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 15
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q044",
+      "difficulty": "hard",
+      "category": "multi_hop",
+      "uses_inference": false,
+      "question_text": "What class is the precedingStage target of Dharmākara?",
+      "gold_answer": "Buddha",
+      "baseline_answer": "The data does not contain any information regarding a preceding stage target for Dharmākara.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 3,
+      "latency_ms": 6245.815083151683,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.06571253527159056,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_entities",
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Being",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#precedingStage",
+                  "value": "Dharmākara"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Buddha",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#precedingStage",
+                  "value": "Dharmākara"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Bodhisattva",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#precedingStage",
+                  "value": "Dharmākara"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q045",
+      "difficulty": "hard",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "Sum of tower stories and lotus colours in the pond",
+      "gold_answer": "11",
+      "baseline_answer": "There is a single instance of the seven-storied jeweled tower, which has 7 stories. Additionally, there are 4 distinct lotus colors present in the pond: white, blue, red, and yellow.\n\nTherefore, the total sum is:\n- Tower stories: **7**\n- Lotus colors: **4**\n\nThe sum is **11** (7 + 4).",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 2,
+      "latency_ms": 4589.766416931525,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.05,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.25,
+      "ragas_answer_correctness": 0.198284509095712,
+      "ragas_answer_relevancy": 0.8753959290867507,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#JeweledTower"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          },
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#LotusColor"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 12
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q046",
+      "difficulty": "hard",
+      "category": "counting",
+      "uses_inference": false,
+      "question_text": "Number of beings explicitly linked via hasContemplation to a contemplation",
+      "gold_answer": "3",
+      "baseline_answer": "There are no beings explicitly linked via \"subject of contemplation\" to a contemplation.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 2,
+      "latency_ms": 8776.91337512806,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.01841392394976054,
+      "ragas_answer_relevancy": 0.7707211530544277,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "count_entities",
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "count_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Being"
+            },
+            "result_summary": {
+              "kind": "int"
+            }
+          },
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Being",
+              "predicate": "https://ontorag.dev/ns/pure_land#hasContemplation",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Contemplation"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q047",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "How many vows did Śakra make?",
+      "gold_answer": "0 — Śakra is a Deva; only Buddha vows are modelled (hasVow has domain pl:Buddha).",
+      "baseline_answer": "The ontology does not contain any information about the vows made by Śakra. It appears that there are no recorded vows associated with this deity in the current schema.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 4,
+      "latency_ms": 6730.3575000260025,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.15864080180045279,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_related",
+          "find_related",
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Deva"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 6
+            }
+          },
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Buddha",
+              "predicate": "https://ontorag.dev/ns/pure_land#vowsToSave",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Sakra"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Buddha",
+              "predicate": "https://ontorag.dev/ns/pure_land#vowsToSave",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Deva"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          },
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Sravaka",
+              "predicate": "https://ontorag.dev/ns/pure_land#vowsToSave",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Deva"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q048",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "Which śrāvaka disciples does Amitābha teach?",
+      "gold_answer": "None — Amitābha resides in Sukhāvatī; the named śrāvakas in this KG are taught by Śākyamuni in the Sahā world.",
+      "baseline_answer": "Amitābha teaches the following śrāvaka disciples:\n\n1. **Mahāmaudgalyāyana** (Ṭиămmàotǝnǝs)\n2. **Ānanda** \n3. **Mahākāśyapa** \n\nThese are the prominent disciples associated with Amitābha's teachings.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 1,
+      "latency_ms": 3290.4572091065347,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.17283497498870934,
+      "ragas_answer_relevancy": 0.780595724721978,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Buddha",
+              "predicate": "https://ontorag.dev/ns/pure_land#teaches",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Sravaka"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 20
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q049",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "Who is the subject of the 18th contemplation?",
+      "gold_answer": "None — T0365 has exactly 16 contemplations; there is no 18th.",
+      "baseline_answer": "The data does not contain any information about the subject of the 18th contemplation.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 1,
+      "latency_ms": 2574.7288749553263,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.15027267914818948,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#Contemplation",
+              "filters": [
+                {
+                  "property": "https://ontorag.dev/ns/pure_land#contemplationOrder",
+                  "value": "18"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    },
+    {
+      "question_id": "Q050",
+      "difficulty": "trap",
+      "category": "hallucination_trap",
+      "uses_inference": false,
+      "question_text": "How many vows did the Peacock make?",
+      "gold_answer": "0 — Peacock is a CelestialBird (a Sentient being), not a Buddha; hasVow has domain pl:Buddha.",
+      "baseline_answer": "The Peacock does not have any associated vows recorded in the ontology.",
+      "baseline_cited_triple_count": 15,
+      "tool_calls": 2,
+      "latency_ms": 3676.4078331179917,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.06666666666666667,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.5201187617866598,
+      "ragas_answer_relevancy": 0.7110334803277444,
+      "extra": {
+        "baseline_kind": "ontology_native",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_related"
+        ],
+        "tool_trace": [
+          {
+            "tool": "find_entities",
+            "args": {
+              "class_uri": "https://ontorag.dev/ns/pure_land#CelestialBird",
+              "filters": [
+                {
+                  "property": "rdfs:label",
+                  "value": "Peacock"
+                }
+              ]
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 3
+            }
+          },
+          {
+            "tool": "find_related",
+            "args": {
+              "class_uri_a": "https://ontorag.dev/ns/pure_land#Peacock",
+              "predicate": "https://ontorag.dev/ns/pure_land#savedBy",
+              "class_uri_b": "https://ontorag.dev/ns/pure_land#Buddha"
+            },
+            "result_summary": {
+              "kind": "list",
+              "len": 0
+            }
+          }
+        ],
+        "rate_limit_hits": 0,
+        "error": null
+      }
+    }
+  ],
+  "aggregate": {
+    "avg_latency_ms": 5332.994991638698,
+    "avg_tool_calls": 1.58,
+    "total_prompt_tokens": 0,
+    "total_completion_tokens": 0,
+    "avg_hallucination_rate": 0.0,
+    "avg_citation_coverage": 0.06266666666666666,
+    "citation_provided_count": 25,
+    "citation_provided_rate": 0.5,
+    "avg_ragas_faithfulness": 0.37733333333333335,
+    "avg_ragas_answer_correctness": 0.3546128006659562,
+    "avg_ragas_answer_relevancy": 0.6841073152007526,
+    "per_difficulty": {
+      "easy": {
+        "count": 15,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.045454545454545456,
+        "citation_provided": 11
+      },
+      "medium": {
+        "count": 20,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.1125,
+        "citation_provided": 8
+      },
+      "hard": {
+        "count": 10,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.05,
+        "citation_provided": 2
+      },
+      "trap": {
+        "count": 5,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.016666666666666666,
+        "citation_provided": 4
+      }
+    }
+  }
+}
