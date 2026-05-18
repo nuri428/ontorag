@@ -1,0 +1,175 @@
+# Commerce Ontology — TBox
+# Real-vocabulary (schema.org / FOAF) + ontorag-specific commerce concepts.
+
+@prefix co:      <https://ontorag.dev/ns/commerce#> .
+@prefix schema:  <https://schema.org/> .
+@prefix foaf:    <http://xmlns.com/foaf/0.1/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+
+# ── Ontology metadata ────────────────────────────────────────────────────────
+
+<https://ontorag.dev/ns/commerce>
+    a owl:Ontology ;
+    rdfs:label "Commerce Ontology"@en , "커머스 온톨로지"@ko ;
+    dcterms:description
+        "Real-vocabulary commerce ontology (schema.org/FOAF) with fictional company and product instances. Phase B Real-domain benchmark."@en ,
+        "schema.org/FOAF 표준 어휘 기반에 가상 회사·제품 인스턴스를 결합한 커머스 온톨로지. Phase B Real-domain 벤치마크."@ko ;
+    owl:versionInfo "0.0.1-draft" ;
+    dcterms:license <https://opensource.org/licenses/MIT> .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# CLASSES
+# ═════════════════════════════════════════════════════════════════════════════
+
+# ── Agents ──────────────────────────────────────────────────────────────────
+
+co:Organization a owl:Class ;
+    rdfs:subClassOf schema:Organization ;
+    rdfs:label "Organization"@en , "조직"@ko ;
+    rdfs:comment "A company or other legal entity."@en .
+
+co:Brand a owl:Class ;
+    rdfs:subClassOf schema:Brand ;
+    rdfs:label "Brand"@en , "브랜드"@ko .
+
+co:Person a owl:Class ;
+    rdfs:subClassOf schema:Person , foaf:Person ;
+    rdfs:label "Person"@en , "사람"@ko .
+
+# ── Roles (Person specialisations) ──────────────────────────────────────────
+
+co:Employee a owl:Class ;
+    rdfs:subClassOf co:Person ;
+    rdfs:label "Employee"@en , "직원"@ko .
+
+co:Executive a owl:Class ;
+    rdfs:subClassOf co:Employee ;
+    rdfs:label "Executive"@en , "임원"@ko .
+
+co:CEO a owl:Class ;
+    rdfs:subClassOf co:Executive ;
+    rdfs:label "Chief Executive Officer"@en , "최고경영자"@ko ;
+    skos:altLabel "CEO"@en .
+
+# ── Products ────────────────────────────────────────────────────────────────
+
+co:Product a owl:Class ;
+    rdfs:subClassOf schema:Product ;
+    rdfs:label "Product"@en , "제품"@ko .
+
+co:ConsumerElectronics a owl:Class ;
+    rdfs:subClassOf co:Product ;
+    rdfs:label "Consumer electronics"@en , "가전제품"@ko .
+
+co:Smartphone a owl:Class ;
+    rdfs:subClassOf co:ConsumerElectronics ;
+    rdfs:label "Smartphone"@en , "스마트폰"@ko .
+
+co:Laptop a owl:Class ;
+    rdfs:subClassOf co:ConsumerElectronics ;
+    rdfs:label "Laptop computer"@en , "노트북"@ko .
+
+co:WearableDevice a owl:Class ;
+    rdfs:subClassOf co:ConsumerElectronics ;
+    rdfs:label "Wearable device"@en , "웨어러블 기기"@ko .
+
+# ── Offers / Pricing ────────────────────────────────────────────────────────
+
+co:Offer a owl:Class ;
+    rdfs:subClassOf schema:Offer ;
+    rdfs:label "Offer"@en , "판매 제안"@ko ;
+    rdfs:comment "A price offer for a specific product."@en .
+
+co:Currency a owl:Class ;
+    rdfs:label "Currency"@en , "통화"@ko .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# OBJECT PROPERTIES
+# ═════════════════════════════════════════════════════════════════════════════
+
+co:employs a owl:ObjectProperty ;
+    rdfs:label "employs"@en , "고용하다"@ko ;
+    owl:inverseOf co:employedBy ;
+    rdfs:domain co:Organization ;
+    rdfs:range  co:Person .
+
+co:employedBy a owl:ObjectProperty ;
+    rdfs:label "employed by"@en , "고용된 회사"@ko ;
+    owl:inverseOf co:employs .
+
+co:hasCEO a owl:ObjectProperty ;
+    rdfs:subPropertyOf co:employs ;
+    rdfs:label "has CEO"@en , "CEO로 고용하다"@ko ;
+    rdfs:domain co:Organization ;
+    rdfs:range  co:CEO .
+
+co:hasBrand a owl:ObjectProperty ;
+    rdfs:label "has brand"@en , "보유 브랜드"@ko ;
+    rdfs:domain co:Organization ;
+    rdfs:range  co:Brand .
+
+co:manufactures a owl:ObjectProperty ;
+    rdfs:label "manufactures"@en , "제조하다"@ko ;
+    owl:inverseOf co:manufacturedBy ;
+    rdfs:domain co:Organization ;
+    rdfs:range  co:Product .
+
+co:manufacturedBy a owl:ObjectProperty ;
+    rdfs:label "manufactured by"@en , "제조사"@ko ;
+    owl:inverseOf co:manufactures .
+
+co:soldUnder a owl:ObjectProperty ;
+    rdfs:label "sold under brand"@en , "브랜드로 판매되다"@ko ;
+    rdfs:comment "Links a product to the brand it is marketed under."@en ;
+    rdfs:domain co:Product ;
+    rdfs:range  co:Brand .
+
+co:subsidiaryOf a owl:ObjectProperty , owl:TransitiveProperty ;
+    rdfs:label "subsidiary of"@en , "자회사"@ko ;
+    rdfs:comment "Corporate ownership relation; transitive across multiple levels."@en ;
+    rdfs:domain co:Organization ;
+    rdfs:range  co:Organization .
+
+co:offersFor a owl:ObjectProperty ;
+    rdfs:label "offers for"@en , "판매 대상 제품"@ko ;
+    rdfs:domain co:Offer ;
+    rdfs:range  co:Product .
+
+co:inCurrency a owl:ObjectProperty ;
+    rdfs:label "priced in currency"@en , "통화 단위"@ko ;
+    rdfs:domain co:Offer ;
+    rdfs:range  co:Currency .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# DATA PROPERTIES
+# ═════════════════════════════════════════════════════════════════════════════
+
+co:priceAmount a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "price amount"@en , "가격"@ko ;
+    rdfs:domain co:Offer ;
+    rdfs:range  xsd:decimal .
+
+co:foundedYear a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "founded year"@en , "설립 연도"@ko ;
+    rdfs:domain co:Organization ;
+    rdfs:range  xsd:gYear .
+
+co:employeeCount a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "employee count"@en , "직원 수"@ko ;
+    rdfs:domain co:Organization ;
+    rdfs:range  xsd:nonNegativeInteger .
+
+co:isoCurrencyCode a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "ISO 4217 currency code"@en , "ISO 4217 통화 코드"@ko ;
+    rdfs:domain co:Currency ;
+    rdfs:range  xsd:string .
+
+co:modelYear a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "model year"@en , "출시 연도"@ko ;
+    rdfs:domain co:Product ;
+    rdfs:range  xsd:gYear .
