@@ -7,6 +7,7 @@ on:
       - "src/ontorag/eval/**"
       - "src/ontorag/cli_eval.py"
       - "examples/pure_land/**"
+      - "examples/commerce/**"
       - "tests/test_eval_*.py"
       - "tests/test_cli_eval.py"
       - ".github/workflows/eval.yml"
@@ -16,27 +17,23 @@ on:
       - "src/ontorag/eval/**"
       - "src/ontorag/cli_eval.py"
       - "examples/pure_land/**"
+      - "examples/commerce/**"
   workflow_dispatch:
 
 jobs:
-  pure-land-goldset:
-    name: Pure Land goldset
+  unit-tests:
+    name: eval module unit tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-
       - name: Set up Python 3.12
         run: uv python install 3.12
-
       - name: Install dependencies
         run: uv sync --extra dev
-
-      - name: Run unit tests for eval module
+      - name: Run eval module tests
         run: |
           uv run pytest \
             tests/test_eval_goldset.py \
@@ -46,47 +43,68 @@ jobs:
             tests/test_cli_eval.py \
             -v
 
-      - name: Validate Pure Land goldset
-        run: |
-          uv run ontorag eval validate examples/pure_land/goldset.jsonl
+  goldset-eval:
+    name: ${{ matrix.domain }} goldset
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        domain: [pure_land, commerce]
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Run Pure Land goldset eval
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Validate ${{ matrix.domain }} goldset
         run: |
-          uv run ontorag eval run examples/pure_land/goldset.jsonl \
-            --schema examples/pure_land/schema.ttl \
-            --data examples/pure_land/data.ttl \
-            --output pure_land_report.json
+          uv run ontorag eval validate examples/${{ matrix.domain }}/goldset.jsonl
+
+      - name: Run ${{ matrix.domain }} goldset eval
+        run: |
+          uv run ontorag eval run examples/${{ matrix.domain }}/goldset.jsonl \
+            --schema examples/${{ matrix.domain }}/schema.ttl \
+            --data examples/${{ matrix.domain }}/data.ttl \
+            --output ${{ matrix.domain }}_report.json
 
       - name: Verify zero failures
         run: |
           uv run python -c "
           import json, sys
-          report = json.load(open('pure_land_report.json'))
+          report = json.load(open('${{ matrix.domain }}_report.json'))
           fails = report['failures']
           total = report['total_questions']
           if fails != 0:
-              print(f'::error::{fails}/{total} goldset queries failed')
+              print(f'::error::{fails}/{total} goldset queries failed in ${{ matrix.domain }}')
               sys.exit(1)
-          print(f'::notice::{total} questions executed, 0 failures')
+          print(f'::notice::${{ matrix.domain }}: {total} questions executed, 0 failures')
           "
 
       - name: Generate Markdown report
         run: |
-          uv run ontorag eval report pure_land_report.json \
-            --output pure_land_report.md
+          uv run ontorag eval report ${{ matrix.domain }}_report.json \
+            --output ${{ matrix.domain }}_report.md
 
       - name: Upload JSON + Markdown report
         uses: actions/upload-artifact@v4
         with:
-          name: pure-land-eval-report
+          name: ${{ matrix.domain }}-eval-report
           path: |
-            pure_land_report.json
-            pure_land_report.md
+            ${{ matrix.domain }}_report.json
+            ${{ matrix.domain }}_report.md
           retention-days: 30
 
       - name: Post Markdown report as PR comment
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          header: pure-land-eval
-          path: pure_land_report.md
+          header: ${{ matrix.domain }}-eval
+          path: ${{ matrix.domain }}_report.md
