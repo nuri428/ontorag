@@ -27,6 +27,10 @@ from ontorag.eval.metrics.inference import (
     inference_utilization_score,
     system_uses_inference_features,
 )
+from ontorag.eval.metrics.ragas_wrapper import (
+    RagasScore,
+    evaluate_with_ragas,
+)
 from ontorag.eval.metrics.sparql_eq import (
     SparqlResultSet,
     sparql_result_equivalent,
@@ -34,8 +38,10 @@ from ontorag.eval.metrics.sparql_eq import (
 )
 
 __all__ = [
+    "RagasScore",
     "SparqlResultSet",
     "citation_coverage",
+    "evaluate_with_ragas",
     "hallucinated_triple_count",
     "hallucination_rate",
     "inference_utilization_score",
