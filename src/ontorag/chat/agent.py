@@ -114,9 +114,15 @@ _TOOLS: list[dict[str, Any]] = [
             "Returns ABox instances of a class (rdfs:subClassOf-aware — "
             "subclass instances included automatically). Optional filters "
             "are AND-combined; rdfs:label filters with `=` are "
-            "case-insensitive and language-tag-insensitive. "
-            "Result shape: list[{uri, label, class_uri, properties}]. "
-            "Empty list = no matching instances in the data graph."
+            "case-insensitive and language-tag-insensitive.\n"
+            "Result shape: {entities: list[{uri, label, class_uri, "
+            "properties, inferred?}], returned: int, has_more: bool}. "
+            "Entities are capped at 30 to keep tool results bounded. "
+            "If has_more=true, narrow with filters or call again with a "
+            "more specific class_uri. "
+            "Each entity includes its outgoing properties by default. "
+            "Set include_properties=false only for class enumerations "
+            "where you do not need the property values."
         ),
         "input_schema": {
             "type": "object",
@@ -151,10 +157,15 @@ _TOOLS: list[dict[str, Any]] = [
                         "required": ["property", "value"],
                     },
                 },
-                "limit": {
-                    "type": "integer",
-                    "default": 20,
-                    "description": "최대 결과 수",
+                "include_properties": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": (
+                        "Default true: each entity carries its property "
+                        "dict. Pass false ONLY for pure enumeration "
+                        "questions (e.g. 'list all classes named X') "
+                        "where property values are irrelevant."
+                    ),
                 },
             },
             "required": ["class_uri"],
@@ -552,12 +563,33 @@ class AgentLoop:
                 )
                 for f in raw_filters
             ] or None
+
+            cap = 30
+            include_properties = bool(args.get("include_properties", True))
+
+            # Fetch cap+1 to detect "more available" without a second roundtrip
             results = await store.find_entities(
                 class_uri=args["class_uri"],
                 filters=filters,
-                limit=args.get("limit", 20),
+                limit=cap + 1,
             )
-            return [r.model_dump() for r in results]
+            has_more = len(results) > cap
+            visible = results[:cap]
+
+            entities = []
+            for r in visible:
+                e = {"uri": r.uri, "label": r.label, "class_uri": r.class_uri}
+                if r.inferred:
+                    e["inferred"] = True
+                if include_properties:
+                    e["properties"] = r.properties
+                entities.append(e)
+
+            return {
+                "entities": entities,
+                "returned": len(entities),
+                "has_more": has_more,
+            }
 
         if name == "describe_entity":
             return (await store.describe_entity(args["uri"])).model_dump()

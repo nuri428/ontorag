@@ -1,0 +1,415 @@
+{
+  "domain": "pure_land",
+  "results": [
+    {
+      "question": "아미타불의 산스크리트 이름은 무엇인가?",
+      "wall_ms": 45161.00108297542,
+      "total_ms": 45160.61566607095,
+      "llm_total_ms": 45071.01087504998,
+      "tool_total_ms": 88.90025014989078,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "describe_entity"
+      ],
+      "rate_limits": 4,
+      "answer_preview": "아미타불의 산스크리트 이름은 \"Amitābha\"입니다.",
+      "prompt_tokens": 28532,
+      "cached_tokens": 6272,
+      "completion_tokens": 98,
+      "cache_hit_ratio": 0.2198233562315996,
+      "id": "Q001",
+      "difficulty": "easy"
+    },
+    {
+      "question": "관세음보살이 협시하는 부처는 누구인가?",
+      "wall_ms": 25452.17466703616,
+      "total_ms": 25452.116041909903,
+      "llm_total_ms": 25400.591917103156,
+      "tool_total_ms": 51.24708381481469,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "traverse_graph"
+      ],
+      "rate_limits": 4,
+      "answer_preview": "관세음보살이 협시하는 부처는 아미타불입니다.",
+      "prompt_tokens": 9837,
+      "cached_tokens": 9216,
+      "completion_tokens": 119,
+      "cache_hit_ratio": 0.9368709972552608,
+      "id": "Q002",
+      "difficulty": "easy"
+    },
+    {
+      "question": "『무량수경』의 Taishō 번호는?",
+      "wall_ms": 7381.554791936651,
+      "total_ms": 7381.519791902974,
+      "llm_total_ms": 7364.043999928981,
+      "tool_total_ms": 17.37645803950727,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "데이터에 『무량수경』이라는 항목이 없습니다. Taishō 번호를 제공할 수 없습니다.",
+      "prompt_tokens": 6116,
+      "cached_tokens": 5760,
+      "completion_tokens": 76,
+      "cache_hit_ratio": 0.9417920209287116,
+      "id": "Q003",
+      "difficulty": "easy"
+    },
+    {
+      "question": "극락(Sukhāvatī)에 거주하는 모든 보살을 나열하라.",
+      "wall_ms": 20598.729958059266,
+      "total_ms": 20598.64866686985,
+      "llm_total_ms": 20565.32295816578,
+      "tool_total_ms": 33.11550081707537,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "property_path_query"
+      ],
+      "rate_limits": 3,
+      "answer_preview": "극락(Sukhāvatī)에 거주하는 보살에 대한 정보가 없습니다. 데이터에 기록된 보살이 없거나, 그들의 거주지가 명시되어 있지 않을 수 있습니",
+      "prompt_tokens": 9581,
+      "cached_tokens": 9088,
+      "completion_tokens": 119,
+      "cache_hit_ratio": 0.9485439933201127,
+      "id": "Q004",
+      "difficulty": "medium"
+    },
+    {
+      "question": "사바세계에 거주하는 부처가 가르치는 성문 제자들을 모두 나열하라.",
+      "wall_ms": 19738.163333851844,
+      "total_ms": 19738.1060840562,
+      "llm_total_ms": 19687.903750687838,
+      "tool_total_ms": 49.95145904831588,
+      "n_llm_calls": 3,
+      "n_tool_calls": 3,
+      "tools_used": [
+        "find_entities",
+        "find_entities",
+        "find_related"
+      ],
+      "rate_limits": 3,
+      "answer_preview": "현재 데이터에 따르면, 사바세계에 거주하는 부처는 등록되어 있지 않습니다. 따라서 사바세계 부처가 가르치는 성문 제자들을 찾을 수 없습니다.",
+      "prompt_tokens": 11156,
+      "cached_tokens": 9984,
+      "completion_tokens": 183,
+      "cache_hit_ratio": 0.8949444245249193,
+      "id": "Q005",
+      "difficulty": "medium"
+    },
+    {
+      "question": "극락의 보배 연못에 있는 연꽃의 색깔을 모두 나열하라.",
+      "wall_ms": 15555.02862506546,
+      "total_ms": 15554.97295805253,
+      "llm_total_ms": 15530.258625047281,
+      "tool_total_ms": 24.504416855052114,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "describe_entity"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "극락의 보배 연못에 있는 연꽃의 색깔은 다음과 같습니다:\n\n- 백색 백광 (White lotus)\n- 청색 청광 (Blue lotus)\n- 적색",
+      "prompt_tokens": 11800,
+      "cached_tokens": 9088,
+      "completion_tokens": 115,
+      "cache_hit_ratio": 0.7701694915254237,
+      "id": "Q006",
+      "difficulty": "medium"
+    },
+    {
+      "question": "16관법 중 9번째 관(觀)의 대상이 되는 존재는?",
+      "wall_ms": 19955.28370793909,
+      "total_ms": 19955.246625002474,
+      "llm_total_ms": 19932.297583902255,
+      "tool_total_ms": 22.832582937553525,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "find_related"
+      ],
+      "rate_limits": 3,
+      "answer_preview": "16관법 중 9번째 관(觀)의 대상이 되는 존재에 대한 정보는 데이터에 포함되어 있지 않습니다.",
+      "prompt_tokens": 9676,
+      "cached_tokens": 9344,
+      "completion_tokens": 150,
+      "cache_hit_ratio": 0.9656883009508062,
+      "id": "Q007",
+      "difficulty": "medium"
+    },
+    {
+      "question": "공작(Peacock)이 위치한 모든 장소(직접 + 간접)를 나열하라.",
+      "wall_ms": 12458.489915821701,
+      "total_ms": 12458.374291891232,
+      "llm_total_ms": 12421.173583948985,
+      "tool_total_ms": 37.087042117491364,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "property_path_query"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "공작(Peacock)은 다음 장소에 위치합니다:\n\n- 보수(寶樹)\n- 극락세계(極樂世界)",
+      "prompt_tokens": 9651,
+      "cached_tokens": 6016,
+      "completion_tokens": 123,
+      "cache_hit_ratio": 0.623355092736504,
+      "id": "Q008",
+      "difficulty": "hard"
+    },
+    {
+      "question": "아미타불이 발원한 본원(本願)은 총 몇 가지인가?",
+      "wall_ms": 11749.162083026022,
+      "total_ms": 11749.101874884218,
+      "llm_total_ms": 11739.860583096743,
+      "tool_total_ms": 9.150292025879025,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "count_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "아미타불이 발원한 본원은 총 48가지가 있습니다.",
+      "prompt_tokens": 6090,
+      "cached_tokens": 5760,
+      "completion_tokens": 46,
+      "cache_hit_ratio": 0.9458128078817734,
+      "id": "Q009",
+      "difficulty": "hard"
+    },
+    {
+      "question": "석가모니불이 발원한 본원은 몇 가지인가?",
+      "wall_ms": 5184.034958016127,
+      "total_ms": 5183.955209096894,
+      "llm_total_ms": 5172.107792226598,
+      "tool_total_ms": 11.760791996493936,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "count_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "석가모니불이 발원한 본원은 48가지입니다.",
+      "prompt_tokens": 6084,
+      "cached_tokens": 5888,
+      "completion_tokens": 45,
+      "cache_hit_ratio": 0.967784352399737,
+      "id": "Q010",
+      "difficulty": "trap"
+    },
+    {
+      "question": "대세지보살의 산스크리트 이름은?",
+      "wall_ms": 18681.287083076313,
+      "total_ms": 18681.13520904444,
+      "llm_total_ms": 18648.49599986337,
+      "tool_total_ms": 32.16016595251858,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "describe_entity"
+      ],
+      "rate_limits": 3,
+      "answer_preview": "대세지보살의 산스크리트 이름은 \"Mahāsthāmaprāpta\"입니다.",
+      "prompt_tokens": 11952,
+      "cached_tokens": 9088,
+      "completion_tokens": 104,
+      "cache_hit_ratio": 0.7603748326639893,
+      "id": "Q011",
+      "difficulty": "easy"
+    },
+    {
+      "question": "무량수경의 한역자는 누구인가?",
+      "wall_ms": 7377.983582904562,
+      "total_ms": 7377.907457994297,
+      "llm_total_ms": 7362.929041031748,
+      "tool_total_ms": 14.852416003122926,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "온톨로지 데이터에는 무량수경의 한역자에 대한 정보가 포함되어 있지 않습니다.",
+      "prompt_tokens": 6120,
+      "cached_tokens": 5888,
+      "completion_tokens": 84,
+      "cache_hit_ratio": 0.9620915032679739,
+      "id": "Q012",
+      "difficulty": "easy"
+    },
+    {
+      "question": "아미타불의 또 다른 이름은? (skos:altLabel)",
+      "wall_ms": 7937.899334123358,
+      "total_ms": 7937.857541954145,
+      "llm_total_ms": 7924.161500064656,
+      "tool_total_ms": 13.621666003018618,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "데이터에는 '아미타불'이라는 이름을 가진 부처님이 포함되어 있지 않습니다. 따라서 '아미타불'의 다른 이름을 찾을 수 없습니다.",
+      "prompt_tokens": 6125,
+      "cached_tokens": 5888,
+      "completion_tokens": 91,
+      "cache_hit_ratio": 0.9613061224489796,
+      "id": "Q013",
+      "difficulty": "easy"
+    },
+    {
+      "question": "가릉빈가는 어디에 직접 위치하는가?",
+      "wall_ms": 19899.90266598761,
+      "total_ms": 19899.75537499413,
+      "llm_total_ms": 19860.858999891207,
+      "tool_total_ms": 38.687000051140785,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "describe_entity"
+      ],
+      "rate_limits": 3,
+      "answer_preview": "가릉빈가(Kalaviṅka)는 보배나무(Jeweled tree)에 위치하고 있습니다.",
+      "prompt_tokens": 11451,
+      "cached_tokens": 9600,
+      "completion_tokens": 81,
+      "cache_hit_ratio": 0.8383547288446423,
+      "id": "Q014",
+      "difficulty": "easy"
+    },
+    {
+      "question": "첫 번째 관법(觀法)의 이름은?",
+      "wall_ms": 7001.670291880146,
+      "total_ms": 7001.606374979019,
+      "llm_total_ms": 6987.158790929243,
+      "tool_total_ms": 14.36391705647111,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "첫 번째 관법의 이름은 다음과 같습니다:\n- 일상관 (日想觀)\n- Sun contemplation",
+      "prompt_tokens": 6278,
+      "cached_tokens": 6016,
+      "completion_tokens": 78,
+      "cache_hit_ratio": 0.9582669640012743,
+      "id": "Q015",
+      "difficulty": "easy"
+    },
+    {
+      "question": "보배 연못의 한문 명칭은?",
+      "wall_ms": 12184.086458059028,
+      "total_ms": 12184.018290834501,
+      "llm_total_ms": 12163.64529193379,
+      "tool_total_ms": 20.26054193265736,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "보배 연못의 한문 명칭은 \"七寶池\"입니다.",
+      "prompt_tokens": 6262,
+      "cached_tokens": 5888,
+      "completion_tokens": 47,
+      "cache_hit_ratio": 0.9402746726285531,
+      "id": "Q016",
+      "difficulty": "easy"
+    },
+    {
+      "question": "미륵보살의 또 다른 이름은? (T0360)",
+      "wall_ms": 7961.076125036925,
+      "total_ms": 7961.00666699931,
+      "llm_total_ms": 7940.935291815549,
+      "tool_total_ms": 19.95770796202123,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "미륵보살의 또 다른 이름은 다음과 같습니다:\n\n- Maitreya\n- 彌勒菩薩",
+      "prompt_tokens": 6293,
+      "cached_tokens": 5888,
+      "completion_tokens": 77,
+      "cache_hit_ratio": 0.9356427776894962,
+      "id": "Q017",
+      "difficulty": "easy"
+    },
+    {
+      "question": "사바세계에 거주하는 부처는?",
+      "wall_ms": 12877.141541102901,
+      "total_ms": 12877.091249916703,
+      "llm_total_ms": 12865.967042278498,
+      "tool_total_ms": 11.029958026483655,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "데이터에 따르면 사바세계에 거주하는 부처는 없습니다.",
+      "prompt_tokens": 6095,
+      "cached_tokens": 5888,
+      "completion_tokens": 64,
+      "cache_hit_ratio": 0.9660377358490566,
+      "id": "Q018",
+      "difficulty": "easy"
+    },
+    {
+      "question": "법장비구의 한국어 라벨은?",
+      "wall_ms": 3013.3754580747336,
+      "total_ms": 3013.30175017938,
+      "llm_total_ms": 2995.936291059479,
+      "tool_total_ms": 17.210499849170446,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "데이터에는 \"법장비구\"라는 산스크리트 이름을 가진 보살의 한국어 라벨이 존재하지 않습니다.",
+      "prompt_tokens": 6121,
+      "cached_tokens": 6016,
+      "completion_tokens": 89,
+      "cache_hit_ratio": 0.9828459402058487,
+      "id": "Q019",
+      "difficulty": "easy"
+    },
+    {
+      "question": "관무량수경의 Taishō 번호는?",
+      "wall_ms": 11665.074791992083,
+      "total_ms": 11665.003249887377,
+      "llm_total_ms": 11646.007457748055,
+      "tool_total_ms": 18.852500012144446,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "죄송하지만, \"관무량수경\"에 관련된 데이터가 없습니다. Taishō 번호는 제공된 온톨로지에서 찾을 수 없습니다. 추가적인 자료조사를 통해 확인",
+      "prompt_tokens": 6115,
+      "cached_tokens": 5888,
+      "completion_tokens": 101,
+      "cache_hit_ratio": 0.9628781684382666,
+      "id": "Q020",
+      "difficulty": "easy"
+    }
+  ]
+}

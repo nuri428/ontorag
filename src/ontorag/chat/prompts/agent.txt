@@ -28,7 +28,15 @@ deciding — `TRANSITIVE`, `inverseOf=…` are the routing signals.
   answer*. Quote the labels directly in the final text.
 - A list result of length 0 means the data does not contain the
   requested entities — say so plainly. Do not extrapolate.
-- If `find_entities` returns 0 rows, you may retry **once** with
+- `find_entities` returns `{entities, returned, has_more}`. Read items
+  from `entities`. If `has_more=true`, the answer is incomplete; either
+  narrow with filters/sub-class, or tell the user "showing first 30 of
+  many".
+- Each entity in `entities` carries its property dict by default — use
+  those values directly without a follow-up `describe_entity` call.
+  Pass `include_properties=false` only for plain enumeration questions
+  where property values are irrelevant.
+- If `find_entities.entities` is empty, you may retry **once** with
   `contains` op or a sub-class before giving up. Do not exceed two
   attempts for the same entity.
 

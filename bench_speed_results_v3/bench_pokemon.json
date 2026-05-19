@@ -1,0 +1,413 @@
+{
+  "domain": "pokemon",
+  "results": [
+    {
+      "question": "피카츄의 전국도감 번호는?",
+      "wall_ms": 2595.1133330818266,
+      "total_ms": 2595.068625174463,
+      "llm_total_ms": 2584.9690830800682,
+      "tool_total_ms": 9.974292013794184,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "데이터에 피카츄의 전국도감 번호 정보가 없습니다.",
+      "prompt_tokens": 5191,
+      "cached_tokens": 2560,
+      "completion_tokens": 56,
+      "cache_hit_ratio": 0.4931612406087459,
+      "id": "Q001",
+      "difficulty": "easy"
+    },
+    {
+      "question": "잠만보의 HP 능력치는?",
+      "wall_ms": 3174.356124829501,
+      "total_ms": 3174.2844169493765,
+      "llm_total_ms": 3152.758250012994,
+      "tool_total_ms": 21.413207752630115,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "describe_entity"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "잠만보의 HP 능력치는 160입니다.",
+      "prompt_tokens": 8207,
+      "cached_tokens": 7168,
+      "completion_tokens": 76,
+      "cache_hit_ratio": 0.8734007554526624,
+      "id": "Q002",
+      "difficulty": "easy"
+    },
+    {
+      "question": "기술 '화염방사'의 위력은?",
+      "wall_ms": 3527.299666078761,
+      "total_ms": 3527.2435839287937,
+      "llm_total_ms": 3486.6114160977304,
+      "tool_total_ms": 40.51720816642046,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "describe_entity"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "기술 '화염방사'의 위력은 90입니다.",
+      "prompt_tokens": 8128,
+      "cached_tokens": 7168,
+      "completion_tokens": 84,
+      "cache_hit_ratio": 0.8818897637795275,
+      "id": "Q003",
+      "difficulty": "easy"
+    },
+    {
+      "question": "트레이너 '지우'는 어느 지방 출신인가?",
+      "wall_ms": 3008.7615409865975,
+      "total_ms": 3008.685457985848,
+      "llm_total_ms": 2979.864208260551,
+      "tool_total_ms": 28.18062505684793,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "describe_entity"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "트레이너 '지우'는 관동 지방 출신입니다.",
+      "prompt_tokens": 8092,
+      "cached_tokens": 7168,
+      "completion_tokens": 77,
+      "cache_hit_ratio": 0.8858131487889274,
+      "id": "Q004",
+      "difficulty": "easy"
+    },
+    {
+      "question": "이상해씨의 타입은 무엇인가?",
+      "wall_ms": 3667.958708945662,
+      "total_ms": 3667.919458122924,
+      "llm_total_ms": 3611.1555420793593,
+      "tool_total_ms": 53.94070805050433,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "describe_entity"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "이상해씨의 타입은 다음과 같습니다:\n\n- 풀\n- 독",
+      "prompt_tokens": 8350,
+      "cached_tokens": 7168,
+      "completion_tokens": 81,
+      "cache_hit_ratio": 0.8584431137724551,
+      "id": "Q005",
+      "difficulty": "easy"
+    },
+    {
+      "question": "지우가 훈련시킨 포켓몬을 모두 나열하라.",
+      "wall_ms": 2211.589875165373,
+      "total_ms": 2211.524167098105,
+      "llm_total_ms": 2201.54841709882,
+      "tool_total_ms": 9.883999824523926,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "데이터에 \"지우\"라는 이름의 트레이너가 없습니다. 다른 이름이나 조건을 시도해 주세요.",
+      "prompt_tokens": 5203,
+      "cached_tokens": 4480,
+      "completion_tokens": 64,
+      "cache_hit_ratio": 0.8610417067076687,
+      "id": "Q006",
+      "difficulty": "medium"
+    },
+    {
+      "question": "이 온톨로지에 등장하는 전설의 포켓몬을 모두 나열하라.",
+      "wall_ms": 1786.8512498680502,
+      "total_ms": 1786.8135829921812,
+      "llm_total_ms": 1760.9587081242353,
+      "tool_total_ms": 25.545291136950254,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "- 뮤츠",
+      "prompt_tokens": 5241,
+      "cached_tokens": 1920,
+      "completion_tokens": 29,
+      "cache_hit_ratio": 0.3663423010875787,
+      "id": "Q007",
+      "difficulty": "medium"
+    },
+    {
+      "question": "불꽃 타입 기술을 모두 나열하라.",
+      "wall_ms": 1885.3136249817908,
+      "total_ms": 1885.2390830870718,
+      "llm_total_ms": 1868.703125976026,
+      "tool_total_ms": 16.38491591438651,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "데이터에는 불꽃 타입의 기술이 없습니다.",
+      "prompt_tokens": 5195,
+      "cached_tokens": 4480,
+      "completion_tokens": 55,
+      "cache_hit_ratio": 0.8623676612127045,
+      "id": "Q008",
+      "difficulty": "medium"
+    },
+    {
+      "question": "불꽃 타입을 가진 포켓몬을 모두 나열하라.",
+      "wall_ms": 1970.8399157971144,
+      "total_ms": 1970.772499917075,
+      "llm_total_ms": 1959.5960420556366,
+      "tool_total_ms": 11.100624920800328,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "불꽃 타입을 가진 포켓몬 데이터가 없습니다.",
+      "prompt_tokens": 5209,
+      "cached_tokens": 4480,
+      "completion_tokens": 62,
+      "cache_hit_ratio": 0.8600499136110578,
+      "id": "Q009",
+      "difficulty": "medium"
+    },
+    {
+      "question": "불꽃 타입이 효과적으로 작용하는 상대 타입은?",
+      "wall_ms": 7727.09104209207,
+      "total_ms": 7727.013041032478,
+      "llm_total_ms": 7711.925375042483,
+      "tool_total_ms": 14.951583929359913,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "데이터에 불꽃 타입이 효과적으로 작용하는 상대 타입에 대한 정보가 없습니다.",
+      "prompt_tokens": 5184,
+      "cached_tokens": 4480,
+      "completion_tokens": 63,
+      "cache_hit_ratio": 0.8641975308641975,
+      "id": "Q010",
+      "difficulty": "medium"
+    },
+    {
+      "question": "이슬이 훈련시키는 포켓몬은 몇 마리인가?",
+      "wall_ms": 20639.26524994895,
+      "total_ms": 20639.190834015608,
+      "llm_total_ms": 20612.96816729009,
+      "tool_total_ms": 25.939500890672207,
+      "n_llm_calls": 4,
+      "n_tool_calls": 3,
+      "tools_used": [
+        "count_entities",
+        "find_entities",
+        "find_related"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "요청을 처리하는 데 문제가 발생했습니다. 다시 시도해 보겠습니다.이슬이가 훈련시키는 포켓몬은 두 마리입니다:\n\n- 꼬부기\n- 거북왕",
+      "prompt_tokens": 11302,
+      "cached_tokens": 9600,
+      "completion_tokens": 153,
+      "cache_hit_ratio": 0.8494071845691028,
+      "id": "Q011",
+      "difficulty": "medium"
+    },
+    {
+      "question": "이상해꽃이 직접 또는 간접적으로 진화한 모든 이전 단계 포켓몬을 나열하라.",
+      "wall_ms": 7024.2984590586275,
+      "total_ms": 7024.255125084892,
+      "llm_total_ms": 7002.332750009373,
+      "tool_total_ms": 21.84304199181497,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "데이터에는 이상해꽃이 직접 또는 간접적으로 진화한 포켓몬이 나와 있지 않습니다.",
+      "prompt_tokens": 5199,
+      "cached_tokens": 4480,
+      "completion_tokens": 59,
+      "cache_hit_ratio": 0.8617041738795922,
+      "id": "Q012",
+      "difficulty": "hard"
+    },
+    {
+      "question": "리자몽이 직접·간접적으로 진화한 이전 단계의 모든 포켓몬은?",
+      "wall_ms": 4036.722999997437,
+      "total_ms": 4036.6604579612613,
+      "llm_total_ms": 4018.2275420520455,
+      "tool_total_ms": 18.29054206609726,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "데이터에 리자몽이 직접 또는 간접적으로 진화한 이전 단계의 포켓몬 정보가 없습니다.",
+      "prompt_tokens": 5205,
+      "cached_tokens": 1920,
+      "completion_tokens": 72,
+      "cache_hit_ratio": 0.3688760806916426,
+      "id": "Q013",
+      "difficulty": "hard"
+    },
+    {
+      "question": "거북왕이 직접 또는 간접적으로 진화한 이전 단계 포켓몬은?",
+      "wall_ms": 10986.1667919904,
+      "total_ms": 10986.132750054821,
+      "llm_total_ms": 10935.54500117898,
+      "tool_total_ms": 50.370750948786736,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "property_path_query"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "거북왕이 진화한 이전 단계 포켓몬은 다음과 같습니다:\n\n- 꼬부기\n- 어니부기",
+      "prompt_tokens": 8053,
+      "cached_tokens": 7168,
+      "completion_tokens": 109,
+      "cache_hit_ratio": 0.8901030671799329,
+      "id": "Q014",
+      "difficulty": "hard"
+    },
+    {
+      "question": "진화 계통도에서 이상해씨를 거치는 모든 포켓몬(직접·간접 진화)을 나열하라.",
+      "wall_ms": 7335.749707883224,
+      "total_ms": 7335.719666909426,
+      "llm_total_ms": 7324.682957725599,
+      "tool_total_ms": 10.974041186273098,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "데이터에는 이상해씨를 포함하는 진화 계통도가 없습니다.",
+      "prompt_tokens": 5222,
+      "cached_tokens": 4480,
+      "completion_tokens": 63,
+      "cache_hit_ratio": 0.8579088471849866,
+      "id": "Q015",
+      "difficulty": "hard"
+    },
+    {
+      "question": "이 온톨로지에서 진화 단계 이전 조상이 2단계 이상인 포켓몬은? (최종 진화체)",
+      "wall_ms": 7927.994542056695,
+      "total_ms": 7927.925917087123,
+      "llm_total_ms": 7917.87283308804,
+      "tool_total_ms": 9.956583846360445,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "온톨로지에 따르면, 진화 단계 이전 조상이 2단계 이상인 포켓몬은 다음과 같습니다:\n\n- 파이리\n- 리자드\n- 꼬부기\n- 어니부기\n\n이들은 모두",
+      "prompt_tokens": 5413,
+      "cached_tokens": 4480,
+      "completion_tokens": 125,
+      "cache_hit_ratio": 0.8276371697764641,
+      "id": "Q016",
+      "difficulty": "hard"
+    },
+    {
+      "question": "이 온톨로지에 등록된 이브이의 HP는?",
+      "wall_ms": 6936.507457867265,
+      "total_ms": 6936.453708913177,
+      "llm_total_ms": 6930.152124958113,
+      "tool_total_ms": 6.222750060260296,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "데이터에 이브이라는 이름을 가진 포켓몬이 등록되어 있지 않습니다.",
+      "prompt_tokens": 5201,
+      "cached_tokens": 4480,
+      "completion_tokens": 59,
+      "cache_hit_ratio": 0.8613728129205922,
+      "id": "Q017",
+      "difficulty": "trap"
+    },
+    {
+      "question": "이 온톨로지 기준 피카츄는 어떤 포켓몬에서 진화했는가?",
+      "wall_ms": 13708.845499902964,
+      "total_ms": 13708.773582940921,
+      "llm_total_ms": 13663.87812490575,
+      "tool_total_ms": 44.670501025393605,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "property_path_query"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "피카츄는 다른 포켓몬에서 진화한 기록이 없습니다.",
+      "prompt_tokens": 7995,
+      "cached_tokens": 7168,
+      "completion_tokens": 99,
+      "cache_hit_ratio": 0.8965603502188868,
+      "id": "Q018",
+      "difficulty": "trap"
+    },
+    {
+      "question": "이 온톨로지에서 뮤의 타입은 무엇인가?",
+      "wall_ms": 1910.1142920553684,
+      "total_ms": 1910.0563749670982,
+      "llm_total_ms": 1894.2663338966668,
+      "tool_total_ms": 15.7106660772115,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "뮤에 관한 정보가 데이터베이스에 없습니다. 대신, 뮤츠의 타입을 알고 싶으신가요?",
+      "prompt_tokens": 5227,
+      "cached_tokens": 4480,
+      "completion_tokens": 51,
+      "cache_hit_ratio": 0.8570881959058734,
+      "id": "Q019",
+      "difficulty": "trap"
+    },
+    {
+      "question": "이 온톨로지에서 메가 리자몽 X의 공격 능력치는?",
+      "wall_ms": 12331.043333048001,
+      "total_ms": 12330.982208019122,
+      "llm_total_ms": 12318.726541707292,
+      "tool_total_ms": 12.181708123534918,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "데이터에 메가 리자몽 X에 대한 정보가 없습니다.",
+      "prompt_tokens": 5214,
+      "cached_tokens": 4480,
+      "completion_tokens": 61,
+      "cache_hit_ratio": 0.8592251630226314,
+      "id": "Q020",
+      "difficulty": "trap"
+    }
+  ]
+}

@@ -1,0 +1,409 @@
+{
+  "domain": "techstack",
+  "results": [
+    {
+      "question": "React는 어떤 라이선스로 배포되는가?",
+      "wall_ms": 13022.110874997452,
+      "total_ms": 13022.025834070519,
+      "llm_total_ms": 12975.982165895402,
+      "tool_total_ms": 45.86241696961224,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "describe_entity"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "React는 MIT 라이선스로 배포됩니다.",
+      "prompt_tokens": 7906,
+      "cached_tokens": 4992,
+      "completion_tokens": 72,
+      "cache_hit_ratio": 0.6314191753098912,
+      "id": "Q001",
+      "difficulty": "easy"
+    },
+    {
+      "question": "Vite는 몇 년에 처음 출시되었는가?",
+      "wall_ms": 7503.072124905884,
+      "total_ms": 7503.032915992662,
+      "llm_total_ms": 7493.950250092894,
+      "tool_total_ms": 9.008917026221752,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "데이터에 \"Vite\"라는 이름의 기술이 존재하지 않습니다. \"Vite\"라는 기술에 대한 정보를 제공할 수 없습니다.",
+      "prompt_tokens": 5043,
+      "cached_tokens": 4352,
+      "completion_tokens": 70,
+      "cache_hit_ratio": 0.8629783858814198,
+      "id": "Q002",
+      "difficulty": "easy"
+    },
+    {
+      "question": "TypeScript는 어느 기관이 유지보수하는가?",
+      "wall_ms": 8780.990708153695,
+      "total_ms": 8780.754833016545,
+      "llm_total_ms": 8739.508708938956,
+      "tool_total_ms": 41.02154215797782,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "describe_entity"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "TypeScript는 Microsoft에서 유지보수합니다.",
+      "prompt_tokens": 7893,
+      "cached_tokens": 6912,
+      "completion_tokens": 74,
+      "cache_hit_ratio": 0.8757126567844926,
+      "id": "Q003",
+      "difficulty": "easy"
+    },
+    {
+      "question": "Angular는 어떤 프로그래밍 언어로 만들어졌는가?",
+      "wall_ms": 17010.68895799108,
+      "total_ms": 17010.620499961078,
+      "llm_total_ms": 16975.282832048833,
+      "tool_total_ms": 35.11179215274751,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "describe_entity"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "Angular는 TypeScript로 만들어졌습니다.",
+      "prompt_tokens": 7915,
+      "cached_tokens": 6912,
+      "completion_tokens": 71,
+      "cache_hit_ratio": 0.8732785849652558,
+      "id": "Q004",
+      "difficulty": "easy"
+    },
+    {
+      "question": "Next.js의 현재 안정 버전은?",
+      "wall_ms": 7522.7949579712,
+      "total_ms": 7522.747708950192,
+      "llm_total_ms": 7510.259625036269,
+      "tool_total_ms": 12.409624876454473,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "Next.js의 현재 안정 버전은 15.0입니다.",
+      "prompt_tokens": 5255,
+      "cached_tokens": 4352,
+      "completion_tokens": 61,
+      "cache_hit_ratio": 0.8281636536631779,
+      "id": "Q005",
+      "difficulty": "easy"
+    },
+    {
+      "question": "이 온톨로지에 정의된 프론트엔드 프레임워크를 모두 나열하라.",
+      "wall_ms": 6606.9254169706255,
+      "total_ms": 6606.878290884197,
+      "llm_total_ms": 6587.760541820899,
+      "tool_total_ms": 19.036666955798864,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "- React\n- Angular",
+      "prompt_tokens": 5124,
+      "cached_tokens": 4352,
+      "completion_tokens": 30,
+      "cache_hit_ratio": 0.849336455893833,
+      "id": "Q006",
+      "difficulty": "medium"
+    },
+    {
+      "question": "Vercel이 유지보수하는 기술을 모두 나열하라.",
+      "wall_ms": 9534.732542000711,
+      "total_ms": 9534.582125023007,
+      "llm_total_ms": 9484.532667091116,
+      "tool_total_ms": 49.86612475477159,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "traverse_graph"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "Vercel이 유지보수하는 기술은 다음과 같습니다:\n\n- Next.js",
+      "prompt_tokens": 7892,
+      "cached_tokens": 6912,
+      "completion_tokens": 107,
+      "cache_hit_ratio": 0.8758236188545362,
+      "id": "Q007",
+      "difficulty": "medium"
+    },
+    {
+      "question": "TypeScript로 만들어진 기술을 모두 나열하라.",
+      "wall_ms": 1835.5936668813229,
+      "total_ms": 1835.552416043356,
+      "llm_total_ms": 1818.5524172149599,
+      "tool_total_ms": 16.881125047802925,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "TypeScript로 만들어진 기술은 데이터에 없습니다.",
+      "prompt_tokens": 5065,
+      "cached_tokens": 4352,
+      "completion_tokens": 73,
+      "cache_hit_ratio": 0.8592300098716683,
+      "id": "Q008",
+      "difficulty": "medium"
+    },
+    {
+      "question": "pnpm은 어떤 패키지 매니저를 대체하는가?",
+      "wall_ms": 12797.063583042473,
+      "total_ms": 12797.01229184866,
+      "llm_total_ms": 12785.204832907766,
+      "tool_total_ms": 11.729083023965359,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "pnpm은 npm 패키지 매니저를 대체합니다.",
+      "prompt_tokens": 5064,
+      "cached_tokens": 4352,
+      "completion_tokens": 63,
+      "cache_hit_ratio": 0.8593996840442338,
+      "id": "Q009",
+      "difficulty": "medium"
+    },
+    {
+      "question": "이 온톨로지에 정의된 빌드 도구는 몇 개인가?",
+      "wall_ms": 1570.263624889776,
+      "total_ms": 1570.2113329898566,
+      "llm_total_ms": 1553.6264998372644,
+      "tool_total_ms": 16.461624996736646,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "count_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "이 온톨로지에 정의된 빌드 도구는 2개입니다.",
+      "prompt_tokens": 5025,
+      "cached_tokens": 4352,
+      "completion_tokens": 45,
+      "cache_hit_ratio": 0.8660696517412936,
+      "id": "Q010",
+      "difficulty": "medium"
+    },
+    {
+      "question": "2016년에 처음 출시된 기술을 모두 나열하라.",
+      "wall_ms": 8219.261625083163,
+      "total_ms": 8219.229165930301,
+      "llm_total_ms": 8212.948333239183,
+      "tool_total_ms": 6.237250054255128,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "query_pattern"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "요청한 데이터를 가져오는 데 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+      "prompt_tokens": 5101,
+      "cached_tokens": 4352,
+      "completion_tokens": 84,
+      "cache_hit_ratio": 0.8531660458733582,
+      "id": "Q011",
+      "difficulty": "medium"
+    },
+    {
+      "question": "Next.js가 직접 또는 간접적으로 의존하는 모든 기술을 나열하라.",
+      "wall_ms": 7778.2931660767645,
+      "total_ms": 7778.242916800082,
+      "llm_total_ms": 7749.412416946143,
+      "tool_total_ms": 28.712750179693103,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "Next.js가 직접 또는 간접적으로 의존하는 기술은 다음과 같습니다:\n\n- Node.js\n- React",
+      "prompt_tokens": 5092,
+      "cached_tokens": 4352,
+      "completion_tokens": 71,
+      "cache_hit_ratio": 0.8546739984289081,
+      "id": "Q012",
+      "difficulty": "hard"
+    },
+    {
+      "question": "Node.js에 (직접 또는 간접적으로) 의존하는 모든 기술을 나열하라.",
+      "wall_ms": 8641.291792038828,
+      "total_ms": 8641.244624974206,
+      "llm_total_ms": 8624.418917112052,
+      "tool_total_ms": 16.54737489297986,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "데이터에 Node.js에 직접 또는 간접적으로 의존하는 기술이 없습니다.",
+      "prompt_tokens": 5053,
+      "cached_tokens": 4352,
+      "completion_tokens": 64,
+      "cache_hit_ratio": 0.8612705323570157,
+      "id": "Q013",
+      "difficulty": "hard"
+    },
+    {
+      "question": "Remix가 직접·간접적으로 의존하는 모든 기술은?",
+      "wall_ms": 1577.734291786328,
+      "total_ms": 1577.6811249088496,
+      "llm_total_ms": 1558.3874580916017,
+      "tool_total_ms": 19.162124954164028,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "Remix가 직접·간접적으로 의존하는 모든 기술은 다음과 같습니다:\n\n- Node.js\n- React",
+      "prompt_tokens": 5068,
+      "cached_tokens": 4352,
+      "completion_tokens": 56,
+      "cache_hit_ratio": 0.8587213891081295,
+      "id": "Q014",
+      "difficulty": "hard"
+    },
+    {
+      "question": "어떤 풀스택 프레임워크가 (직접 또는 간접적으로) RuntimeEnvironment에 의존하는가?",
+      "wall_ms": 7214.369582943618,
+      "total_ms": 7214.318416081369,
+      "llm_total_ms": 7198.941207956523,
+      "tool_total_ms": 15.250957803800702,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "다음 풀스택 프레임워크는 Runtime Environment에 의존하고 있습니다:\n\n- Node.js\n- React",
+      "prompt_tokens": 5100,
+      "cached_tokens": 4352,
+      "completion_tokens": 66,
+      "cache_hit_ratio": 0.8533333333333334,
+      "id": "Q015",
+      "difficulty": "hard"
+    },
+    {
+      "question": "Vite의 전이적 의존성 집합 전체는?",
+      "wall_ms": 11950.616999994963,
+      "total_ms": 11950.54925000295,
+      "llm_total_ms": 11930.857417173684,
+      "tool_total_ms": 19.573207944631577,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "데이터에 따르면 Vite의 전이적 의존성 집합에는 항목이 없습니다. 이는 Vite의 전이적 종속성이 데이터에 존재하지 않거나 표시되지 않을 수 ",
+      "prompt_tokens": 5037,
+      "cached_tokens": 4352,
+      "completion_tokens": 92,
+      "cache_hit_ratio": 0.8640063529878896,
+      "id": "Q016",
+      "difficulty": "hard"
+    },
+    {
+      "question": "이 온톨로지 기준 Vue.js는 몇 년에 처음 출시되었는가?",
+      "wall_ms": 5519.672832917422,
+      "total_ms": 5519.604041008279,
+      "llm_total_ms": 5504.567791940644,
+      "tool_total_ms": 14.899875037372112,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "온톨로지 데이터에는 \"Vue.js\"라는 전면 프레임워크가 없습니다. 다른 정보를 확인해 보시겠습니까?",
+      "prompt_tokens": 5058,
+      "cached_tokens": 4864,
+      "completion_tokens": 71,
+      "cache_hit_ratio": 0.9616449189402926,
+      "id": "Q017",
+      "difficulty": "trap"
+    },
+    {
+      "question": "이 온톨로지에서 Svelte의 홈페이지 URL은?",
+      "wall_ms": 2094.34362500906,
+      "total_ms": 2094.2316248547286,
+      "llm_total_ms": 2084.24425101839,
+      "tool_total_ms": 9.889374952763319,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "데이터에 \"Svelte\"라는 프론트엔드 프레임워크가 없습니다. 다른 사항이 궁금하시면 알려주세요.",
+      "prompt_tokens": 5046,
+      "cached_tokens": 4864,
+      "completion_tokens": 71,
+      "cache_hit_ratio": 0.9639318271898534,
+      "id": "Q018",
+      "difficulty": "trap"
+    },
+    {
+      "question": "이 온톨로지에서 Deno를 유지보수하는 기관은?",
+      "wall_ms": 4936.720792204142,
+      "total_ms": 4936.597666935995,
+      "llm_total_ms": 4927.118499996141,
+      "tool_total_ms": 9.391542058438063,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "온톨로지 데이터에서 \"Deno\"라는 레이블을 가진 실행 환경(Runtime Environment) 인스턴스를 찾을 수 없습니다. 따라서 Deno",
+      "prompt_tokens": 5052,
+      "cached_tokens": 4864,
+      "completion_tokens": 87,
+      "cache_hit_ratio": 0.9627870150435471,
+      "id": "Q019",
+      "difficulty": "trap"
+    },
+    {
+      "question": "이 온톨로지에서 Yarn이 대체한 패키지 매니저는?",
+      "wall_ms": 7194.5877079851925,
+      "total_ms": 7194.545584032312,
+      "llm_total_ms": 7177.079292014241,
+      "tool_total_ms": 17.350041074678302,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "패키지 매니저 클래스에는 \"npm\"과 \"pnpm\"이 있습니다. 그러나 Yarn이 대체한 패키지 매니저가 명시되어 있지 않습니다. 데이터에 해당 ",
+      "prompt_tokens": 5116,
+      "cached_tokens": 4864,
+      "completion_tokens": 75,
+      "cache_hit_ratio": 0.9507427677873339,
+      "id": "Q020",
+      "difficulty": "trap"
+    }
+  ]
+}

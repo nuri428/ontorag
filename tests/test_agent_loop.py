@@ -110,7 +110,7 @@ async def test_agent_find_entities_tool():
     tool_block = _ToolUseBlock(
         id="call_2",
         name="find_entities",
-        input={"class_uri": "pk:Pokemon", "limit": 10},
+        input={"class_uri": "pk:Pokemon"},
     )
     llm.complete = AsyncMock(
         side_effect=[
@@ -122,12 +122,83 @@ async def test_agent_find_entities_tool():
     agent = AgentLoop(store, llm)
     events = await _collect(agent.run("포켓몬 목록"))
 
+    # Tool dispatcher always queries with cap+1 (31) to detect has_more
     store.find_entities.assert_awaited_once_with(
-        class_uri="pk:Pokemon", filters=None, limit=10
+        class_uri="pk:Pokemon", filters=None, limit=31
     )
     result_events = [e for e in events if e["type"] == "tool_result"]
     assert len(result_events) == 1
     assert result_events[0]["tool"] == "find_entities"
+    # New result shape — dict, not list
+    content = result_events[0]["content"]
+    assert isinstance(content, dict)
+    assert "entities" in content
+    assert "returned" in content
+    assert "has_more" in content
+    # Default include_properties=true — entities carry the properties dict.
+    # (C2 was rolled back: keeping result size bounded via the 30-row cap,
+    # but not at the cost of forcing an extra describe_entity round-trip.)
+    for e in content["entities"]:
+        assert "properties" in e
+
+
+async def test_agent_find_entities_caps_at_30():
+    store = _make_store()
+    # Return 31 entities — store returns extras to signal overflow
+    from ontorag.stores.base import EntityResult
+
+    store.find_entities = AsyncMock(
+        return_value=[
+            EntityResult(uri=f"ex:e{i}", label=f"e{i}", class_uri="ex:C", properties={})
+            for i in range(31)
+        ]
+    )
+    llm = AsyncMock()
+    tool_block = _ToolUseBlock(
+        id="c", name="find_entities", input={"class_uri": "ex:C"}
+    )
+    llm.complete = AsyncMock(
+        side_effect=[
+            _make_llm_response("tool_use", [tool_block]),
+            _make_llm_response("end_turn", [_TextBlock(text="ok")]),
+        ]
+    )
+    agent = AgentLoop(store, llm)
+    events = await _collect(agent.run("foo"))
+    result = [e for e in events if e["type"] == "tool_result"][0]["content"]
+    assert result["returned"] == 30
+    assert result["has_more"] is True
+
+
+async def test_agent_find_entities_can_opt_out_of_properties():
+    """include_properties=false strips the per-entity properties dict
+    (used for pure enumeration questions)."""
+    from ontorag.stores.base import EntityResult
+
+    store = _make_store()
+    store.find_entities = AsyncMock(
+        return_value=[
+            EntityResult(
+                uri="ex:e1", label="e1", class_uri="ex:C", properties={"p": "v"}
+            )
+        ]
+    )
+    llm = AsyncMock()
+    tool_block = _ToolUseBlock(
+        id="c",
+        name="find_entities",
+        input={"class_uri": "ex:C", "include_properties": False},
+    )
+    llm.complete = AsyncMock(
+        side_effect=[
+            _make_llm_response("tool_use", [tool_block]),
+            _make_llm_response("end_turn", [_TextBlock(text="ok")]),
+        ]
+    )
+    agent = AgentLoop(store, llm)
+    events = await _collect(agent.run("foo"))
+    result = [e for e in events if e["type"] == "tool_result"][0]["content"]
+    assert "properties" not in result["entities"][0]
 
 
 async def test_agent_count_entities_tool():
