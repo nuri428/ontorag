@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -402,6 +403,9 @@ class AgentLoop:
         messages: list[dict[str, Any]] = list(self._history)
         messages.append({"role": "user", "content": user_message})
 
+        phase_timings: list[dict[str, Any]] = []
+        run_started = time.perf_counter()
+
         for turn in range(self.MAX_TURNS):
             logger.debug("Agent turn %d", turn + 1)
             yield {"type": "thinking", "content": f"분석 중... (턴 {turn + 1})"}
@@ -412,6 +416,7 @@ class AgentLoop:
             force_tool = self._has_ontology_data and turn == 0
 
             response = None
+            llm_t0 = time.perf_counter()
             for _attempt in range(4):  # up to 3 retries on rate limit
                 try:
                     response = await self._llm.complete(
@@ -430,6 +435,13 @@ class AgentLoop:
                     yield {"type": "rate_limit", "retry_after": wait}
                     await asyncio.sleep(wait)
             assert response is not None
+            phase_timings.append(
+                {
+                    "phase": "llm_call",
+                    "turn": turn,
+                    "ms": (time.perf_counter() - llm_t0) * 1000,
+                }
+            )
 
             assistant_blocks: list[dict[str, Any]] = []
             tool_results: list[dict[str, Any]] = []
@@ -454,11 +466,20 @@ class AgentLoop:
                         }
                     )
 
+                    tool_t0 = time.perf_counter()
                     try:
                         result = await self._call_tool(block.name, block.input)
                     except Exception as exc:
                         logger.warning("Tool %s failed: %s", block.name, exc)
                         result = {"error": str(exc)}
+                    phase_timings.append(
+                        {
+                            "phase": "tool_call",
+                            "turn": turn,
+                            "tool": block.name,
+                            "ms": (time.perf_counter() - tool_t0) * 1000,
+                        }
+                    )
 
                     yield {"type": "tool_result", "tool": block.name, "content": result}
                     tool_results.append(
@@ -485,6 +506,18 @@ class AgentLoop:
 
         # Persist history for the next run() call
         self._history = messages
+
+        total_ms = (time.perf_counter() - run_started) * 1000
+        llm_total = sum(p["ms"] for p in phase_timings if p["phase"] == "llm_call")
+        tool_total = sum(p["ms"] for p in phase_timings if p["phase"] == "tool_call")
+        yield {
+            "type": "phase_summary",
+            "total_ms": total_ms,
+            "llm_total_ms": llm_total,
+            "tool_total_ms": tool_total,
+            "overhead_ms": total_ms - llm_total - tool_total,
+            "phases": phase_timings,
+        }
 
         yield {"type": "done"}
 

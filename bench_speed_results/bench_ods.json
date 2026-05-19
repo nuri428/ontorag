@@ -1,0 +1,342 @@
+{
+  "domain": "ods",
+  "results": [
+    {
+      "question": "Open Data Structures의 어느 장에서 SkiplistSSet을 소개하는가?",
+      "wall_ms": 12237.418165896088,
+      "total_ms": 12237.35437495634,
+      "llm_total_ms": 12215.52462503314,
+      "tool_total_ms": 21.74458303488791,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "SkiplistSSet은 Open Data Structures의 4장에서 소개됩니다.",
+      "id": "Q001",
+      "difficulty": "easy"
+    },
+    {
+      "question": "ArrayStack.get의 최악 시간 복잡도는?",
+      "wall_ms": 18940.93433301896,
+      "total_ms": 18940.898708067834,
+      "llm_total_ms": 18908.79933326505,
+      "tool_total_ms": 31.963375862687826,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "describe_entity"
+      ],
+      "rate_limits": 3,
+      "answer_preview": "ArrayStack의 `get` 연산의 최악 시간 복잡도는 O(1), 즉 상수 시간입니다.",
+      "id": "Q002",
+      "difficulty": "easy"
+    },
+    {
+      "question": "ChainedHashTable은 어떤 인터페이스를 구현하는가?",
+      "wall_ms": 12338.00316695124,
+      "total_ms": 12337.977708084509,
+      "llm_total_ms": 12314.5327498205,
+      "tool_total_ms": 23.332541808485985,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "데이터 그래프에 \"ChainedHashTable\"이라는 데이터 구조에 해당하는 엔티티가 없습니다. ",
+      "id": "Q003",
+      "difficulty": "easy"
+    },
+    {
+      "question": "이 온톨로지에서 logarithmic 복잡도의 big-O 표기는?",
+      "wall_ms": 7302.663875045255,
+      "total_ms": 7302.625542040914,
+      "llm_total_ms": 7280.847541987896,
+      "tool_total_ms": 21.70083299279213,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "이 온톨로지에서 logarithmic 복잡도의 big-O 표기는 \"O(log n)\"입니다.",
+      "id": "Q004",
+      "difficulty": "easy"
+    },
+    {
+      "question": "RedBlackTree에서 find 연산의 최악 복잡도는?",
+      "wall_ms": 18441.800290951505,
+      "total_ms": 18441.788792144507,
+      "llm_total_ms": 18413.651041919366,
+      "tool_total_ms": 28.019124874845147,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "describe_entity"
+      ],
+      "rate_limits": 3,
+      "answer_preview": "RedBlackTree에서 `find` 연산의 최악 복잡도는 \"logarithmic\"입니다.",
+      "id": "Q005",
+      "difficulty": "easy"
+    },
+    {
+      "question": "SSet 인터페이스를 구현하는 자료구조를 모두 나열하라.",
+      "wall_ms": 18782.819916959852,
+      "total_ms": 18782.794625032693,
+      "llm_total_ms": 18704.971374943852,
+      "tool_total_ms": 77.64608296565711,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "traverse_graph"
+      ],
+      "rate_limits": 3,
+      "answer_preview": "현재 데이터에는 SSet 인터페이스를 구현하는 자료구조가 존재하지 않거나 등록되지 않았습니다.",
+      "id": "Q006",
+      "difficulty": "medium"
+    },
+    {
+      "question": "어떤 정렬 알고리즘이 BinaryHeap을 직접 사용하는가?",
+      "wall_ms": 25239.73958310671,
+      "total_ms": 25239.669541828334,
+      "llm_total_ms": 25170.40408286266,
+      "tool_total_ms": 69.08183288760483,
+      "n_llm_calls": 4,
+      "n_tool_calls": 3,
+      "tools_used": [
+        "find_entities",
+        "property_path_query",
+        "traverse_graph"
+      ],
+      "rate_limits": 4,
+      "answer_preview": "HeapSort 정렬 알고리즘이 BinaryHeap을 직접 사용합니다.",
+      "id": "Q007",
+      "difficulty": "medium"
+    },
+    {
+      "question": "이 온톨로지에 정의된 array-based 구조는 몇 개인가?",
+      "wall_ms": 11741.23837519437,
+      "total_ms": 11741.215584101155,
+      "llm_total_ms": 11729.954750742763,
+      "tool_total_ms": 11.200417065992951,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "count_entities"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "이 온톨로지에 정의된 Array-based 구조는 5개입니다.",
+      "id": "Q008",
+      "difficulty": "medium"
+    },
+    {
+      "question": "List와 Deque를 모두 구현하는 자료구조는?",
+      "wall_ms": 14105.602458119392,
+      "total_ms": 14105.582958087325,
+      "llm_total_ms": 14053.392168134451,
+      "tool_total_ms": 51.8162501975894,
+      "n_llm_calls": 3,
+      "n_tool_calls": 4,
+      "tools_used": [
+        "find_related",
+        "find_entities",
+        "find_entities",
+        "find_related"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "현재 데이터 그래프에서 List와 Deque 인터페이스를 모두 구현하는 자료구조는 없습니다.",
+      "id": "Q009",
+      "difficulty": "medium"
+    },
+    {
+      "question": "Graph 인터페이스는 어떤 자료구조들에 의해 구현되는가?",
+      "wall_ms": 18089.509167009965,
+      "total_ms": 18089.490999933332,
+      "llm_total_ms": 18039.555831812322,
+      "tool_total_ms": 49.793999874964356,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "traverse_graph"
+      ],
+      "rate_limits": 3,
+      "answer_preview": "데이터 그래프에서는 \"Graph\" 인터페이스를 구현하는 자료구조가 존재하지 않습니다.",
+      "id": "Q010",
+      "difficulty": "medium"
+    },
+    {
+      "question": "13장에 소개된 자료구조를 모두 나열하라.",
+      "wall_ms": 11907.954541034997,
+      "total_ms": 11907.845166977495,
+      "llm_total_ms": 11879.88470797427,
+      "tool_total_ms": 27.837874833494425,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "13장에서 소개된 자료구조는 다음과 같습니다:\n\n- YFastTrie\n- XFastTrie\n- BinaryTrie",
+      "id": "Q011",
+      "difficulty": "medium"
+    },
+    {
+      "question": "HeapSort가 직접 또는 간접적으로 사용하는 모든 자료구조를 나열하라.",
+      "wall_ms": 17515.01304190606,
+      "total_ms": 17514.966249931604,
+      "llm_total_ms": 17491.747208870947,
+      "tool_total_ms": 23.106082808226347,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 3,
+      "answer_preview": "HeapSort가 직접 또는 간접적으로 사용하는 모든 자료구조는 다음과 같습니다: ArrayStack, BinaryHeap.",
+      "id": "Q012",
+      "difficulty": "hard"
+    },
+    {
+      "question": "YFastTrie가 직접 또는 간접적으로 특수화하는 자료구조는?",
+      "wall_ms": 13688.817250076681,
+      "total_ms": 13688.783457968384,
+      "llm_total_ms": 13655.628000153229,
+      "tool_total_ms": 33.01083226688206,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "property_path_query"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "YFastTrie가 직접 또는 간접적으로 특수화하는 자료구조는 XFastTrie와 BinaryTrie입니다.",
+      "id": "Q013",
+      "difficulty": "hard"
+    },
+    {
+      "question": "13장의 자료구조가 (직접 또는 간접적으로) 사용하는 모든 자료구조를 나열하라.",
+      "wall_ms": 20272.460374981165,
+      "total_ms": 20272.42924994789,
+      "llm_total_ms": 20224.175251089036,
+      "tool_total_ms": 48.012333223596215,
+      "n_llm_calls": 3,
+      "n_tool_calls": 4,
+      "tools_used": [
+        "find_entities",
+        "property_path_query",
+        "property_path_query",
+        "property_path_query"
+      ],
+      "rate_limits": 3,
+      "answer_preview": "13장의 자료구조 중 직접 또는 간접적으로 사용하는 모든 자료구조는 다음과 같습니다:\n- `YFastTrie`는 `Treap`을 사용합니다.\n-",
+      "id": "Q014",
+      "difficulty": "hard"
+    },
+    {
+      "question": "Treap이 (직접 + 간접) 특수화하는 모든 상위 자료구조.",
+      "wall_ms": 12196.508791996166,
+      "total_ms": 12196.479415986687,
+      "llm_total_ms": 12182.215250097215,
+      "tool_total_ms": 14.19049990363419,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "데이터에 \"Treap\"이라는 자료구조가 존재하지 않습니다. 다른 자료구조에 대해 질문해 주실 수 있습니다.",
+      "id": "Q015",
+      "difficulty": "hard"
+    },
+    {
+      "question": "어떤 정렬 알고리즘이 (직접 또는 간접적으로) 카운팅 기반 원소를 사용하는가?",
+      "wall_ms": 18927.470499882475,
+      "total_ms": 18927.447708090767,
+      "llm_total_ms": 18893.323166063055,
+      "tool_total_ms": 33.97516603581607,
+      "n_llm_calls": 3,
+      "n_tool_calls": 3,
+      "tools_used": [
+        "get_class_detail",
+        "find_entities",
+        "property_path_query"
+      ],
+      "rate_limits": 3,
+      "answer_preview": "`CountingSort` 정렬 알고리즘은 직접 또는 간접적으로 카운팅 기반 원소를 사용하는 것으로 나타났습니다.",
+      "id": "Q016",
+      "difficulty": "hard"
+    },
+    {
+      "question": "AuroraTree에서 insert의 최악 복잡도는?",
+      "wall_ms": 13645.137999905273,
+      "total_ms": 13645.092208869755,
+      "llm_total_ms": 13605.560790980235,
+      "tool_total_ms": 36.37974918819964,
+      "n_llm_calls": 3,
+      "n_tool_calls": 3,
+      "tools_used": [
+        "find_entities",
+        "find_entities",
+        "find_entities"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "데이터에는 \"AuroraTree\" 데이터 구조나 관련된 \"insert\" 작업이 포함되어 있지 않습니다. 따라서 최악의 복잡도 정보를 제공할 수 ",
+      "id": "Q017",
+      "difficulty": "trap"
+    },
+    {
+      "question": "SplayTree는 어떤 인터페이스를 구현하는가?",
+      "wall_ms": 12247.880041832104,
+      "total_ms": 12247.86787503399,
+      "llm_total_ms": 12236.475416924804,
+      "tool_total_ms": 11.336083058267832,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "데이터에 \"SplayTree\"라는 구조가 존재하지 않습니다. 이러한 이름의 데이터 구조가 없거나 아직 데이터 그래프에 추가되지 않았을 수 있습니",
+      "id": "Q018",
+      "difficulty": "trap"
+    },
+    {
+      "question": "15장에 소개된 자료구조를 모두 나열하라.",
+      "wall_ms": 6937.110832892358,
+      "total_ms": 6937.083000084385,
+      "llm_total_ms": 6925.362791866064,
+      "tool_total_ms": 11.656583985313773,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "데이터에 따르면 15장에 소개된 자료구조는 없습니다.",
+      "id": "Q019",
+      "difficulty": "trap"
+    },
+    {
+      "question": "이 온톨로지에서 TimSort를 내부적으로 사용하는 정렬 알고리즘은?",
+      "wall_ms": 12277.56941691041,
+      "total_ms": 12277.5495829992,
+      "llm_total_ms": 12262.577500194311,
+      "tool_total_ms": 14.91654198616743,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "데이터에 TimSort를 내부적으로 사용하는 정렬 알고리즘에 대한 정보가 없습니다.",
+      "id": "Q020",
+      "difficulty": "trap"
+    }
+  ]
+}
