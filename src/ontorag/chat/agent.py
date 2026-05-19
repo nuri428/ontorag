@@ -26,11 +26,11 @@ def _local_name(uri: str) -> str:
 def _format_schema_for_prompt(schema: Any) -> str:
     """SchemaResult를 시스템 프롬프트용 compact 텍스트로 변환.
 
-    Single source of truth = TBox. The function only renders what the
-    ontology itself declares (labels, comments/definitions, hierarchy,
-    OWL property characteristics). No domain-specific examples, no
-    natural-language closure-keyword matching — those decisions are
-    made by the TBox or by the tool descriptions, not here.
+    Single source of truth = TBox. Emits class/property URIs, hierarchy,
+    OWL flags, and counts. rdfs:comment / skos:definition are NOT inlined —
+    they are retrievable on-demand via get_class_detail(uri), keeping the
+    system prompt small enough to stay within model context windows and to
+    benefit from prompt caching.
     """
     lines = ["## Ontology schema (TBox — single source of truth)", ""]
     lines.append("### Classes (URI | label | parent | #properties | #instances)")
@@ -41,15 +41,9 @@ def _format_schema_for_prompt(schema: Any) -> str:
             f"- {cls.uri} | {label}{parent} | props={cls.property_count} | "
             f"instances={cls.instance_count}"
         )
-        desc = getattr(cls, "description", None)
-        if desc:
-            # Trim to keep token usage in check; ontology authors should
-            # write concise rdfs:comment to begin with.
-            snippet = " ".join(desc.split())[:280]
-            lines.append(f"    “{snippet}”")
 
-    # Properties — exact URIs (LLM must reuse verbatim) + OWL characteristics
-    # + author-supplied natural-language meaning.
+    # Properties — exact URIs (LLM must reuse verbatim) + OWL characteristics.
+    # Author rdfs:comment lives in get_class_detail, not here.
     props = getattr(schema, "properties", None) or []
     if props:
         lines.append("")
@@ -70,10 +64,6 @@ def _format_schema_for_prompt(schema: Any) -> str:
             lines.append(
                 f"- {p.uri} | {label} | {p.prop_type} | {dom} → {rng}{flag_str}"
             )
-            desc = getattr(p, "description", None)
-            if desc:
-                snippet = " ".join(desc.split())[:280]
-                lines.append(f"    “{snippet}”")
 
     ns_relevant = {
         k: v
@@ -101,9 +91,11 @@ _TOOLS: list[dict[str, Any]] = [
     {
         "name": "get_class_detail",
         "description": (
-            "Returns class metadata: properties whose domain is this class, "
-            "rdfs:subClassOf parents and children, and a sample of ABox "
-            "instances. Use when the schema summary lacks enough detail."
+            "Returns class metadata including the author's rdfs:comment / "
+            "skos:definition (natural-language meaning), properties whose "
+            "domain is this class, rdfs:subClassOf parents and children, "
+            "and a sample of ABox instances. Call this when you need the "
+            "author's description of a class to disambiguate its semantics."
         ),
         "input_schema": {
             "type": "object",
@@ -440,6 +432,7 @@ class AgentLoop:
                     "phase": "llm_call",
                     "turn": turn,
                     "ms": (time.perf_counter() - llm_t0) * 1000,
+                    "usage": getattr(response, "usage", None),
                 }
             )
 
@@ -510,12 +503,28 @@ class AgentLoop:
         total_ms = (time.perf_counter() - run_started) * 1000
         llm_total = sum(p["ms"] for p in phase_timings if p["phase"] == "llm_call")
         tool_total = sum(p["ms"] for p in phase_timings if p["phase"] == "tool_call")
+        prompt_tokens = sum(
+            (p.get("usage") or {}).get("prompt_tokens", 0)
+            for p in phase_timings if p["phase"] == "llm_call"
+        )
+        cached_tokens = sum(
+            (p.get("usage") or {}).get("cached_tokens", 0)
+            for p in phase_timings if p["phase"] == "llm_call"
+        )
+        completion_tokens = sum(
+            (p.get("usage") or {}).get("completion_tokens", 0)
+            for p in phase_timings if p["phase"] == "llm_call"
+        )
         yield {
             "type": "phase_summary",
             "total_ms": total_ms,
             "llm_total_ms": llm_total,
             "tool_total_ms": tool_total,
             "overhead_ms": total_ms - llm_total - tool_total,
+            "prompt_tokens": prompt_tokens,
+            "cached_tokens": cached_tokens,
+            "completion_tokens": completion_tokens,
+            "cache_hit_ratio": (cached_tokens / prompt_tokens) if prompt_tokens else 0.0,
             "phases": phase_timings,
         }
 

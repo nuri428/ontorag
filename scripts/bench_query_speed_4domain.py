@@ -104,6 +104,10 @@ async def run_one(store, llm, schema_ctx, has_data, question: str) -> dict:
         "tools_used": tool_calls,
         "rate_limits": rate_limits,
         "answer_preview": "".join(answer_chunks)[:80],
+        "prompt_tokens": summary.get("prompt_tokens", 0),
+        "cached_tokens": summary.get("cached_tokens", 0),
+        "completion_tokens": summary.get("completion_tokens", 0),
+        "cache_hit_ratio": summary.get("cache_hit_ratio", 0.0),
     }
 
 
@@ -152,9 +156,12 @@ async def bench_domain(name: str, n: int) -> dict:
 
 
 def summarize(per_domain: dict[str, dict]) -> None:
-    print("\n" + "=" * 90)
-    print(f"  {'domain':12} {'n':>3} {'wall_p50':>9} {'wall_mean':>10} {'wall_p95':>9} {'llm%':>6} {'n_tools':>8}")
-    print("-" * 90)
+    print("\n" + "=" * 110)
+    print(
+        f"  {'domain':12} {'n':>3} {'wall_p50':>9} {'wall_mean':>10} {'wall_p95':>9} "
+        f"{'llm%':>6} {'n_tools':>8} {'prompt_tok':>11} {'cache_hit%':>11}"
+    )
+    print("-" * 110)
     for name in DOMAINS:
         d = per_domain.get(name)
         if not d:
@@ -166,6 +173,8 @@ def summarize(per_domain: dict[str, dict]) -> None:
         walls = sorted(r["wall_ms"] for r in ok)
         llms = [r["llm_total_ms"] for r in ok]
         n_tools = [r["n_tool_calls"] for r in ok]
+        prompt_toks = [r.get("prompt_tokens", 0) for r in ok]
+        cache_ratios = [r.get("cache_hit_ratio", 0.0) for r in ok]
         p95_idx = max(0, int(len(walls) * 0.95) - 1)
         print(
             f"  {name:12} {len(ok):>3} "
@@ -173,9 +182,11 @@ def summarize(per_domain: dict[str, dict]) -> None:
             f"{statistics.mean(walls):>10.0f} "
             f"{walls[p95_idx]:>9.0f} "
             f"{statistics.mean(llms) / statistics.mean(walls) * 100:>5.1f}% "
-            f"{statistics.mean(n_tools):>8.2f}"
+            f"{statistics.mean(n_tools):>8.2f} "
+            f"{statistics.mean(prompt_toks):>11.0f} "
+            f"{statistics.mean(cache_ratios) * 100:>10.1f}%"
         )
-    print("=" * 90)
+    print("=" * 110)
 
     # Per-tool aggregate
     print("\n  per-tool sum-per-question ms (across all domains):")

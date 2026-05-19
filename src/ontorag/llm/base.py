@@ -50,6 +50,7 @@ class _CompletionMessage:
 
     content: list[_TextBlock | _ToolUseBlock]
     stop_reason: str  # "end_turn" | "tool_use"
+    usage: dict[str, int] | None = None  # prompt_tokens, cached_tokens, completion_tokens
 
 
 def openai_response_to_message(response: Any) -> _CompletionMessage:
@@ -77,4 +78,18 @@ def openai_response_to_message(response: Any) -> _CompletionMessage:
         )
 
     stop_reason = "tool_use" if finish_reason == "tool_calls" else "end_turn"
-    return _CompletionMessage(content=content, stop_reason=stop_reason)
+
+    usage = None
+    if getattr(response, "usage", None) is not None:
+        u = response.usage
+        cached = 0
+        details = getattr(u, "prompt_tokens_details", None)
+        if details is not None:
+            cached = getattr(details, "cached_tokens", 0) or 0
+        usage = {
+            "prompt_tokens": getattr(u, "prompt_tokens", 0) or 0,
+            "cached_tokens": cached,
+            "completion_tokens": getattr(u, "completion_tokens", 0) or 0,
+        }
+
+    return _CompletionMessage(content=content, stop_reason=stop_reason, usage=usage)
