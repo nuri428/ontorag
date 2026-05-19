@@ -231,7 +231,7 @@ ontorag learn populate-structured data.csv \
 ontorag learn populate-structured data.jsonl --batch-size 100 --yes
 ontorag learn populate-structured nested.json --min-confidence 0.8
 
-# v0.5 — SHACL 검증 게이트
+# v0.4.1 — SHACL 검증 게이트
 ontorag learn derive-shapes schema.ttl -o shapes.ttl   # OWL → SHACL 스켈레톤 (기계 변환)
 ontorag learn populate corpus.txt --shapes shapes.ttl  # 로드 전 LLM 트리플 검증
 ontorag learn populate-structured data.csv --shapes shapes.ttl
@@ -336,7 +336,7 @@ ontorag learn populate-structured pokedex.jsonl --batch-size 100 --yes
 | `--min-confidence` | 0.7 | 컬럼 매핑 최소 신뢰도 임계값 |
 | `--yes` | false | Fuseki 로드 확인 프롬프트 생략 |
 
-### v0.5 — SHACL 검증 게이트
+### v0.4.1 — SHACL 검증 게이트
 
 LLM이 만든 트리플은 *구문상* 정합해도 *의미상* 미친 값일 수 있습니다 (HP=99999, 한 포켓몬에 타입 6개, 통화 코드 "dollar"). v0.5는 LLM 출력과 Fuseki 로드 사이에 **선택적 SHACL 검증 단계**를 추가합니다 — 위반 트리플은 폐기되고 `PopulationResult.violations`로 격리됩니다.
 

@@ -2,6 +2,64 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.4.1 — 2026-05-19
+
+### Added — prompt externalization + SHACL validation gate
+
+- **SHACL validation step** between LLM-generated triples and Fuseki load.
+  Triples that fail validation are filtered out; full violation detail
+  (focus node, result path, message, severity) is surfaced through the
+  new `PopulationResult.violations` field.
+- **`ontorag learn derive-shapes <schema.ttl> [-o out.ttl]`** — generates
+  a SHACL skeleton from an OWL TBox using three mechanical mappings:
+  `rdfs:range xsd:T` → `sh:datatype`, `rdfs:range <Class>` → `sh:class` +
+  `sh:nodeKind sh:IRI`, `owl:FunctionalProperty` → `sh:maxCount 1`.
+  Domain knowledge (enumerations, value ranges, cardinality > 1) is
+  refined by hand afterwards.
+- **`--shapes PATH` option** on `ontorag learn populate` and
+  `ontorag learn populate-structured`. Optional; default preserves the
+  prior v0.4.0 behaviour (no SHACL step). When the file is missing the
+  CLI logs a warning and proceeds without validation.
+- **Pre-authored shapes** for all five example domains —
+  `examples/{pokemon,techstack,ods,pure_land,commerce}/shapes.ttl` —
+  with realistic OWL-inexpressible constraints (Pokémon types ≤ 2,
+  HP ∈ [1, 999], ISO 4217 currency regex, vowNumber ∈ [1, 48], etc.).
+- **Six prompts moved to package resources** under
+  `src/ontorag/learn/prompts/` and `src/ontorag/chat/prompts/`, loaded
+  via `importlib.resources`. Byte-identical to v0.4.0 inline strings
+  (verified against git HEAD). Per-domain overrides not introduced in
+  v0.4.1 — single source of truth at package level.
+- **CLI shows SHACL drop count** — `⚠ SHACL 위반으로 N건 제외됨` follows
+  the load summary when violations were filtered.
+
+### Fixed
+
+- `cli_learn._load()` now unpacks the new `(loaded_count, violations)`
+  tuple returned by `LLMOntologyLearner._load_triples`. Without this
+  fix the `populate` and `populate-structured` commands would have
+  crashed with `TypeError: unsupported format string passed to
+  tuple.__format__` once they reached the load step.
+
+### Documentation
+
+- `README.md` / `README.ko.md` — new four-step SHACL walkthrough with
+  real input TTL, real derive-shapes output, hand-refinement diff,
+  expected CLI output, and a Python SDK example that iterates
+  `PopulationResult.violations`. Closes with a five-domain shapes
+  summary table.
+- Quick-reference CLI block in both READMEs lists `derive-shapes` and
+  the `--shapes` option on the two populate commands.
+
+### Notes
+
+- Backwards compatible: every existing v0.4.0 invocation continues to
+  work unchanged. SHACL is opt-in via `--shapes` and the new Python
+  kwarg.
+- `pyshacl>=0.25.0` was already declared in v0.4.0 dependencies — no
+  new top-level requirement.
+- Tests: +11 in `tests/test_learn_shacl.py` (validate + derive_from_owl).
+  Full learn + cli regression: 159 passing.
+
 ## v0.4.0 — 2026-05-19
 
 ### Added — 4-domain RAGAS final benchmark + decision-grid guide

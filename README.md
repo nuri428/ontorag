@@ -231,7 +231,7 @@ ontorag learn populate-structured data.csv \
 ontorag learn populate-structured data.jsonl --batch-size 100 --yes
 ontorag learn populate-structured nested.json --min-confidence 0.8
 
-# v0.5 — SHACL validation gate
+# v0.4.1 — SHACL validation gate
 ontorag learn derive-shapes schema.ttl -o shapes.ttl   # OWL → SHACL skeleton (mechanical)
 ontorag learn populate corpus.txt --shapes shapes.ttl  # validate LLM triples before load
 ontorag learn populate-structured data.csv --shapes shapes.ttl
@@ -336,7 +336,7 @@ ontorag learn populate-structured pokedex.jsonl --batch-size 100 --yes
 | `--min-confidence` | 0.7 | Minimum column-mapping confidence threshold |
 | `--yes` | false | Skip Fuseki load confirmation prompt |
 
-### v0.5 — SHACL validation gate
+### v0.4.1 — SHACL validation gate
 
 LLM-generated triples can be *syntactically* valid yet *semantically* wrong: HP=99999, six types on one Pokémon, ISO currency = "dollar". v0.5 adds an optional **SHACL validation step** between LLM output and Fuseki load — violating triples are filtered out and surfaced as `PopulationResult.violations`.
 
