@@ -97,7 +97,7 @@ class OpenAIProvider:
         api_key: str | None = None,
         model: str = "gpt-4o",
         base_url: str | None = None,
-        max_tokens: int = 4096,
+        max_tokens: int = 1024,
     ) -> None:
         try:
             from openai import AsyncOpenAI

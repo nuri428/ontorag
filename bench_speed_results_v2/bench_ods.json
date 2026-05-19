@@ -1,0 +1,412 @@
+{
+  "domain": "ods",
+  "results": [
+    {
+      "question": "Open Data Structures의 어느 장에서 SkiplistSSet을 소개하는가?",
+      "wall_ms": 7110.628499882296,
+      "total_ms": 7110.535667045042,
+      "llm_total_ms": 7092.172665987164,
+      "tool_total_ms": 18.27212516218424,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "SkiplistSSet은 Open Data Structures의 4장에서 소개됩니다.",
+      "prompt_tokens": 4963,
+      "cached_tokens": 2304,
+      "completion_tokens": 64,
+      "cache_hit_ratio": 0.46423534152730206,
+      "id": "Q001",
+      "difficulty": "easy"
+    },
+    {
+      "question": "ArrayStack.get의 최악 시간 복잡도는?",
+      "wall_ms": 13470.583250047639,
+      "total_ms": 13468.098832992837,
+      "llm_total_ms": 13456.147791584954,
+      "tool_total_ms": 11.853042058646679,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "find_entities"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "데이터에 \"ArrayStack.get\"이라는 이름을 가진 연산이 존재하지 않습니다.",
+      "prompt_tokens": 7205,
+      "cached_tokens": 6656,
+      "completion_tokens": 106,
+      "cache_hit_ratio": 0.9238029146426093,
+      "id": "Q002",
+      "difficulty": "easy"
+    },
+    {
+      "question": "ChainedHashTable은 어떤 인터페이스를 구현하는가?",
+      "wall_ms": 2966.7543328832835,
+      "total_ms": 2966.674834024161,
+      "llm_total_ms": 2947.107082931325,
+      "tool_total_ms": 19.424874801188707,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "데이터 그래프에 \"ChainedHashTable\"이라는 이름을 가진 데이터 구조가 존재하지 않습니다. 따라서 어떤 인터페이스를 구현하는지 알 수",
+      "prompt_tokens": 4757,
+      "cached_tokens": 4224,
+      "completion_tokens": 84,
+      "cache_hit_ratio": 0.887954593231028,
+      "id": "Q003",
+      "difficulty": "easy"
+    },
+    {
+      "question": "이 온톨로지에서 logarithmic 복잡도의 big-O 표기는?",
+      "wall_ms": 7444.855915848166,
+      "total_ms": 7444.835083093494,
+      "llm_total_ms": 7423.182083060965,
+      "tool_total_ms": 21.55404188670218,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "이 온톨로지에서 logarithmic 복잡도의 big-O 표기는 \\(O(\\log n)\\)입니다.",
+      "prompt_tokens": 5207,
+      "cached_tokens": 4224,
+      "completion_tokens": 52,
+      "cache_hit_ratio": 0.8112156712118302,
+      "id": "Q004",
+      "difficulty": "easy"
+    },
+    {
+      "question": "RedBlackTree에서 find 연산의 최악 복잡도는?",
+      "wall_ms": 2004.8578749410808,
+      "total_ms": 2004.7749590594321,
+      "llm_total_ms": 1959.6898327581584,
+      "tool_total_ms": 44.948333175852895,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "RedBlackTree에서 `find` 연산의 최악 복잡도는 **로그형**입니다.",
+      "prompt_tokens": 5674,
+      "cached_tokens": 4224,
+      "completion_tokens": 67,
+      "cache_hit_ratio": 0.7444483609446598,
+      "id": "Q005",
+      "difficulty": "easy"
+    },
+    {
+      "question": "SSet 인터페이스를 구현하는 자료구조를 모두 나열하라.",
+      "wall_ms": 8061.198292067274,
+      "total_ms": 8061.132834060118,
+      "llm_total_ms": 8052.235291106626,
+      "tool_total_ms": 8.799208095297217,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_related"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "SSet 인터페이스를 구현하는 자료구조는 다음과 같습니다:\n\n- SkiplistSSet",
+      "prompt_tokens": 5146,
+      "cached_tokens": 4224,
+      "completion_tokens": 79,
+      "cache_hit_ratio": 0.8208317139525846,
+      "id": "Q006",
+      "difficulty": "medium"
+    },
+    {
+      "question": "어떤 정렬 알고리즘이 BinaryHeap을 직접 사용하는가?",
+      "wall_ms": 13615.597666008398,
+      "total_ms": 13615.56020914577,
+      "llm_total_ms": 13592.435292899609,
+      "tool_total_ms": 22.995625156909227,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "find_related"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "BinaryHeap을 직접 사용하는 정렬 알고리즘은 다음과 같습니다:\n\n- HeapSort",
+      "prompt_tokens": 7699,
+      "cached_tokens": 6784,
+      "completion_tokens": 119,
+      "cache_hit_ratio": 0.8811533965450058,
+      "id": "Q007",
+      "difficulty": "medium"
+    },
+    {
+      "question": "이 온톨로지에 정의된 array-based 구조는 몇 개인가?",
+      "wall_ms": 1951.7671670764685,
+      "total_ms": 1951.702709076926,
+      "llm_total_ms": 1934.058623854071,
+      "tool_total_ms": 17.552417004480958,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "count_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "이 온톨로지에 정의된 array-based 구조는 5개입니다.",
+      "prompt_tokens": 4742,
+      "cached_tokens": 4224,
+      "completion_tokens": 46,
+      "cache_hit_ratio": 0.8907633909742725,
+      "id": "Q008",
+      "difficulty": "medium"
+    },
+    {
+      "question": "List와 Deque를 모두 구현하는 자료구조는?",
+      "wall_ms": 20039.87520793453,
+      "total_ms": 20039.815624943003,
+      "llm_total_ms": 20025.092125171795,
+      "tool_total_ms": 14.58425004966557,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_related",
+        "find_related"
+      ],
+      "rate_limits": 3,
+      "answer_preview": "현재 데이터에는 List와 Deque 인터페이스를 둘 다 구현하는 자료구조가 없습니다.",
+      "prompt_tokens": 8361,
+      "cached_tokens": 7040,
+      "completion_tokens": 136,
+      "cache_hit_ratio": 0.8420045449108958,
+      "id": "Q009",
+      "difficulty": "medium"
+    },
+    {
+      "question": "Graph 인터페이스는 어떤 자료구조들에 의해 구현되는가?",
+      "wall_ms": 8704.595874994993,
+      "total_ms": 8704.52016685158,
+      "llm_total_ms": 8660.03508423455,
+      "tool_total_ms": 44.271500781178474,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "traverse_graph"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "현재 데이터에는 \"Graph\" 인터페이스가 특정 자료구조들에 의해 구현된 정보가 없습니다.",
+      "prompt_tokens": 7413,
+      "cached_tokens": 6656,
+      "completion_tokens": 109,
+      "cache_hit_ratio": 0.8978820990152435,
+      "id": "Q010",
+      "difficulty": "medium"
+    },
+    {
+      "question": "13장에 소개된 자료구조를 모두 나열하라.",
+      "wall_ms": 1590.5374169815332,
+      "total_ms": 1590.5027920380235,
+      "llm_total_ms": 1578.7152510602027,
+      "tool_total_ms": 11.725875083357096,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "13장에 소개된 자료구조는 데이터에 없습니다.",
+      "prompt_tokens": 4759,
+      "cached_tokens": 4224,
+      "completion_tokens": 62,
+      "cache_hit_ratio": 0.8875814246690481,
+      "id": "Q011",
+      "difficulty": "medium"
+    },
+    {
+      "question": "HeapSort가 직접 또는 간접적으로 사용하는 모든 자료구조를 나열하라.",
+      "wall_ms": 13770.869124913588,
+      "total_ms": 13770.80391603522,
+      "llm_total_ms": 13738.775750156492,
+      "tool_total_ms": 31.90775099210441,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "property_path_query"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "HeapSort가 직접 또는 간접적으로 사용하는 자료구조는 다음과 같습니다:\n\n- BinaryHeap\n- ArrayStack",
+      "prompt_tokens": 7496,
+      "cached_tokens": 6784,
+      "completion_tokens": 109,
+      "cache_hit_ratio": 0.9050160085378869,
+      "id": "Q012",
+      "difficulty": "hard"
+    },
+    {
+      "question": "YFastTrie가 직접 또는 간접적으로 특수화하는 자료구조는?",
+      "wall_ms": 3420.030792010948,
+      "total_ms": 3419.9443340767175,
+      "llm_total_ms": 3404.603958129883,
+      "tool_total_ms": 15.243667177855968,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "YFastTrie가 직접 또는 간접적으로 특수화하는 자료구조는 없습니다.",
+      "prompt_tokens": 4769,
+      "cached_tokens": 4224,
+      "completion_tokens": 71,
+      "cache_hit_ratio": 0.8857202767875865,
+      "id": "Q013",
+      "difficulty": "hard"
+    },
+    {
+      "question": "13장의 자료구조가 (직접 또는 간접적으로) 사용하는 모든 자료구조를 나열하라.",
+      "wall_ms": 7202.0761671010405,
+      "total_ms": 7202.027542050928,
+      "llm_total_ms": 7193.300876067951,
+      "tool_total_ms": 8.646334055811167,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "13장의 자료구조가 사용하는 모든 자료구조는 다음과 같습니다:\n\n- DLList",
+      "prompt_tokens": 4800,
+      "cached_tokens": 4224,
+      "completion_tokens": 63,
+      "cache_hit_ratio": 0.88,
+      "id": "Q014",
+      "difficulty": "hard"
+    },
+    {
+      "question": "Treap이 (직접 + 간접) 특수화하는 모든 상위 자료구조.",
+      "wall_ms": 7079.701291164383,
+      "total_ms": 7079.654749948531,
+      "llm_total_ms": 7068.933167029172,
+      "tool_total_ms": 10.643542045727372,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "Treap이 (직접 + 간접) 특수화하는 상위 자료구조는 다음과 같습니다:\n\n- BinarySearchTree\n- BinaryTree",
+      "prompt_tokens": 4812,
+      "cached_tokens": 4224,
+      "completion_tokens": 70,
+      "cache_hit_ratio": 0.8778054862842892,
+      "id": "Q015",
+      "difficulty": "hard"
+    },
+    {
+      "question": "어떤 정렬 알고리즘이 (직접 또는 간접적으로) 카운팅 기반 원소를 사용하는가?",
+      "wall_ms": 3349.719083169475,
+      "total_ms": 3349.6880838647485,
+      "llm_total_ms": 3338.6960411444306,
+      "tool_total_ms": 10.950041934847832,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "property_path_query"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "카운팅 기반 원소를 사용하는 정렬 알고리즘은 다음과 같습니다:\n- CountingSort",
+      "prompt_tokens": 4850,
+      "cached_tokens": 4224,
+      "completion_tokens": 65,
+      "cache_hit_ratio": 0.8709278350515464,
+      "id": "Q016",
+      "difficulty": "hard"
+    },
+    {
+      "question": "AuroraTree에서 insert의 최악 복잡도는?",
+      "wall_ms": 17016.086666146293,
+      "total_ms": 17016.03600010276,
+      "llm_total_ms": 16999.600707786158,
+      "tool_total_ms": 16.33879216387868,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "find_entities"
+      ],
+      "rate_limits": 2,
+      "answer_preview": "Ontology 데이터에 \"AuroraTree\" 나 \"insert\"에 해당하는 정보를 찾을 수 없습니다. 다른 질문을 해주시겠어요?",
+      "prompt_tokens": 7212,
+      "cached_tokens": 6656,
+      "completion_tokens": 121,
+      "cache_hit_ratio": 0.922906267332224,
+      "id": "Q017",
+      "difficulty": "trap"
+    },
+    {
+      "question": "SplayTree는 어떤 인터페이스를 구현하는가?",
+      "wall_ms": 3555.1680829375982,
+      "total_ms": 3555.1424170844257,
+      "llm_total_ms": 3531.883708201349,
+      "tool_total_ms": 23.107083048671484,
+      "n_llm_calls": 3,
+      "n_tool_calls": 2,
+      "tools_used": [
+        "find_entities",
+        "find_entities"
+      ],
+      "rate_limits": 0,
+      "answer_preview": "데이터 그래프에 \"SplayTree\"라는 이름의 객체가 존재하지 않습니다. SplayTree에 대한 정보를 찾을 수 없습니다.",
+      "prompt_tokens": 7203,
+      "cached_tokens": 6656,
+      "completion_tokens": 117,
+      "cache_hit_ratio": 0.9240594196862418,
+      "id": "Q018",
+      "difficulty": "trap"
+    },
+    {
+      "question": "15장에 소개된 자료구조를 모두 나열하라.",
+      "wall_ms": 7446.553749963641,
+      "total_ms": 7446.510874899104,
+      "llm_total_ms": 7409.980500116944,
+      "tool_total_ms": 36.42579214647412,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "데이터에는 15장에 소개된 자료구조가 없습니다.",
+      "prompt_tokens": 4759,
+      "cached_tokens": 4224,
+      "completion_tokens": 64,
+      "cache_hit_ratio": 0.8875814246690481,
+      "id": "Q019",
+      "difficulty": "trap"
+    },
+    {
+      "question": "이 온톨로지에서 TimSort를 내부적으로 사용하는 정렬 알고리즘은?",
+      "wall_ms": 6902.12787501514,
+      "total_ms": 6902.108166133985,
+      "llm_total_ms": 6890.8551670610905,
+      "tool_total_ms": 11.023833882063627,
+      "n_llm_calls": 2,
+      "n_tool_calls": 1,
+      "tools_used": [
+        "find_entities"
+      ],
+      "rate_limits": 1,
+      "answer_preview": "온톨로지 데이터에는 TimSort를 내부적으로 사용하는 정렬 알고리즘 정보가 없습니다.",
+      "prompt_tokens": 4767,
+      "cached_tokens": 4224,
+      "completion_tokens": 69,
+      "cache_hit_ratio": 0.8860918816865954,
+      "id": "Q020",
+      "difficulty": "trap"
+    }
+  ]
+}

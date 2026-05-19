@@ -111,7 +111,7 @@ async def run_one(store, llm, schema_ctx, has_data, question: str) -> dict:
     }
 
 
-async def bench_domain(name: str, n: int) -> dict:
+async def bench_domain(name: str, n: int, delay_s: float = 0.0) -> dict:
     goldset = REPO / "examples" / name / "goldset.jsonl"
     questions = []
     with goldset.open(encoding="utf-8") as f:
@@ -132,9 +132,11 @@ async def bench_domain(name: str, n: int) -> dict:
     schema_ctx = _format_schema_for_prompt(schema)
     has_data = any(c.instance_count > 0 for c in schema.classes)
 
-    print(f"  [{name}] running {len(questions)} questions...")
+    print(f"  [{name}] running {len(questions)} questions (delay={delay_s}s)...")
     results = []
     for i, q in enumerate(questions, 1):
+        if delay_s > 0 and i > 1:
+            await asyncio.sleep(delay_s)
         try:
             r = await run_one(store, llm, schema_ctx, has_data, q["q"])
         except Exception as exc:
@@ -210,6 +212,12 @@ async def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=20)
     parser.add_argument("--out-dir", type=Path, default=Path("bench_speed_results"))
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=4.0,
+        help="seconds to sleep between questions (TPM rate-limit smoothing)",
+    )
     args = parser.parse_args()
 
     args.out_dir.mkdir(exist_ok=True)
@@ -220,7 +228,7 @@ async def main() -> None:
         drop_all()
         triple_count = load_domain(name)
         print(f"  loaded {triple_count} triples")
-        d = await bench_domain(name, args.n)
+        d = await bench_domain(name, args.n, delay_s=args.delay)
         per_domain[name] = d
         out = args.out_dir / f"bench_{name}.json"
         out.write_text(json.dumps(d, ensure_ascii=False, indent=2))

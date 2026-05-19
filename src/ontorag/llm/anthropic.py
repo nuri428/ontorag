@@ -22,7 +22,7 @@ class AnthropicProvider:
         self,
         api_key: str | None = None,
         model: str = "claude-sonnet-4-6",
-        max_tokens: int = 4096,
+        max_tokens: int = 1024,
     ) -> None:
         key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
         if not key:
