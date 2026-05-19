@@ -1,0 +1,43 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix pk:   <http://example.org/pokemon#> .
+
+pk:PokemonShape
+    a sh:NodeShape ;
+    sh:targetClass pk:Pokemon ;
+    sh:property [
+        sh:path pk:hasType ;
+        sh:maxCount 2 ;
+        sh:message "포켓몬은 최대 2개의 타입만 가질 수 있다." ;
+    ] ;
+    sh:property [
+        sh:path pk:hp ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 1 ;
+        sh:maxInclusive 999 ;
+        sh:message "HP는 1-999 범위의 정수여야 한다." ;
+    ] ;
+    sh:property [
+        sh:path pk:nationalDex ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 1 ;
+        sh:message "전국도감 번호는 양의 정수여야 한다." ;
+    ] .
+
+pk:MoveShape
+    a sh:NodeShape ;
+    sh:targetClass pk:Move ;
+    sh:property [
+        sh:path pk:accuracy ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 0 ;
+        sh:maxInclusive 100 ;
+        sh:message "명중률은 0-100 범위의 정수여야 한다." ;
+    ] ;
+    sh:property [
+        sh:path pk:category ;
+        sh:in ( "Physical" "Special" "Status" ) ;
+        sh:message "기술 분류는 Physical/Special/Status 중 하나여야 한다." ;
+    ] .

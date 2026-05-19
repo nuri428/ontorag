@@ -107,7 +107,7 @@ def make_mock_learner(
     learner.populate_from_structured = AsyncMock(
         return_value=PopulationResult(triples=SAMPLE_TRIPLES)
     )
-    learner._load_triples = AsyncMock(return_value=load_count)
+    learner._load_triples = AsyncMock(return_value=(load_count, []))
 
     return learner
 

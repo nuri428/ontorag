@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from ontorag._prompts import load as _load_prompt
 from ontorag.learn._utils import structured_call
 from ontorag.learn.base import ExtractedTriple
 from ontorag.stores.base import SchemaResult
@@ -58,13 +59,7 @@ _TOOL_DEF: dict[str, Any] = {
     },
 }
 
-_SYSTEM = (
-    "You are an ontology expert. Extract RDF triples from the given text using "
-    "only predicates that exist in the provided TBox schema. "
-    "Each triple must have a subject entity, a predicate URI from the schema, "
-    "and either an object entity URI or a literal value. "
-    "Respond using the provided tool."
-)
+_SYSTEM = _load_prompt("ontorag.learn.prompts", "relation.txt").rstrip()
 
 
 def _schema_summary(schema: SchemaResult) -> str:

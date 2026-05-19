@@ -8,6 +8,7 @@ from typing import Any
 from ontorag.learn import taxonomy as _taxonomy_mod
 from ontorag.learn import term_typing as _term_typing_mod
 from ontorag.learn import relation as _relation_mod
+from ontorag.learn import shacl as _shacl
 from ontorag.learn._utils import mint_uri, structured_call
 from ontorag.learn.base import (
     ExtractedTriple,
@@ -15,6 +16,7 @@ from ontorag.learn.base import (
     TaxonomyRelation,
     TermTypingResult,
 )
+from ontorag.learn.shacl import ShaclViolation
 from ontorag.learn.column_mapper import (
     ColumnMapping,
     MappingFile,
@@ -64,20 +66,13 @@ def _resolve_namespace(class_uri: str | None, schema: SchemaResult) -> str:
     return "http://example.org/"
 
 
-def _serialize_to_ttl(
+def _build_graph(
     triples: list[ExtractedTriple],
     typings: list[TermTypingResult],
     schema: SchemaResult,
-) -> str:
-    """Serialize accepted triples + type assertions to Turtle format.
-
-    Args:
-        triples: Task C triples, already filtered by confidence.
-        typings: Task A results (used to emit rdf:type assertions).
-        schema: Current TBox for namespace extraction.
-
-    Returns:
-        Turtle RDF string.
+) -> Any:
+    """Build an rdflib Graph from typings + triples. Returned as Any to keep
+    rdflib import optional at module-load time.
     """
     try:
         from rdflib import Graph, Literal, Namespace, URIRef
@@ -87,21 +82,17 @@ def _serialize_to_ttl(
 
     g = Graph()
 
-    # Bind namespaces — rdflib Namespace() does not validate URIs, so bind()
-    # rarely raises; guard kept for safety against future rdflib changes.
     for prefix, uri_str in schema.namespaces.items():
         try:
             g.bind(prefix, Namespace(uri_str))
         except Exception as exc:  # pragma: no cover
             logger.debug("namespace bind skipped %r: %s", prefix, exc)
 
-    # Emit rdf:type assertions from Task A
     for typing in typings:
         subj_uri = mint_uri(typing.term, schema)
         g.add((URIRef(subj_uri), RDF.type, URIRef(typing.class_uri)))
         g.add((URIRef(subj_uri), RDFS.label, Literal(typing.term)))
 
-    # Emit triples from Task C
     for triple in triples:
         subj_uri = triple.subject_uri or mint_uri(triple.subject_label, schema)
         g.add((URIRef(subj_uri), RDFS.label, Literal(triple.subject_label)))
@@ -113,7 +104,16 @@ def _serialize_to_ttl(
         elif triple.object_value is not None:
             g.add((URIRef(subj_uri), pred, Literal(triple.object_value)))
 
-    return g.serialize(format="turtle")
+    return g
+
+
+def _serialize_to_ttl(
+    triples: list[ExtractedTriple],
+    typings: list[TermTypingResult],
+    schema: SchemaResult,
+) -> str:
+    """Serialize accepted triples + type assertions to Turtle format."""
+    return _build_graph(triples, typings, schema).serialize(format="turtle")
 
 
 class LLMOntologyLearner:
@@ -164,6 +164,7 @@ class LLMOntologyLearner:
         text: str,
         auto_load: bool = False,
         min_confidence: float = 0.7,
+        shapes_path: str | Path | None = None,
     ) -> PopulationResult:
         """Run A+B+C in sequence; optionally load accepted triples to Fuseki.
 
@@ -171,6 +172,9 @@ class LLMOntologyLearner:
             text: Source text to process.
             auto_load: If True, serialize accepted triples to TTL and load into the store.
             min_confidence: Minimum confidence to include a result.
+            shapes_path: Optional SHACL shapes file. When provided and the file
+                exists, generated triples are validated before load; violations
+                are dropped and recorded in PopulationResult.violations.
 
         Returns:
             PopulationResult with all task outputs. triples_loaded is set when auto_load=True.
@@ -207,14 +211,18 @@ class LLMOntologyLearner:
         )
 
         loaded: int | None = None
+        violations: list[ShaclViolation] = []
         if auto_load and (triples or typings):
-            loaded = await self._load_triples(triples, typings, schema)
+            loaded, violations = await self._load_triples(
+                triples, typings, schema, shapes_path=shapes_path
+            )
 
         return PopulationResult(
             term_typings=typings,
             taxonomy_proposals=taxonomy,
             triples=triples,
             triples_loaded=loaded,
+            violations=violations,
         )
 
     async def _extract_terms(self, text: str, schema: SchemaResult) -> list[str]:
@@ -237,6 +245,7 @@ class LLMOntologyLearner:
         batch_size: int = 50,
         min_confidence: float = 0.7,
         auto_load: bool = False,
+        shapes_path: str | Path | None = None,
     ) -> PopulationResult:
         """Populate ABox from a structured file (CSV/JSON/JSONL).
 
@@ -301,6 +310,7 @@ class LLMOntologyLearner:
 
         all_triples: list[ExtractedTriple] = []
         total_loaded: int | None = 0 if auto_load else None
+        all_violations: list[ShaclViolation] = []
 
         for batch_start in range(0, len(rows), batch_size):
             batch = rows[batch_start : batch_start + batch_size]
@@ -361,8 +371,11 @@ class LLMOntologyLearner:
             all_triples.extend(batch_triples)
 
             if auto_load and batch_triples:
-                loaded = await self._load_triples(batch_triples, [], schema)
+                loaded, batch_violations = await self._load_triples(
+                    batch_triples, [], schema, shapes_path=shapes_path
+                )
                 total_loaded = (total_loaded or 0) + loaded
+                all_violations.extend(batch_violations)
 
             mapping.last_row = batch_start + len(batch)
             if mapping.columns:
@@ -371,6 +384,7 @@ class LLMOntologyLearner:
         return PopulationResult(
             triples=all_triples,
             triples_loaded=total_loaded,
+            violations=all_violations,
         )
 
     async def _load_triples(
@@ -378,9 +392,25 @@ class LLMOntologyLearner:
         triples: list[ExtractedTriple],
         typings: list[TermTypingResult],
         schema: SchemaResult,
-    ) -> int:
-        """Serialize triples to a temp TTL file and load into the store."""
-        ttl = _serialize_to_ttl(triples, typings, schema)
+        shapes_path: str | Path | None = None,
+    ) -> tuple[int, list[ShaclViolation]]:
+        """Serialize triples, optionally validate against SHACL, and load."""
+        graph = _build_graph(triples, typings, schema)
+
+        violations: list[ShaclViolation] = []
+        if shapes_path is not None:
+            sp = Path(shapes_path)
+            if sp.exists():
+                graph, violations = _shacl.validate(graph, sp)
+            else:
+                logger.warning(
+                    "shapes_path %s does not exist — skipping SHACL validation", sp
+                )
+
+        if len(graph) == 0:
+            return 0, violations
+
+        ttl = graph.serialize(format="turtle")
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".ttl", delete=False, encoding="utf-8"
         ) as f:
@@ -388,6 +418,6 @@ class LLMOntologyLearner:
             tmp_path = f.name
         try:
             result = await self._store.load_rdf(tmp_path, mode="data")
-            return result.triples_loaded
+            return result.triples_loaded, violations
         finally:
             Path(tmp_path).unlink(missing_ok=True)

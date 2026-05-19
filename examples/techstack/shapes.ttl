@@ -1,0 +1,31 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix ts:   <http://example.org/techstack#> .
+
+ts:TechnologyShape
+    a sh:NodeShape ;
+    sh:targetClass ts:Technology ;
+    sh:property [
+        sh:path ts:firstReleased ;
+        sh:datatype xsd:gYear ;
+        sh:maxCount 1 ;
+        sh:message "한 기술은 단 하나의 최초 출시 연도를 가진다." ;
+    ] ;
+    sh:property [
+        sh:path ts:license ;
+        sh:datatype xsd:string ;
+        sh:message "라이선스는 문자열이어야 한다." ;
+    ] ;
+    sh:property [
+        sh:path ts:homepage ;
+        sh:datatype xsd:anyURI ;
+        sh:maxCount 1 ;
+        sh:message "홈페이지는 단일 URI여야 한다." ;
+    ] ;
+    sh:property [
+        sh:path ts:maintainedBy ;
+        sh:nodeKind sh:IRI ;
+        sh:message "maintainedBy 대상은 IRI (Organization 개체)여야 한다." ;
+    ] .

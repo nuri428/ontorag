@@ -11,30 +11,13 @@ from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from typing import Any
 
+from ontorag._prompts import load as _load_prompt
 from ontorag.stores.base import SchemaResult
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM = (
-    "You are an RDF ontology expert. Map CSV/JSON column names to OWL property URIs "
-    "from a given TBox schema. Respond ONLY with valid JSON."
-)
-
-_PROMPT_TMPL = """\
-TBox properties available:
-{properties}
-
-Column names to map (file: {filename}):
-{columns}
-
-Class URI (if known): {class_uri}
-
-For each column, propose the best matching property URI from the TBox.
-If no property fits, use null.
-
-Respond with JSON only:
-{{"mappings": [{{"column": "<col>", "predicate_uri": "<uri_or_null>", "confidence": 0.0}}]}}
-"""
+_SYSTEM = _load_prompt("ontorag.learn.prompts", "column_mapper_system.txt").rstrip()
+_PROMPT_TMPL = _load_prompt("ontorag.learn.prompts", "column_mapper_user_tmpl.txt")
 
 _MAPPING_FILE_FIELDS = frozenset(
     f.name

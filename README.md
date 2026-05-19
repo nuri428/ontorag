@@ -230,6 +230,11 @@ ontorag learn populate-structured data.csv \
     --class-uri pk:Pokemon --id-column name [--yes]
 ontorag learn populate-structured data.jsonl --batch-size 100 --yes
 ontorag learn populate-structured nested.json --min-confidence 0.8
+
+# v0.5 — SHACL validation gate
+ontorag learn derive-shapes schema.ttl -o shapes.ttl   # OWL → SHACL skeleton (mechanical)
+ontorag learn populate corpus.txt --shapes shapes.ttl  # validate LLM triples before load
+ontorag learn populate-structured data.csv --shapes shapes.ttl
 ```
 
 ---
@@ -330,6 +335,150 @@ ontorag learn populate-structured pokedex.jsonl --batch-size 100 --yes
 | `--batch-size` | 50 | Rows per LLM mapping call |
 | `--min-confidence` | 0.7 | Minimum column-mapping confidence threshold |
 | `--yes` | false | Skip Fuseki load confirmation prompt |
+
+### v0.5 — SHACL validation gate
+
+LLM-generated triples can be *syntactically* valid yet *semantically* wrong: HP=99999, six types on one Pokémon, ISO currency = "dollar". v0.5 adds an optional **SHACL validation step** between LLM output and Fuseki load — violating triples are filtered out and surfaced as `PopulationResult.violations`.
+
+#### Why SHACL beyond OWL?
+
+OWL's `rdfs:range pk:Type` is an *inference hint*, not a constraint. The following triple is *legal* under pure OWL:
+
+```turtle
+pk:Pikachu pk:hasType pk:Fire, pk:Water, pk:Grass, pk:Electric, pk:Ice, pk:Rock .
+```
+
+Six types is impossible in the game, but OWL has no `sh:maxCount`. SHACL fills that gap.
+
+#### Step 1 — derive a skeleton from the OWL schema
+
+The mechanical 80% comes for free. Given this fragment in `schema.ttl`:
+
+```turtle
+pk:hp a owl:DatatypeProperty ;
+    rdfs:domain pk:Pokemon ; rdfs:range xsd:integer .
+pk:hasType a owl:ObjectProperty ;
+    rdfs:domain pk:Pokemon ; rdfs:range pk:Type .
+pl:vowNumber a owl:DatatypeProperty, owl:FunctionalProperty ;
+    rdfs:domain pl:Vow ; rdfs:range xsd:integer .
+```
+
+run:
+
+```bash
+ontorag learn derive-shapes examples/pokemon/schema.ttl -o examples/pokemon/shapes.ttl
+```
+
+and get this back (real output, abridged):
+
+```turtle
+pk:PokemonShape a sh:NodeShape ;
+    sh:targetClass pk:Pokemon ;
+    sh:property [ sh:path pk:hp ;     sh:datatype xsd:integer ] ,
+                [ sh:path pk:hasType ; sh:class pk:Type ; sh:nodeKind sh:IRI ] .
+
+pl:VowShape a sh:NodeShape ;
+    sh:targetClass pl:Vow ;
+    sh:property [ sh:path pl:vowNumber ; sh:datatype xsd:integer ; sh:maxCount 1 ] .
+```
+
+The derivation follows three mechanical mappings:
+
+| OWL idiom | SHACL constraint |
+|---|---|
+| `rdfs:range xsd:T`            | `sh:datatype xsd:T` |
+| `rdfs:range <Class>`          | `sh:class <Class>` + `sh:nodeKind sh:IRI` |
+| `a owl:FunctionalProperty`    | `sh:maxCount 1` |
+
+#### Step 2 — refine with domain knowledge
+
+The remaining 20% is constraints OWL can't express — enumerations, value ranges, cardinality > 1. Hand-edit `shapes.ttl`:
+
+```turtle
+pk:PokemonShape a sh:NodeShape ;
+    sh:targetClass pk:Pokemon ;
+    sh:property [
+        sh:path pk:hasType ;
+        sh:class pk:Type ; sh:nodeKind sh:IRI ;
+        sh:maxCount 2 ;                                       # ← added: game rule
+        sh:message "포켓몬은 최대 2개의 타입만 가질 수 있다." ;
+    ] ;
+    sh:property [
+        sh:path pk:hp ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 1 ; sh:maxInclusive 999 ;             # ← added: balance
+    ] .
+
+pk:MoveShape a sh:NodeShape ;
+    sh:targetClass pk:Move ;
+    sh:property [
+        sh:path pk:category ;
+        sh:in ( "Physical" "Special" "Status" ) ;             # ← added: enum
+    ] .
+```
+
+#### Step 3 — validate during population
+
+Pass the shapes to either populate command:
+
+```bash
+ontorag learn populate corpus.txt \
+    --shapes examples/pokemon/shapes.ttl
+
+ontorag learn populate-structured pokemon.csv \
+    --class-uri pk:Pokemon --id-column name \
+    --shapes examples/pokemon/shapes.ttl
+```
+
+When triples violate a shape, the CLI shows what was caught:
+
+```
+✓ 38개 트리플을 ABox에 로드했습니다. ← pokemon.csv
+⚠ SHACL 위반으로 4건 제외됨.
+```
+
+#### Step 4 — inspect violations from Python
+
+The CLI shows the count; the SDK gives full detail:
+
+```python
+from ontorag.learn.pipeline import LLMOntologyLearner
+
+result = await learner.populate_from_structured(
+    "pokemon.csv",
+    class_uri="pk:Pokemon",
+    id_column="name",
+    auto_load=True,
+    shapes_path="examples/pokemon/shapes.ttl",
+)
+
+print(f"Loaded: {result.triples_loaded}")
+for v in result.violations:
+    print(f"  {v.focus_node}")
+    print(f"    path: {v.result_path}")
+    print(f"    msg:  {v.message}")
+    print(f"    severity: {v.severity}")
+```
+
+Typical output when LLM hallucinates an HP value:
+
+```
+Loaded: 38
+  http://example.org/pokemon/MewTwo
+    path: http://example.org/pokemon#hp
+    msg:  HP는 1-999 범위의 정수여야 한다.
+    severity: Violation
+```
+
+#### Pre-authored shapes for all five example domains
+
+| Domain | What `shapes.ttl` enforces |
+|---|---|
+| `examples/pokemon/shapes.ttl`    | max 2 types, HP ∈ [1, 999], Move category ∈ {Physical, Special, Status} |
+| `examples/techstack/shapes.ttl`  | `firstReleased` is `xsd:gYear`, `maintainedBy` is an IRI, single homepage |
+| `examples/ods/shapes.ttl`        | chapter ∈ [1, 14], every Complexity has exactly one bigO string |
+| `examples/pure_land/shapes.ttl`  | vowNumber ∈ [1, 48], contemplationOrder ∈ [1, 16] |
+| `examples/commerce/shapes.ttl`   | ISO currency code = `^[A-Z]{3}$`, foundedYear ∈ [1000, 2100], non-negative employeeCount |
 
 ### Test suite — v0.3.1 (264 tests)
 

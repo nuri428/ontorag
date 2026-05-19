@@ -6,46 +6,13 @@ import logging
 from collections.abc import AsyncGenerator
 from typing import Any
 
+from ontorag._prompts import load as _load_prompt
 from ontorag.llm.factory import LLMProvider
 from ontorag.stores.base import GraphStore, PatternQuery, PatternTriple
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_BASE = """\
-You are an RDF/OWL ontology agent. The TBox below is your sole source of
-truth — class/property URIs, hierarchy, OWL characteristics, and the
-authors' natural-language meaning (rdfs:comment / skos:definition).
-
-## Hard rules
-
-- If any class lists `instances > 0`, **never answer from prior knowledge** —
-  call a tool first. Answer only from tool results.
-- Exceptions (answer without tools): every class has `instances=0`, or
-  the question is unrelated to the ontology domain (greetings, weather).
-- URIs in tool arguments must be **copied verbatim** from the schema
-  above or from prior tool results. Never paste a natural-language label
-  into a URI slot. Never invent or concatenate URIs.
-- The final answer text must use **labels only** (never raw URIs).
-
-## Tool selection
-
-Each tool's own description states which OWL semantics it covers and what
-result shape it returns. Pick the tool whose description matches the
-question's intent. Re-read the property table's `OWL flags` column when
-deciding — `TRANSITIVE`, `inverseOf=…` are the routing signals.
-
-## Result interpretation
-
-- A non-empty list result means *every item in the list is part of the
-  answer*. Quote the labels directly in the final text.
-- A list result of length 0 means the data does not contain the
-  requested entities — say so plainly. Do not extrapolate.
-- If `find_entities` returns 0 rows, retry with `contains` op or a
-  sub-class before giving up. Three attempts max.
-
-## Reply language
-
-Match the user's language. If the user wrote Korean, reply in Korean."""
+_SYSTEM_BASE = _load_prompt("ontorag.chat.prompts", "agent.txt").rstrip()
 
 
 def _local_name(uri: str) -> str:

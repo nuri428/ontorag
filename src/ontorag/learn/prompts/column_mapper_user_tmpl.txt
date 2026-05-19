@@ -1,0 +1,13 @@
+TBox properties available:
+{properties}
+
+Column names to map (file: {filename}):
+{columns}
+
+Class URI (if known): {class_uri}
+
+For each column, propose the best matching property URI from the TBox.
+If no property fits, use null.
+
+Respond with JSON only:
+{{"mappings": [{{"column": "<col>", "predicate_uri": "<uri_or_null>", "confidence": 0.0}}]}}

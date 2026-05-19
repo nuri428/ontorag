@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from ontorag._prompts import load as _load_prompt
 from ontorag.learn._utils import class_uris, structured_call
 from ontorag.learn.base import TermTypingResult
 from ontorag.stores.base import SchemaResult
@@ -43,12 +44,7 @@ _TOOL_DEF: dict[str, Any] = {
     },
 }
 
-_SYSTEM = (
-    "You are an ontology expert. Given a text mention and an OWL ontology schema, "
-    "rank the existing TBox classes that best describe this entity or concept. "
-    "Only output class URIs that appear in the schema. "
-    "Respond using the provided tool."
-)
+_SYSTEM = _load_prompt("ontorag.learn.prompts", "term_typing.txt").rstrip()
 
 
 def _schema_summary(schema: SchemaResult) -> str:

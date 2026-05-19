@@ -1,0 +1,33 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix ods:  <https://ontorag.dev/ns/ods#> .
+
+ods:DataStructureShape
+    a sh:NodeShape ;
+    sh:targetClass ods:DataStructure ;
+    sh:property [
+        sh:path ods:chapter ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 1 ;
+        sh:maxInclusive 14 ;
+        sh:maxCount 1 ;
+        sh:message "Open Data Structures 책 챕터는 1-14 사이의 단일 정수." ;
+    ] ;
+    sh:property [
+        sh:path ods:implements ;
+        sh:nodeKind sh:IRI ;
+        sh:message "implements 대상은 Interface IRI여야 한다." ;
+    ] .
+
+ods:ComplexityShape
+    a sh:NodeShape ;
+    sh:targetClass ods:Complexity ;
+    sh:property [
+        sh:path ods:bigO ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "Complexity는 단 하나의 bigO 문자열을 가진다." ;
+    ] .

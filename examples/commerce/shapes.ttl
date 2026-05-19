@@ -1,0 +1,64 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix co:   <https://ontorag.dev/ns/commerce#> .
+
+co:OrganizationShape
+    a sh:NodeShape ;
+    sh:targetClass co:Organization ;
+    sh:property [
+        sh:path co:foundedYear ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 1000 ;
+        sh:maxInclusive 2100 ;
+        sh:maxCount 1 ;
+        sh:message "설립 연도는 1000-2100 사이의 단일 정수." ;
+    ] ;
+    sh:property [
+        sh:path co:employeeCount ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 0 ;
+        sh:maxCount 1 ;
+        sh:message "직원 수는 0 이상의 단일 정수." ;
+    ] .
+
+co:OfferShape
+    a sh:NodeShape ;
+    sh:targetClass co:Offer ;
+    sh:property [
+        sh:path co:priceAmount ;
+        sh:minInclusive 0 ;
+        sh:maxCount 1 ;
+        sh:message "가격은 0 이상의 단일 수." ;
+    ] ;
+    sh:property [
+        sh:path co:inCurrency ;
+        sh:nodeKind sh:IRI ;
+        sh:maxCount 1 ;
+        sh:message "통화는 단일 Currency IRI." ;
+    ] .
+
+co:CurrencyShape
+    a sh:NodeShape ;
+    sh:targetClass co:Currency ;
+    sh:property [
+        sh:path co:isoCurrencyCode ;
+        sh:datatype xsd:string ;
+        sh:pattern "^[A-Z]{3}$" ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "ISO 4217 통화 코드는 정확히 3개의 대문자 알파벳." ;
+    ] .
+
+co:ProductShape
+    a sh:NodeShape ;
+    sh:targetClass co:Product ;
+    sh:property [
+        sh:path co:modelYear ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 1900 ;
+        sh:maxInclusive 2100 ;
+        sh:maxCount 1 ;
+        sh:message "제품 출시 연도는 1900-2100 사이의 단일 정수." ;
+    ] .

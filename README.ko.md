@@ -230,6 +230,11 @@ ontorag learn populate-structured data.csv \
     --class-uri pk:Pokemon --id-column name [--yes]
 ontorag learn populate-structured data.jsonl --batch-size 100 --yes
 ontorag learn populate-structured nested.json --min-confidence 0.8
+
+# v0.5 — SHACL 검증 게이트
+ontorag learn derive-shapes schema.ttl -o shapes.ttl   # OWL → SHACL 스켈레톤 (기계 변환)
+ontorag learn populate corpus.txt --shapes shapes.ttl  # 로드 전 LLM 트리플 검증
+ontorag learn populate-structured data.csv --shapes shapes.ttl
 ```
 
 ---
@@ -330,6 +335,150 @@ ontorag learn populate-structured pokedex.jsonl --batch-size 100 --yes
 | `--batch-size` | 50 | LLM 매핑 호출당 처리 행 수 |
 | `--min-confidence` | 0.7 | 컬럼 매핑 최소 신뢰도 임계값 |
 | `--yes` | false | Fuseki 로드 확인 프롬프트 생략 |
+
+### v0.5 — SHACL 검증 게이트
+
+LLM이 만든 트리플은 *구문상* 정합해도 *의미상* 미친 값일 수 있습니다 (HP=99999, 한 포켓몬에 타입 6개, 통화 코드 "dollar"). v0.5는 LLM 출력과 Fuseki 로드 사이에 **선택적 SHACL 검증 단계**를 추가합니다 — 위반 트리플은 폐기되고 `PopulationResult.violations`로 격리됩니다.
+
+#### 왜 OWL만으론 부족한가
+
+OWL의 `rdfs:range pk:Type`는 *추론 힌트*지 *제약*이 아닙니다. 순수 OWL 입장에선 아래 트리플도 적법합니다:
+
+```turtle
+pk:Pikachu pk:hasType pk:Fire, pk:Water, pk:Grass, pk:Electric, pk:Ice, pk:Rock .
+```
+
+게임에선 불가능하지만 OWL은 `sh:maxCount` 같은 거부 가능 제약이 없습니다. SHACL이 그 공백을 채웁니다.
+
+#### Step 1 — OWL 스키마에서 스켈레톤 자동 도출
+
+기계적으로 처리되는 80%는 공짜로 가져옵니다. `schema.ttl`의 다음 조각이 있다면:
+
+```turtle
+pk:hp a owl:DatatypeProperty ;
+    rdfs:domain pk:Pokemon ; rdfs:range xsd:integer .
+pk:hasType a owl:ObjectProperty ;
+    rdfs:domain pk:Pokemon ; rdfs:range pk:Type .
+pl:vowNumber a owl:DatatypeProperty, owl:FunctionalProperty ;
+    rdfs:domain pl:Vow ; rdfs:range xsd:integer .
+```
+
+다음을 실행하면:
+
+```bash
+ontorag learn derive-shapes examples/pokemon/schema.ttl -o examples/pokemon/shapes.ttl
+```
+
+다음 결과가 나옵니다 (실제 출력, 일부):
+
+```turtle
+pk:PokemonShape a sh:NodeShape ;
+    sh:targetClass pk:Pokemon ;
+    sh:property [ sh:path pk:hp ;     sh:datatype xsd:integer ] ,
+                [ sh:path pk:hasType ; sh:class pk:Type ; sh:nodeKind sh:IRI ] .
+
+pl:VowShape a sh:NodeShape ;
+    sh:targetClass pl:Vow ;
+    sh:property [ sh:path pl:vowNumber ; sh:datatype xsd:integer ; sh:maxCount 1 ] .
+```
+
+도출은 3가지 기계적 매핑만 처리합니다:
+
+| OWL 패턴 | SHACL 제약 |
+|---|---|
+| `rdfs:range xsd:T`            | `sh:datatype xsd:T` |
+| `rdfs:range <Class>`          | `sh:class <Class>` + `sh:nodeKind sh:IRI` |
+| `a owl:FunctionalProperty`    | `sh:maxCount 1` |
+
+#### Step 2 — 도메인 지식으로 보강
+
+OWL로 표현 못 하는 나머지 20% — 열거값, 값 범위, maxCount>1 — 은 손으로 `shapes.ttl`에 추가합니다:
+
+```turtle
+pk:PokemonShape a sh:NodeShape ;
+    sh:targetClass pk:Pokemon ;
+    sh:property [
+        sh:path pk:hasType ;
+        sh:class pk:Type ; sh:nodeKind sh:IRI ;
+        sh:maxCount 2 ;                                       # ← 추가: 게임 룰
+        sh:message "포켓몬은 최대 2개의 타입만 가질 수 있다." ;
+    ] ;
+    sh:property [
+        sh:path pk:hp ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 1 ; sh:maxInclusive 999 ;             # ← 추가: 밸런스 범위
+    ] .
+
+pk:MoveShape a sh:NodeShape ;
+    sh:targetClass pk:Move ;
+    sh:property [
+        sh:path pk:category ;
+        sh:in ( "Physical" "Special" "Status" ) ;             # ← 추가: 열거값
+    ] .
+```
+
+#### Step 3 — populate에서 검증
+
+두 populate 명령 모두 shapes를 전달할 수 있습니다:
+
+```bash
+ontorag learn populate corpus.txt \
+    --shapes examples/pokemon/shapes.ttl
+
+ontorag learn populate-structured pokemon.csv \
+    --class-uri pk:Pokemon --id-column name \
+    --shapes examples/pokemon/shapes.ttl
+```
+
+shape 위반이 발생하면 CLI가 무엇이 걸렸는지 표시합니다:
+
+```
+✓ 38개 트리플을 ABox에 로드했습니다. ← pokemon.csv
+⚠ SHACL 위반으로 4건 제외됨.
+```
+
+#### Step 4 — Python에서 위반 상세 확인
+
+CLI는 카운트만, SDK는 전체 디테일을 제공합니다:
+
+```python
+from ontorag.learn.pipeline import LLMOntologyLearner
+
+result = await learner.populate_from_structured(
+    "pokemon.csv",
+    class_uri="pk:Pokemon",
+    id_column="name",
+    auto_load=True,
+    shapes_path="examples/pokemon/shapes.ttl",
+)
+
+print(f"로드: {result.triples_loaded}")
+for v in result.violations:
+    print(f"  {v.focus_node}")
+    print(f"    path: {v.result_path}")
+    print(f"    msg:  {v.message}")
+    print(f"    severity: {v.severity}")
+```
+
+LLM이 HP 값을 환각했을 때의 출력 예:
+
+```
+로드: 38
+  http://example.org/pokemon/MewTwo
+    path: http://example.org/pokemon#hp
+    msg:  HP는 1-999 범위의 정수여야 한다.
+    severity: Violation
+```
+
+#### 5개 도메인 사전 작성 shapes
+
+| 도메인 | `shapes.ttl`이 검사하는 제약 |
+|---|---|
+| `examples/pokemon/shapes.ttl`    | 타입 최대 2개, HP ∈ [1, 999], 기술 카테고리 ∈ {Physical, Special, Status} |
+| `examples/techstack/shapes.ttl`  | `firstReleased`는 `xsd:gYear`, `maintainedBy`는 IRI, 단일 homepage |
+| `examples/ods/shapes.ttl`        | chapter ∈ [1, 14], Complexity는 bigO 정확히 1개 |
+| `examples/pure_land/shapes.ttl`  | vowNumber ∈ [1, 48], contemplationOrder ∈ [1, 16] |
+| `examples/commerce/shapes.ttl`   | ISO 통화 코드 = `^[A-Z]{3}$`, foundedYear ∈ [1000, 2100], 음수 아닌 employeeCount |
 
 ### 테스트 스위트 — v0.3.1 (264개 테스트)
 

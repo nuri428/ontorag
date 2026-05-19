@@ -197,15 +197,20 @@ def learn_populate(
     yes: bool = typer.Option(
         False, "--yes", "-y", help="확인 없이 즉시 Fuseki에 로드합니다."
     ),
+    shapes: Optional[Path] = typer.Option(
+        None, "--shapes", help="SHACL shapes 파일 경로 (있으면 로드 전 검증)."
+    ),
 ) -> None:
     """A+B+C 파이프라인: 텍스트에서 ABox 트리플을 추출하고 Fuseki에 로드합니다.
 
     기본값으로 제안 트리플을 테이블로 표시한 후 y/n 로 확인합니다.
     --yes 플래그를 사용하면 확인 없이 즉시 로드합니다.
+    --shapes 옵션 지정 시 LLM이 생성한 트리플을 SHACL 규칙으로 사전 검증합니다.
 
     예시:
         ontorag learn populate corpus.txt
         ontorag learn populate corpus.txt --min-confidence 0.8 --yes
+        ontorag learn populate corpus.txt --shapes examples/pokemon/shapes.ttl
     """
     if not text_file.exists():
         console.print(f"[red]Error:[/] 파일을 찾을 수 없습니다: {text_file}")
@@ -272,19 +277,23 @@ def learn_populate(
             console.print("[dim]취소했습니다.[/]")
             raise typer.Exit(0)
 
-    async def _load() -> int:
+    async def _load() -> tuple[int, list]:
         try:
             schema = await learner._store.get_schema()
             return await learner._load_triples(
-                result.triples, result.term_typings, schema
+                result.triples, result.term_typings, schema, shapes_path=shapes
             )
         finally:
             await learner._store.aclose()
 
     with console.status("[bold]Fuseki에 로드 중..."):
-        loaded = asyncio.run(_load())
+        loaded, violations = asyncio.run(_load())
 
     console.print(f"\n[green]✓[/] [bold]{loaded:,}[/]개 트리플을 ABox에 로드했습니다.")
+    if violations:
+        console.print(
+            f"[yellow]⚠[/] SHACL 위반으로 [bold]{len(violations)}[/]건 제외됨."
+        )
 
 
 @learn_app.command("populate-structured")
@@ -308,6 +317,9 @@ def learn_populate_structured(
     yes: bool = typer.Option(
         False, "--yes", "-y", help="확인 없이 즉시 Fuseki에 로드합니다."
     ),
+    shapes: Optional[Path] = typer.Option(
+        None, "--shapes", help="SHACL shapes 파일 경로 (있으면 로드 전 검증)."
+    ),
 ) -> None:
     """구조화 파일(CSV/JSON/JSONL)에서 ABox 트리플을 생성하고 Fuseki에 로드합니다.
 
@@ -319,6 +331,7 @@ def learn_populate_structured(
         ontorag learn populate-structured pokemon.csv --class-uri pk:Pokemon --id-column name
         ontorag learn populate-structured data.jsonl --batch-size 100 --yes
         ontorag learn populate-structured nested.json --min-confidence 0.8
+        ontorag learn populate-structured pokemon.csv --shapes examples/pokemon/shapes.ttl
     """
     if not file.exists():
         console.print(f"[red]Error:[/] 파일을 찾을 수 없습니다: {file}")
@@ -415,17 +428,65 @@ def learn_populate_structured(
             console.print("[dim]취소했습니다.[/]")
             raise typer.Exit(0)
 
-    async def _load() -> int:
+    async def _load() -> tuple[int, list]:
         try:
             schema = await learner._store.get_schema()
-            return await learner._load_triples(result.triples, [], schema)
+            return await learner._load_triples(
+                result.triples, [], schema, shapes_path=shapes
+            )
         finally:
             await learner._store.aclose()
 
     with console.status("[bold]Fuseki에 로드 중..."):
-        loaded = asyncio.run(_load())
+        loaded, violations = asyncio.run(_load())
 
     console.print(
         f"\n[green]✓[/] [bold]{loaded:,}[/]개 트리플을 ABox에 로드했습니다. "
         f"[dim]← {file.name}[/]"
+    )
+    if violations:
+        console.print(
+            f"[yellow]⚠[/] SHACL 위반으로 [bold]{len(violations)}[/]건 제외됨."
+        )
+
+
+@learn_app.command("derive-shapes")
+def learn_derive_shapes(
+    schema_file: Path = typer.Argument(
+        ..., help="OWL TBox 파일 경로 (Turtle 형식)."
+    ),
+    output: Optional[Path] = typer.Option(
+        None, "--output", "-o", help="출력 파일 경로 (없으면 stdout)."
+    ),
+) -> None:
+    """OWL TBox에서 SHACL shapes 스켈레톤을 자동 도출합니다.
+
+    rdfs:range / rdfs:domain / owl:FunctionalProperty 기반 단순 매핑으로
+    스켈레톤을 만듭니다. 도메인 지식이 필요한 제약 (열거값, 값 범위, maxCount>1)은
+    출력 후 수작업으로 보강해야 합니다.
+
+    예시:
+        ontorag learn derive-shapes examples/pokemon/schema.ttl
+        ontorag learn derive-shapes examples/pokemon/schema.ttl -o examples/pokemon/shapes.ttl
+    """
+    if not schema_file.exists():
+        console.print(f"[red]Error:[/] 파일을 찾을 수 없습니다: {schema_file}")
+        raise typer.Exit(1)
+
+    from ontorag.learn.shacl import derive_from_owl
+
+    try:
+        ttl = derive_from_owl(schema_file)
+    except Exception as exc:
+        console.print(f"[red]Error:[/] SHACL 도출 실패 — {exc}")
+        raise typer.Exit(1)
+
+    if output is None:
+        typer.echo(ttl)
+        return
+
+    output.write_text(ttl, encoding="utf-8")
+    console.print(f"[green]✓[/] SHACL 스켈레톤을 [bold]{output}[/]에 저장했습니다.")
+    console.print(
+        "[dim]도메인 지식 (열거값·값 범위·maxCount>1)은 수동으로 보강하세요.[/]"
     )

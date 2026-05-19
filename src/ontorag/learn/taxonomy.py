@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from ontorag._prompts import load as _load_prompt
 from ontorag.learn._utils import class_uris, structured_call
 from ontorag.learn.base import TaxonomyRelation
 from ontorag.stores.base import SchemaResult
@@ -45,13 +46,7 @@ _TOOL_DEF: dict[str, Any] = {
     },
 }
 
-_SYSTEM = (
-    "You are an ontology expert. Given text and an OWL TBox schema, propose "
-    "rdfs:subClassOf relations: which new or mentioned concepts should be "
-    "subclasses of existing TBox classes? "
-    "Only use parent_uri values that exist in the schema. "
-    "Respond using the provided tool."
-)
+_SYSTEM = _load_prompt("ontorag.learn.prompts", "taxonomy.txt").rstrip()
 
 
 def _schema_summary(schema: SchemaResult) -> str:

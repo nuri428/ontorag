@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from ontorag.learn.shacl import ShaclViolation
 
 
 @dataclass
@@ -52,6 +55,7 @@ class PopulationResult:
     taxonomy_proposals: list[TaxonomyRelation] = field(default_factory=list)
     triples: list[ExtractedTriple] = field(default_factory=list)
     triples_loaded: int | None = None
+    violations: list["ShaclViolation"] = field(default_factory=list)
 
 
 class OntologyLearner(Protocol):
