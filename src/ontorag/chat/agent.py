@@ -375,9 +375,17 @@ class AgentLoop:
     Drives multi-turn tool-use iteration until the LLM returns end_turn.
     All events are yielded as dicts that the /chat route converts to SSE.
     Conversation history is preserved across calls to run() for REPL sessions.
+
+    Performance optimizations (vendor-agnostic):
+    - Tool dispatch within a turn runs in parallel via asyncio.gather.
+    - Tool results are deduplicated per session: identical (tool, args)
+      pairs only hit the graph store once. The graph store is treated as
+      read-only within a chat session, so cached results remain valid.
     """
 
-    MAX_TURNS = 12
+    # MAX_TURNS=8 covers measured worst case (3 turns) with safety margin.
+    # Was 12; trimmed to surface runaway prompts faster.
+    MAX_TURNS = 8
 
     def __init__(
         self,
@@ -396,6 +404,9 @@ class AgentLoop:
         self._history: list[dict[str, Any]] = (
             list(initial_history) if initial_history else []
         )
+        # (tool_name, json.dumps(args, sort_keys=True)) → tool_result dict
+        # Persists across run() calls so REPL repeat-questions hit cache.
+        self._tool_cache: dict[tuple[str, str], Any] = {}
 
     async def run(self, user_message: str) -> AsyncGenerator[dict[str, Any], None]:
         """Run one user turn and yield SSE event dicts until done.
@@ -449,18 +460,16 @@ class AgentLoop:
 
             assistant_blocks: list[dict[str, Any]] = []
             tool_results: list[dict[str, Any]] = []
+            tool_use_blocks: list[Any] = []
 
+            # First pass: yield text immediately, collect tool_use for batch dispatch
             for block in response.content:
                 if block.type == "text":
                     yield {"type": "text", "content": block.text}
                     assistant_blocks.append({"type": "text", "text": block.text})
 
                 elif block.type == "tool_use":
-                    yield {
-                        "type": "tool_call",
-                        "tool": block.name,
-                        "content": block.input,
-                    }
+                    tool_use_blocks.append(block)
                     assistant_blocks.append(
                         {
                             "type": "tool_use",
@@ -470,22 +479,69 @@ class AgentLoop:
                         }
                     )
 
-                    tool_t0 = time.perf_counter()
-                    try:
-                        result = await self._call_tool(block.name, block.input)
-                    except Exception as exc:
-                        logger.warning("Tool %s failed: %s", block.name, exc)
-                        result = {"error": str(exc)}
-                    phase_timings.append(
-                        {
-                            "phase": "tool_call",
-                            "turn": turn,
-                            "tool": block.name,
-                            "ms": (time.perf_counter() - tool_t0) * 1000,
-                        }
-                    )
+            # Emit all tool_call events in original order before dispatching
+            for block in tool_use_blocks:
+                yield {
+                    "type": "tool_call",
+                    "tool": block.name,
+                    "content": block.input,
+                }
 
-                    yield {"type": "tool_result", "tool": block.name, "content": result}
+            # Pre-dedup within this turn: identical (tool, args) only fetched once
+            unique_calls: dict[tuple[str, str], list[Any]] = {}
+            for block in tool_use_blocks:
+                key = (block.name, json.dumps(block.input, sort_keys=True, default=str))
+                unique_calls.setdefault(key, []).append(block)
+
+            async def _fetch_one(
+                key: tuple[str, str], blocks: list[Any]
+            ) -> tuple[tuple[str, str], Any, float, bool]:
+                if key in self._tool_cache:
+                    return key, self._tool_cache[key], 0.0, True
+                t0 = time.perf_counter()
+                sample = blocks[0]
+                try:
+                    result = await self._call_tool(sample.name, sample.input)
+                    self._tool_cache[key] = result
+                except Exception as exc:
+                    logger.warning("Tool %s failed: %s", sample.name, exc)
+                    result = {"error": str(exc)}
+                    # Don't cache errors — transient failures should retry
+                return key, result, (time.perf_counter() - t0) * 1000, False
+
+            if tool_use_blocks:
+                gather_t0 = time.perf_counter()
+                fetched = await asyncio.gather(
+                    *(_fetch_one(k, v) for k, v in unique_calls.items())
+                )
+                gather_ms = (time.perf_counter() - gather_t0) * 1000
+
+                key_to_result = {k: r for k, r, _, _ in fetched}
+                cache_hits = sum(1 for _, _, _, hit in fetched if hit)
+
+                phase_timings.append(
+                    {
+                        "phase": "tool_call",
+                        "turn": turn,
+                        "n_blocks": len(tool_use_blocks),
+                        "n_unique": len(unique_calls),
+                        "cache_hits": cache_hits,
+                        "ms": gather_ms,
+                    }
+                )
+
+                # Emit tool_result events in original block order
+                for block in tool_use_blocks:
+                    key = (
+                        block.name,
+                        json.dumps(block.input, sort_keys=True, default=str),
+                    )
+                    result = key_to_result[key]
+                    yield {
+                        "type": "tool_result",
+                        "tool": block.name,
+                        "content": result,
+                    }
                     tool_results.append(
                         {
                             "type": "tool_result",

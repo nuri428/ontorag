@@ -276,3 +276,217 @@ async def test_agent_done_is_last_event():
     events = await _collect(agent.run("test"))
 
     assert events[-1]["type"] == "done"
+
+
+# ── B: parallel tool dispatch ────────────────────────────────────────────────
+
+
+async def test_agent_dispatches_multiple_tools_in_parallel():
+    """Two tool_use blocks in one turn must execute via asyncio.gather,
+    so wall-clock time ≈ max(t1, t2), not t1 + t2."""
+    import asyncio
+    import time as _time
+
+    store = _make_store()
+
+    async def _slow_count(_class_uri):
+        await asyncio.sleep(0.10)
+        return 7
+
+    async def _slow_schema():
+        await asyncio.sleep(0.10)
+        return MagicMock(model_dump=lambda: {"classes": []})
+
+    store.count_entities = AsyncMock(side_effect=_slow_count)
+    store.get_schema = AsyncMock(side_effect=_slow_schema)
+
+    llm = AsyncMock()
+    llm.complete = AsyncMock(
+        side_effect=[
+            _make_llm_response(
+                "tool_use",
+                [
+                    _ToolUseBlock(id="t1", name="get_schema", input={}),
+                    _ToolUseBlock(
+                        id="t2",
+                        name="count_entities",
+                        input={"class_uri": "pk:Pokemon"},
+                    ),
+                ],
+            ),
+            _make_llm_response("end_turn", [_TextBlock(text="ok")]),
+        ]
+    )
+
+    agent = AgentLoop(store, llm)
+    t0 = _time.perf_counter()
+    events = await _collect(agent.run("test"))
+    elapsed = _time.perf_counter() - t0
+
+    # Serial would take ≥ 0.20s; parallel completes in ≈ 0.10s plus overhead.
+    # Allow 0.18s ceiling for slow CI runners while still proving parallelism.
+    assert elapsed < 0.18, f"Tool dispatch ran serially ({elapsed:.3f}s)"
+
+    # Both tools were invoked exactly once
+    store.get_schema.assert_awaited_once()
+    store.count_entities.assert_awaited_once_with("pk:Pokemon")
+
+    # tool_call events emitted in original order, before tool_result events
+    types = [e["type"] for e in events]
+    first_result = types.index("tool_result")
+    last_call = max(i for i, t in enumerate(types) if t == "tool_call")
+    assert last_call < first_result, "tool_call events must all precede tool_result"
+
+
+async def test_agent_emits_tool_results_in_block_order():
+    """Even when tools complete out of order via gather, tool_result events
+    must follow the original block order (clients depend on this)."""
+    import asyncio
+
+    store = _make_store()
+
+    async def _fast_schema():
+        await asyncio.sleep(0.01)
+        return MagicMock(model_dump=lambda: {"classes": []})
+
+    async def _slow_count(_class_uri):
+        await asyncio.sleep(0.05)
+        return 99
+
+    store.get_schema = AsyncMock(side_effect=_fast_schema)
+    store.count_entities = AsyncMock(side_effect=_slow_count)
+
+    llm = AsyncMock()
+    llm.complete = AsyncMock(
+        side_effect=[
+            _make_llm_response(
+                "tool_use",
+                [
+                    # count_entities is slower but appears first
+                    _ToolUseBlock(
+                        id="a",
+                        name="count_entities",
+                        input={"class_uri": "pk:Pokemon"},
+                    ),
+                    _ToolUseBlock(id="b", name="get_schema", input={}),
+                ],
+            ),
+            _make_llm_response("end_turn", [_TextBlock(text="ok")]),
+        ]
+    )
+
+    agent = AgentLoop(store, llm)
+    events = await _collect(agent.run("test"))
+
+    result_events = [e for e in events if e["type"] == "tool_result"]
+    assert [e["tool"] for e in result_events] == ["count_entities", "get_schema"]
+
+
+# ── C: session-scoped tool result dedup ──────────────────────────────────────
+
+
+async def test_agent_dedup_identical_tool_calls_in_same_turn():
+    """LLM occasionally requests the same tool twice in one turn.
+    The store should only be hit once; both tool_result events use the cached value."""
+    store = _make_store()
+    store.count_entities = AsyncMock(return_value=42)
+
+    llm = AsyncMock()
+    llm.complete = AsyncMock(
+        side_effect=[
+            _make_llm_response(
+                "tool_use",
+                [
+                    _ToolUseBlock(
+                        id="x", name="count_entities", input={"class_uri": "pk:P"}
+                    ),
+                    _ToolUseBlock(
+                        id="y", name="count_entities", input={"class_uri": "pk:P"}
+                    ),
+                ],
+            ),
+            _make_llm_response("end_turn", [_TextBlock(text="ok")]),
+        ]
+    )
+
+    agent = AgentLoop(store, llm)
+    await _collect(agent.run("dup"))
+
+    # Two identical tool_use blocks → store called once thanks to in-turn dedup
+    assert store.count_entities.await_count == 1
+
+
+async def test_agent_dedup_across_consecutive_runs():
+    """REPL: same question / same tool args across two run() calls must
+    only hit the store once (session-persistent cache)."""
+    store = _make_store()
+    store.get_schema = AsyncMock(
+        return_value=MagicMock(model_dump=lambda: {"classes": ["A"]})
+    )
+
+    def _tool_call_response():
+        return _make_llm_response(
+            "tool_use", [_ToolUseBlock(id="x", name="get_schema", input={})]
+        )
+
+    llm = AsyncMock()
+    llm.complete = AsyncMock(
+        side_effect=[
+            _tool_call_response(),
+            _make_llm_response("end_turn", [_TextBlock(text="r1")]),
+            _tool_call_response(),
+            _make_llm_response("end_turn", [_TextBlock(text="r2")]),
+        ]
+    )
+
+    agent = AgentLoop(store, llm)
+    await _collect(agent.run("q1"))
+    await _collect(agent.run("q2"))
+
+    # Second run hits cache → store still called only once
+    assert store.get_schema.await_count == 1
+
+
+async def test_agent_dedup_does_not_cache_errors():
+    """An error result must NOT be cached — transient failures should retry."""
+    store = _make_store()
+    call_count = 0
+
+    async def _flaky_schema():
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise RuntimeError("transient")
+        return MagicMock(model_dump=lambda: {"classes": []})
+
+    store.get_schema = AsyncMock(side_effect=_flaky_schema)
+
+    def _tool_call_response():
+        return _make_llm_response(
+            "tool_use", [_ToolUseBlock(id="x", name="get_schema", input={})]
+        )
+
+    llm = AsyncMock()
+    llm.complete = AsyncMock(
+        side_effect=[
+            _tool_call_response(),
+            _make_llm_response("end_turn", [_TextBlock(text="r1")]),
+            _tool_call_response(),
+            _make_llm_response("end_turn", [_TextBlock(text="r2")]),
+        ]
+    )
+
+    agent = AgentLoop(store, llm)
+    await _collect(agent.run("q1"))
+    await _collect(agent.run("q2"))
+
+    # First run errored (not cached), second run retried → store hit twice
+    assert call_count == 2
+
+
+# ── D: MAX_TURNS guard ───────────────────────────────────────────────────────
+
+
+async def test_agent_max_turns_is_eight():
+    """Document the runaway guard — was 12, trimmed to 8 (measured worst ≈ 3)."""
+    assert AgentLoop.MAX_TURNS == 8
