@@ -76,7 +76,7 @@ class FusekiStore(_EntityMixin, _TraversalMixin):
         """
         return cls(
             url=os.environ.get("FUSEKI_URL", "http://localhost:3030"),
-            dataset=os.environ.get("FUSEKI_DATASET", "ontology"),
+            dataset=os.environ.get("FUSEKI_DATASET", "ontorag"),
             user=os.environ.get("FUSEKI_USER", "admin"),
             password=os.environ.get("FUSEKI_PASSWORD", "admin"),
         )
