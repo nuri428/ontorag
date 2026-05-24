@@ -150,7 +150,15 @@ Ontology-aware tools exposed via MCP, embedded in FastAPI process. Each tool ret
 |---|---|---|
 | `query_sparql_raw` | POST /tools/query/sparql | `exclude_operations`으로 MCP에서 제외, curl 디버그용 |
 
-Inference 레이어: Fuseki 데이터셋을 `ja:OntModelSpec` 추론 모델로 구성하면 `find_entities(Animal)`이 rdfs:subClassOf를 통해 Dog/Cat 인스턴스를 자동 포함 — 툴 코드 변경 없음.
+**Backend-capability tools (MCP 노출, 백엔드가 지원할 때만)**
+
+Protocol 공통이 아니라 특정 백엔드 능력. 라우트가 `getattr`로 지원 여부를 확인하고, 미지원 백엔드는 501. (raw SPARQL의 Fuseki 전용 격리와 같은 패턴.)
+
+| operation_id | 엔드포인트 | 백엔드 | 설명 |
+|---|---|---|---|
+| `search_text` | POST /tools/search/text | Neo4j (v0.5) | BM25 풀텍스트 검색. Neo4j fulltext 인덱스(`db.index.fulltext.queryNodes`) → ranked `SearchHit`. `class_uri` 주면 subClassOf 포함 instance로 제한. Fuseki는 501. |
+
+Inference 레이어: Fuseki 데이터셋을 `ja:OntModelSpec` 추론 모델로 구성하면 `find_entities(Animal)`이 rdfs:subClassOf를 통해 Dog/Cat 인스턴스를 자동 포함 — 툴 코드 변경 없음. (Neo4j 백엔드는 이 추론을 이미 Cypher로 구현 — v0.5 참고.)
 
 ## CLI design
 

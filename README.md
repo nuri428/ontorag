@@ -93,6 +93,12 @@ Same CLI, same MCP tools — only the backend differs. On Neo4j, `find_entities`
 follows `rdfs:subClassOf` natively, so querying a parent class returns subclass
 instances (the default `--mem` Fuseki does not infer this).
 
+The Neo4j backend also adds **BM25 full-text search** — an extra MCP tool
+`search_text(query, class_uri?, limit)` backed by a Lucene full-text index over
+all string properties (`db.index.fulltext.queryNodes`). It returns ranked
+`SearchHit`s with relevance scores; an optional `class_uri` restricts hits to a
+class and its subclasses. On Fuseki this tool returns `501 Not Implemented`.
+
 ---
 
 ## Web UI
