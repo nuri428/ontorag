@@ -66,6 +66,12 @@ bench = [
     "ragas>=0.2.0",
     "datasets>=2.0.0",
 ]
+neo4j = [
+    # Neo4j + neosemantics (n10s) backend — install only when running with
+    # GRAPH_STORE=neo4j. The fuseki default needs none of this. The async
+    # driver lives in neo4j>=5 (neo4j.AsyncGraphDatabase).
+    "neo4j>=5.14.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/nuri428/ontorag"
