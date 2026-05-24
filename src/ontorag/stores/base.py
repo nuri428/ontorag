@@ -293,12 +293,16 @@ class GraphStore(Protocol):
         self,
         path: str,
         mode: Literal["schema", "data", "auto"] = "auto",
+        replace: bool = False,
     ) -> LoadResult:
         """Load an RDF file (TBox or ABox) into the store.
 
         Args:
             path: Local file path (TTL, JSON-LD, RDF/XML).
             mode: "schema" replaces the TBox graph; "data" appends to ABox.
+            replace: If True and mode resolves to "data", replace the entire
+                data graph instead of appending. Ignored for schema, which is
+                always replaced (one canonical TBox per store).
 
         Returns:
             Triple count and resolved mode.
