@@ -36,6 +36,8 @@ Measured on identical TBox + ABox + goldsets — see [BENCHMARK_RESULTS.md](BENC
 
 Vector RAG handles flat lookups well — the structural advantage of ontorag appears on **transitive inference**, **provenance**, and **measurable grounding**.
 
+**Speed:** the graph layer adds only ~1.5% of wall time — query latency is LLM-bound. See [Performance — agent latency profile](#performance--agent-latency-profile).
+
 ---
 
 ## Key features
