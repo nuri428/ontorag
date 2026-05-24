@@ -888,6 +888,40 @@ Approximate cost: ~$7-9 for the full 4-domain × 2-baseline run with
 
 ---
 
+## Performance — agent latency profile
+
+Quality is one axis; speed is another. A separate benchmark
+(`scripts/bench_query_speed_4domain.py`) profiles where wall-clock time goes in
+the agent loop — the same four domains, 20 questions each (80 total), agent =
+`gpt-4o`, against a warm Fuseki.
+
+| Domain | wall p50 | wall mean | wall p95 | LLM share | tool calls / Q | prompt tok / Q | prompt-cache hit |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| pokemon   | 1477 ms | 1601 ms | 2219 ms | 98.6% | 1.10 | 5,550  | 77.9% |
+| techstack | 1573 ms | 1744 ms | 2512 ms | 98.3% | 1.15 | 5,502  | 79.6% |
+| ods       | 1633 ms | 1876 ms | 2486 ms | 98.4% | 1.30 | 6,172  | 80.9% |
+| pure_land | 1650 ms | 1844 ms | 2740 ms | 98.7% | 1.05 | 10,031 | 71.9% |
+
+**Tool execution (SPARQL over HTTP to Fuseki) is ~1.5% of wall time — a median
+of 21 ms per question.** Most questions resolve in a single tool call. Latency
+is dominated by LLM round-trips (98.5%), so the practical levers are round-trip
+count (bounded by `MAX_TURNS`) and model choice — not the graph layer. Because
+the 20 questions in a domain share the same schema prompt prefix, OpenAI prompt
+caching warms to 72–81%, keeping per-query cost low when one ontology is queried
+repeatedly.
+
+> Numbers are a single run on one machine (`gpt-4o`, local Fuseki); absolute
+> latency varies with model, hardware, and network. The **shape** — LLM-bound,
+> graph layer negligible — is the durable result.
+
+Reproduce:
+
+```bash
+FUSEKI_DATASET=ontorag uv run python scripts/bench_query_speed_4domain.py --n 20
+```
+
+---
+
 ## Roadmap
 
 - **v0.1** — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE streaming ✅

@@ -819,6 +819,39 @@ uv run ontorag eval bench examples/pokemon/goldset.jsonl \
 
 ---
 
+## 성능 — 에이전트 latency 프로파일
+
+품질이 한 축이라면 속도는 다른 축입니다. 별도 벤치
+(`scripts/bench_query_speed_4domain.py`)가 에이전트 루프에서 wall-clock 시간이
+어디로 가는지 측정합니다 — 동일한 네 도메인, 각 20문항(총 80), agent = `gpt-4o`,
+warm Fuseki 기준.
+
+| 도메인 | wall p50 | wall mean | wall p95 | LLM 비중 | 툴 호출/Q | prompt tok/Q | prompt-cache |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| pokemon   | 1477 ms | 1601 ms | 2219 ms | 98.6% | 1.10 | 5,550  | 77.9% |
+| techstack | 1573 ms | 1744 ms | 2512 ms | 98.3% | 1.15 | 5,502  | 79.6% |
+| ods       | 1633 ms | 1876 ms | 2486 ms | 98.4% | 1.30 | 6,172  | 80.9% |
+| pure_land | 1650 ms | 1844 ms | 2740 ms | 98.7% | 1.05 | 10,031 | 71.9% |
+
+**툴 실행(Fuseki로의 HTTP SPARQL)은 wall time의 ~1.5% — 질문당 median 21 ms**
+입니다. 대부분의 질문은 단일 툴 호출로 해결됩니다. latency는 LLM 왕복(98.5%)이
+지배하므로, 실질적인 레버는 왕복 횟수(`MAX_TURNS`로 상한)와 모델 선택이지 그래프
+레이어가 아닙니다. 도메인당 20문항이 동일한 schema 프롬프트 prefix를 공유하므로
+OpenAI prompt 캐싱이 72~81%까지 데워져, 하나의 온톨로지를 반복 질의할 때 질문당
+비용이 낮게 유지됩니다.
+
+> 수치는 한 머신에서의 단일 실행(`gpt-4o`, 로컬 Fuseki)이며, 절대 latency는 모델·
+> 하드웨어·네트워크에 따라 달라집니다. **형태**(LLM-bound, 그래프 레이어 무시 가능)가
+> 변하지 않는 결론입니다.
+
+재현:
+
+```bash
+FUSEKI_DATASET=ontorag uv run python scripts/bench_query_speed_4domain.py --n 20
+```
+
+---
+
 ## 로드맵
 
 - **v0.1** — Fuseki · Anthropic · OpenAI · Ollama · CLI · SSE 스트리밍 ✅
