@@ -66,9 +66,15 @@ Out of scope for v0.3:
 - Fully automated schema evolution (new class proposals without human review)
 - BPM, notifications, multi-tenant, vector similarity (v0.5+)
 
-### v0.5 (planned)
-- Neo4j + n10s adapter; `GRAPH_STORE=fuseki|neo4j` env var
-- Vector similarity tool `find_similar` (Neo4j vector index or Qdrant)
+### v0.5 — Neo4j backend (shipped)
+- **Neo4j + neosemantics (n10s) adapter** behind `GRAPH_STORE=fuseki|neo4j` (default fuseki). `create_store()` factory selects the backend; all tools/routes/CLI depend on the `GraphStore` protocol only.
+- n10s import: `handleVocabUris=SHORTEN` + `handleRDFTypes=LABELS_AND_NODES`. URIs round-trip through a shorten/expand layer with prefixes pinned from the loaded TTL.
+- **subClassOf inference is implemented natively on Neo4j** (Cypher `[:rdfs__subClassOf*0..N]`), so `find_entities(Animal)` includes Dog/Cat instances. ⚠️ This *diverges* from the current Fuseki deployment, which runs `--mem` with inference OFF (plain type-match). See Open questions.
+- L2 `query_pattern` translated via `core/cypher.py` (`pattern_to_cypher`), symmetric to the SPARQL translator. All Cypher rel-types/labels routed through `_safe_rel()` (injection-safe).
+- Design note: `docs/design/neo4j-n10s.md`. Verified live against `neo4j:5.26` + n10s 5.26.
+
+### v0.5+ (still planned)
+- Vector similarity tool `find_similar` (Neo4j vector index or Qdrant) + BM25/full-text search
 - Multi-ontology per instance
 
 ## Architecture
@@ -330,11 +336,18 @@ ontorag/
 │   │           └── learning.py    # v0.3 L1: type_term, extract_triples (MCP exposed)
 │   ├── core/
 │   │   ├── loader.py          # RDF parsing & loading (with progress callback)
-│   │   └── sparql.py          # PatternQuery DSL → SPARQL translator
+│   │   ├── sparql.py          # PatternQuery DSL → SPARQL translator (Fuseki)
+│   │   └── cypher.py          # PatternQuery DSL → Cypher translator (Neo4j) + _safe_rel
 │   ├── stores/
 │   │   ├── base.py            # GraphStore Protocol + result types
+│   │   ├── factory.py         # create_store() — GRAPH_STORE=fuseki|neo4j
 │   │   ├── fuseki.py          # v0.1 default (SPARQL over HTTP)
-│   │   └── neo4j.py           # v0.5 (Cypher + n10s SPARQL endpoint)
+│   │   ├── neo4j.py           # v0.5 (Neo4j + n10s, async driver)
+│   │   ├── _neo4j_schema_mixin.py    # get_schema / get_class_detail
+│   │   ├── _neo4j_entity_mixin.py    # find/describe/count/aggregate
+│   │   ├── _neo4j_traversal_mixin.py # traverse/path/closure/related
+│   │   ├── _neo4j_export.py          # dump_graph TTL/XLSX serialisation
+│   │   └── _neo4j_values.py          # n10s ARRAY-multival unpack helpers
 │   ├── llm/
 │   │   ├── base.py            # LLMProvider abstract base
 │   │   ├── anthropic.py
@@ -419,9 +432,12 @@ Fuseki healthcheck: `GET /$/ping` → 200 OK.
 
 **Quality bar**: Task A top-1 accuracy ≥ 70% on Pokémon example; output RDF parses cleanly.
 
-### v0.5 (planned)
-- Neo4j + n10s adapter; `GRAPH_STORE` env var
-- Vector similarity tool `find_similar`
+### v0.5 — Neo4j backend ✅ shipped
+- Neo4j + n10s adapter behind `GRAPH_STORE` env var (factory-selected); full GraphStore protocol in Cypher with native subClassOf inference; `pattern_to_cypher` for L2; live-tested against neo4j:5.26.
+- `docker compose --profile neo4j up neo4j` to run the backend; `[neo4j]` extra for the driver.
+
+### v0.5+ (planned)
+- Vector similarity tool `find_similar` + BM25/full-text search
 - Multi-ontology per instance
 
 ## What NOT to do (anti-patterns)
@@ -438,8 +454,9 @@ Fuseki healthcheck: `GET /$/ping` → 200 OK.
 
 ## Open questions (decide when reached)
 
-- L2 `query_pattern` DSL 검증 전략: predicate/class URI를 TBox 화이트리스트로 체크 + `limit`/`max_depth` 상한. Day 4에 결정. (Raw SPARQL은 L3로 LLM 비노출이므로 인젝션 우려 없음.)
-- Neo4j SPARQL via n10s endpoint vs. native Cypher translation: evaluate at Phase 1.5.
+- ✅ L2 `query_pattern` DSL 검증: 구조적 검증(SPARQL 측 `PatternTriple` regex) + Cypher 측 `_safe_rel()` allowlist + `*` 경로 상한으로 결정.
+- ✅ Neo4j SPARQL via n10s endpoint vs. native Cypher translation: **native Cypher translation** 채택 (`core/cypher.py`).
+- ⚠️ **subClassOf 추론 백엔드 divergence**: Neo4j는 추론 ON(`[:rdfs__subClassOf*]`), 현 Fuseki는 `--mem`로 OFF → 같은 질의가 다른 결과. 후속 과제: Fuseki 데이터셋을 `ja:OntModelSpec` 추론 모델로 켜서 양 백엔드를 재수렴시킬지 결정. (켜기 전까지 `find_entities`/`count_entities`는 백엔드별로 결과가 다를 수 있음.)
 - Vector similarity tool (Phase 2): Neo4j vector index vs. Qdrant? 별도 L1 툴 `find_similar`로 추가할지, `query_pattern`에 vector filter로 통합할지 결정 필요.
 - Multi-ontology per instance: not in v0.1. Single ontology assumption.
 - Auth/multi-tenant: not in v0.1. Single-user assumption.

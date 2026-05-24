@@ -48,7 +48,7 @@ Vector RAG handles flat lookups well — the structural advantage of ontorag app
 | **Agentic MCP loop** | LLM calls 9 typed tools; tool calls visible in SSE stream |
 | **Web UI** | Built-in browser interface — Schema graph, Data browser, Playground chat at `/ui` |
 | **Multi-LLM** | Anthropic Claude · OpenAI · Ollama (local) |
-| **GraphStore Protocol** | Abstract interface — swap Fuseki → Neo4j without changing tool code |
+| **Pluggable backend** | `GRAPH_STORE=fuseki` (default) or `neo4j` (Neo4j + n10s) — same tools, no code change. Neo4j adds native `rdfs:subClassOf` inference. |
 | **SSE streaming** | `thinking / tool_call / tool_result / text / done / rate_limit` events |
 | **Progressive disclosure** | `get_schema` (compact) + `get_class_detail` (drill-down) |
 | **Injection-safe L2 DSL** | `query_pattern` translates JSON triple patterns to SPARQL internally |
@@ -77,6 +77,21 @@ uv run ontorag chat
 Example session:
 
 ![Pokemon chat demo](assets/pokemon_chat_en.png)
+
+### Use Neo4j instead of Fuseki
+
+The backend is selected by `GRAPH_STORE`. To run on Neo4j + neosemantics (n10s):
+
+```bash
+docker compose --profile neo4j up -d neo4j   # neo4j 5.26 with apoc + n10s
+export GRAPH_STORE=neo4j                       # NEO4J_URI/USER/PASSWORD in .env
+uv run ontorag load schema examples/pokemon/schema.ttl
+uv run ontorag load data   examples/pokemon/data.ttl
+```
+
+Same CLI, same MCP tools — only the backend differs. On Neo4j, `find_entities`
+follows `rdfs:subClassOf` natively, so querying a parent class returns subclass
+instances (the default `--mem` Fuseki does not infer this).
 
 ---
 
@@ -129,8 +144,8 @@ User  (CLI / browser)
 └──────────────────┼─────────────────────┘
                    │ SPARQL (HTTP)
                    ▼
-        Apache Jena Fuseki   ← v0.1–v0.3.2
-        Neo4j + n10s         ← v0.5
+   Apache Jena Fuseki  (SPARQL)  ← default, GRAPH_STORE=fuseki
+   Neo4j + n10s        (Cypher)  ← v0.5, GRAPH_STORE=neo4j
 ```
 
 ### SSE event types

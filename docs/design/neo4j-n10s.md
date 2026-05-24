@@ -77,12 +77,27 @@ CALL n10s.graphconfig.init({
 | `query_pattern` | `pattern_to_cypher` (BGP triples → MATCH, filters → WHERE) |
 | `dump_graph` | `n10s.rdf.export.cypher` / full-graph export |
 
-## Open items (confirm against live Neo4j in P1-7)
+## Resolved (verified live against neo4j:5.26 + n10s 5.26, P1-7)
 
-- Exact export procedure name/signature for `dump_graph`.
-- `handleMultival: ARRAY` vs `OVERWRITE` effect on `describe_entity` shape.
-- Whether `keepLangTag` changes label match in `property_path_closure` (Fuseki
-  resolves labels lang-insensitively — must match that).
+- **dump_graph**: `n10s.rdf.export.*` round-trips — re-parsed TTL preserves
+  `rdf:type` + datatype literals (e.g. `nationalDex`). XLSX path via rdflib.
+- **`handleMultival: ARRAY`**: every datatype prop is stored as a list; the
+  adapter unwraps single-element arrays to scalars (`stores/_neo4j_values.py`)
+  so outputs match the Fuseki shape.
+- **`keepLangTag: true`**: `rdfs__label` values keep `@lang`; label lookup in
+  `property_path_closure` matches lang- and case-insensitively (parity with Fuseki).
+- **Cypher injection**: all rel-type/label/prop-key interpolation routes through
+  `core/cypher.py::_safe_rel()` (allowlist regex); all values are bound
+  parameters. Variable-length paths are depth-capped (`subClassOf*0..N`, pred `*1..6`).
+
+## Known divergence from Fuseki (intentional)
+
+- **subClassOf inference is ON for Neo4j, OFF for the current Fuseki deploy**
+  (`--mem`, no reasoner). `find_entities`/`count_entities` therefore return
+  different sets across backends. Follow-up: enable `ja:OntModelSpec` reasoning
+  on Fuseki to re-converge, or document the difference as backend-specific.
+- TBox/ABox separation is label-based (no named graphs); `clear_graph` counts
+  are node counts, and `status().triple_count` is approximate.
 
 ## Sources
 

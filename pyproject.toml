@@ -97,6 +97,9 @@ artifacts = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: tests that require a live backend (e.g. Neo4j on bolt://localhost:7687); deselect with -m 'not integration'",
+]
 
 [dependency-groups]
 dev = [
