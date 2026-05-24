@@ -12,6 +12,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from ontorag.core.cypher import _safe_rel
+from ontorag.stores._neo4j_values import first_scalar
 from ontorag.stores.base import EntityFilter, TraversalDirection, TraversalResult
 
 if TYPE_CHECKING:
@@ -166,10 +167,8 @@ class _Neo4jTraversalMixin:
         rel_froms: list[str] = row["rel_froms"] or []
         rel_tos: list[str] = row["rel_tos"] or []
 
-        from ontorag.stores._neo4j_entity_mixin import _first_scalar  # noqa: PLC0415
-
         nodes = [
-            {"uri": uri, "label": _first_scalar(lbl)}
+            {"uri": uri, "label": first_scalar(lbl)}
             for uri, lbl in zip(node_uris, node_labels)
         ]
         edges = [
@@ -224,8 +223,6 @@ class _Neo4jTraversalMixin:
 
         # Validate the shortened rel-type before any backtick interpolation.
         short_pred = _safe_rel(self._shorten_prefixed(predicate_uri))
-        from ontorag.stores._neo4j_entity_mixin import _first_scalar  # noqa: PLC0415
-
         if start_uri:
             # Mode 1: instance closure. start_class_uri is parameterized
             # (never f-string interpolated) to prevent Cypher injection.
@@ -305,7 +302,7 @@ class _Neo4jTraversalMixin:
         return [
             {
                 "uri": row["uri"],
-                "label": _first_scalar(row.get("label")),
+                "label": first_scalar(row.get("label")),
             }
             for row in rows
             if row.get("uri")
@@ -339,7 +336,6 @@ class _Neo4jTraversalMixin:
         short_pred = _safe_rel(self._shorten_prefixed(predicate))
         from ontorag.stores._neo4j_entity_mixin import (  # noqa: PLC0415
             _build_filter_cypher,
-            _first_scalar,
         )
 
         # Build filter conditions for a and b separately
@@ -399,12 +395,12 @@ class _Neo4jTraversalMixin:
                 {
                     "entity_a": {
                         "uri": row["uri_a"],
-                        "label": _first_scalar(row.get("label_a")),
+                        "label": first_scalar(row.get("label_a")),
                         "class_uri": class_uri_a,
                     },
                     "entity_b": {
                         "uri": row["uri_b"],
-                        "label": _first_scalar(row.get("label_b")),
+                        "label": first_scalar(row.get("label_b")),
                         "class_uri": class_uri_b,
                     },
                 }
@@ -478,10 +474,8 @@ async def _enrich_labels(
         "RETURN n.uri AS uri, n.rdfs__label AS label",
         uris=uris,
     )
-    from ontorag.stores._neo4j_entity_mixin import _first_scalar  # noqa: PLC0415
-
     label_map = {
-        row["uri"]: _first_scalar(row.get("label"))
+        row["uri"]: first_scalar(row.get("label"))
         for row in rows
         if row.get("uri")
     }
@@ -511,10 +505,8 @@ async def _enrich_edge_pred_labels(
         "RETURN p.uri AS uri, p.rdfs__label AS label",
         uris=pred_uris,
     )
-    from ontorag.stores._neo4j_entity_mixin import _first_scalar  # noqa: PLC0415
-
     label_map = {
-        row["uri"]: _first_scalar(row.get("label"))
+        row["uri"]: first_scalar(row.get("label"))
         for row in rows
         if row.get("uri")
     }

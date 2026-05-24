@@ -13,6 +13,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from ontorag.core.sparql import STANDARD_PREFIXES
+from ontorag.stores._neo4j_values import first_scalar as _first_value
 from ontorag.stores.base import (
     ClassDetail,
     ClassSummary,
@@ -309,25 +310,3 @@ class _Neo4jSchemaMixin:
             instance_count=inst_count,
             sample_instance_uris=[r["uri"] for r in inst_rows if r.get("uri")],
         )
-
-
-# ── Helper ────────────────────────────────────────────────────────────────────
-
-
-def _first_value(val: Any) -> Any:
-    """Return the first element of a list value, or the value itself.
-
-    n10s (handleMultival=ARRAY) stores every property as a list; schema
-    metadata fields are single-valued, so we surface the first element.
-
-    Args:
-        val: Raw value from Neo4j (list or scalar).
-
-    Returns:
-        First list element, the scalar, or None.
-    """
-    if val is None:
-        return None
-    if isinstance(val, list):
-        return val[0] if val else None
-    return val

@@ -116,7 +116,13 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin):
         # prefix → namespace mapping (populated from _NsPrefDef after each load)
         self._prefix_to_ns: dict[str, str] = {}
         self._ns_to_prefix: dict[str, str] = {}
+        # Namespaces pre-sorted longest-first so _shorten() picks the most
+        # specific match without re-sorting on every call.
+        self._ns_sorted: list[tuple[str, str]] = []
         self._prefix_map_loaded: bool = False
+        # Serialises concurrent prefix-map reloads (avoids duplicate DB hits
+        # and torn reads when several tools call _ensure_prefix_map at once).
+        self._prefix_lock = asyncio.Lock()
 
     @classmethod
     def from_env(cls) -> Neo4jStore:
@@ -184,22 +190,33 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin):
     # ── Prefix map ────────────────────────────────────────────────────────────
 
     async def _reload_prefix_map(self) -> None:
-        """Refresh the bidirectional prefix ↔ namespace map from n10s _NsPrefDef."""
-        records = await self._run("MATCH (p:_NsPrefDef) RETURN properties(p) AS props")
-        if not records:
-            return
-        # _NsPrefDef stores all prefixes as properties on a single node
-        props = records[0].get("props", {})
-        new_p2n: dict[str, str] = {}
-        new_n2p: dict[str, str] = {}
-        for prefix, ns in props.items():
-            if isinstance(ns, str) and ns.startswith("http"):
-                new_p2n[prefix] = ns
-                new_n2p[ns] = prefix
-        self._prefix_to_ns = new_p2n
-        self._ns_to_prefix = new_n2p
-        self._prefix_map_loaded = True
-        logger.debug("Loaded %d prefixes from n10s", len(new_p2n))
+        """Refresh the bidirectional prefix ↔ namespace map from n10s _NsPrefDef.
+
+        Guarded by ``_prefix_lock`` so concurrent callers don't issue duplicate
+        reload queries or observe a half-updated map.
+        """
+        async with self._prefix_lock:
+            records = await self._run(
+                "MATCH (p:_NsPrefDef) RETURN properties(p) AS props"
+            )
+            if not records:
+                return
+            # _NsPrefDef stores all prefixes as properties on a single node
+            props = records[0].get("props", {})
+            new_p2n: dict[str, str] = {}
+            new_n2p: dict[str, str] = {}
+            for prefix, ns in props.items():
+                if isinstance(ns, str) and ns.startswith("http"):
+                    new_p2n[prefix] = ns
+                    new_n2p[ns] = prefix
+            self._prefix_to_ns = new_p2n
+            self._ns_to_prefix = new_n2p
+            # Cache the longest-first sorted (ns, prefix) list once per reload.
+            self._ns_sorted = sorted(
+                new_n2p.items(), key=lambda kv: -len(kv[0])
+            )
+            self._prefix_map_loaded = True
+            logger.debug("Loaded %d prefixes from n10s", len(new_p2n))
 
     async def _ensure_prefix_map(self) -> None:
         """Ensure the prefix map has been loaded at least once."""
@@ -217,9 +234,8 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin):
         Returns:
             Shortened ``prefix__local`` form, or the original URI.
         """
-        for ns, prefix in sorted(
-            self._ns_to_prefix.items(), key=lambda kv: -len(kv[0])
-        ):
+        # Iterate the cached longest-first list (no per-call re-sort).
+        for ns, prefix in self._ns_sorted:
             if uri.startswith(ns):
                 local = uri[len(ns):]
                 return f"{prefix}__{local}"

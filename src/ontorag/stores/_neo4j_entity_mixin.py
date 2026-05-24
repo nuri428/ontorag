@@ -8,7 +8,7 @@ Intentional divergence from FusekiStore (documented):
   - find_entities / count_entities follow rdfs:subClassOf*0.. chains,
     providing OWL subclass inference that current Fuseki (--mem, no reasoner)
     does not perform.
-  - Property values may be lists (handleMultival=ARRAY); _unpack_value() maps
+  - Property values may be lists (handleMultival=ARRAY); unpack_value() maps
     single-element lists → scalar to match Fuseki's output shape.
 """
 
@@ -16,6 +16,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from ontorag.core.cypher import _safe_rel
+from ontorag.stores._neo4j_values import first_scalar, unpack_value
 from ontorag.stores.base import AggFunc, AggregateResult, EntityFilter, EntityResult
 
 if TYPE_CHECKING:
@@ -175,7 +176,7 @@ class _Neo4jEntityMixin:
             neighbor_label_raw = row.get("neighbor_label")
             obj: Any = {
                 "uri": neighbor_uri,
-                "label": _first_scalar(neighbor_label_raw),
+                "label": first_scalar(neighbor_label_raw),
             }
 
             existing = props.get(full_pred)
@@ -366,7 +367,7 @@ def _extract_props(
         if key in skip_keys:
             continue
         full_key = expand_fn(key)
-        unpacked = _unpack_val(val)
+        unpacked = unpack_value(val)
 
         if full_key == "http://www.w3.org/2000/01/rdf-schema#label":
             label = str(unpacked) if unpacked is not None else None
@@ -377,35 +378,3 @@ def _extract_props(
             props[full_key] = unpacked
 
     return props, label
-
-
-def _unpack_val(val: Any) -> Any:
-    """Unwrap ARRAY-config single-element list to scalar.
-
-    Args:
-        val: Raw Neo4j value.
-
-    Returns:
-        Scalar (if 1-element list), list (if multi-element), or None.
-    """
-    if isinstance(val, list):
-        if len(val) == 0:
-            return None
-        if len(val) == 1:
-            return val[0]
-        return val
-    return val
-
-
-def _first_scalar(val: Any) -> Any:
-    """Return first element of a list or the value itself.
-
-    Args:
-        val: Potentially list-wrapped value.
-
-    Returns:
-        First element or original value.
-    """
-    if isinstance(val, list):
-        return val[0] if val else None
-    return val

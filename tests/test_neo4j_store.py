@@ -300,6 +300,9 @@ class TestNeo4jStoreMapping:
             "owl": "http://www.w3.org/2002/07/owl#",
         }
         store._ns_to_prefix = {v: k for k, v in store._prefix_to_ns.items()}
+        store._ns_sorted = sorted(
+            store._ns_to_prefix.items(), key=lambda kv: -len(kv[0])
+        )
         store._prefix_map_loaded = True
         return store
 

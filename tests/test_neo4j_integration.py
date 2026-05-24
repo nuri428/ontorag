@@ -495,6 +495,30 @@ async def test_dump_graph_ttl(store) -> None:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_dump_graph_ttl_round_trips_via_rdflib(store) -> None:
+    """Lower-priority verify: TTL export parses back via rdflib and contains
+    a known instance triple (Pikachu rdf:type pk:Pokemon)."""
+    from rdflib import RDF, Graph, URIRef  # noqa: PLC0415
+
+    data = await store.dump_graph("all", "ttl")
+    g = Graph()
+    g.parse(data=data.decode(), format="turtle")
+    assert len(g) > 0
+    # Pikachu must be typed as a Pokemon in the round-tripped graph.
+    assert (
+        URIRef(_PIKACHU_URI),
+        RDF.type,
+        URIRef(_POKEMON_CLASS),
+    ) in g
+    # A literal property survives (Pikachu's nationalDex = 25).
+    dex = list(
+        g.objects(URIRef(_PIKACHU_URI), URIRef("http://example.org/pokemon#nationalDex"))
+    )
+    assert dex and str(dex[0]) == "25"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_dump_graph_json(store) -> None:
     """dump_graph(all, json) should return parseable JSON with s/p/o keys."""
     import json as _json
