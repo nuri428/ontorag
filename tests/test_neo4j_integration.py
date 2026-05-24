@@ -471,3 +471,80 @@ async def test_clear_and_reload(store) -> None:
     await store.load_rdf(DATA_TTL, mode="data")
     count_restored = await store.count_entities(_POKEMON_CLASS)
     assert count_restored == count_before
+
+
+# ── Injection / safety regression tests (review CRITICAL #1, #2, HIGH #3) ──────
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_property_path_closure_injection_does_not_delete(store) -> None:
+    """Review #1: a malicious start_class_uri must NOT delete data.
+
+    Mode 1 previously f-string-interpolated start_class_uri into Cypher.
+    With it parameterized, the payload is treated as a literal URI (matching
+    nothing) and all data survives.
+    """
+    count_before = await store.count_entities(_POKEMON_CLASS)
+    assert count_before > 0
+
+    payload = "') DETACH DELETE (n //"
+    # Should not raise from injected Cypher and must not delete anything.
+    results = await store.property_path_closure(
+        predicate_uri=_EVOLVES_FROM,
+        start_uri="http://example.org/pokemon/data#Venusaur",
+        start_class_uri=payload,
+    )
+    # Payload matches no class, so the type filter yields no start node → empty.
+    assert results == []
+
+    count_after = await store.count_entities(_POKEMON_CLASS)
+    assert count_after == count_before  # data fully intact
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_aggregate_with_real_data_still_works_after_safety(store) -> None:
+    """Sanity: _safe_rel validation does not break legitimate predicates."""
+    results = await store.aggregate(_POKEMON_CLASS, _HAS_TYPE, AggFunc.count)
+    assert len(results) > 0
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_subclassof_cycle_terminates(store) -> None:
+    """Review #3: a cyclic subClassOf hierarchy (A⊂B⊂A) must terminate.
+
+    Unbounded ``*0..`` on a cycle would loop forever / blow up; the capped
+    ``*0..N`` form terminates and returns a finite, correct count.
+    """
+    a = "http://example.org/cycle#A"
+    b = "http://example.org/cycle#B"
+    inst = "http://example.org/cycle#inst1"
+
+    # Build A ⊂ B ⊂ A cycle + one instance of A.
+    await store._run_write(
+        """
+        MERGE (a:Resource {uri: $a}) SET a:owl__Class
+        MERGE (b:Resource {uri: $b}) SET b:owl__Class
+        MERGE (a)-[:rdfs__subClassOf]->(b)
+        MERGE (b)-[:rdfs__subClassOf]->(a)
+        MERGE (i:Resource {uri: $inst})
+        MERGE (i)-[:rdf__type]->(a)
+        """,
+        a=a,
+        b=b,
+        inst=inst,
+    )
+    try:
+        # Must return promptly (capped depth) and count the single instance.
+        count = await store.count_entities(a)
+        assert count == 1
+        ents = await store.find_entities(a, limit=10)
+        assert any(e.uri == inst for e in ents)
+    finally:
+        # Clean up the cycle so it doesn't pollute other tests' shared DB.
+        await store._run_write(
+            "MATCH (n:Resource) WHERE n.uri IN $uris DETACH DELETE n",
+            uris=[a, b, inst],
+        )

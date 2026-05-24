@@ -22,6 +22,36 @@ _VAR_RE = re.compile(r"^\?[a-zA-Z][a-zA-Z0-9_]*$")
 # Numeric literals (int or float)
 _NUM_RE = re.compile(r"^-?[0-9]+(\.[0-9]+)?$")
 
+# Safe n10s-shortened Cypher identifier: ``prefix__Local``.  Cypher
+# relationship types / labels / property keys are interpolated (not
+# parameterizable), so backtick-quoting alone is NOT enough — a backtick in
+# the input breaks out of the quoting.  Every rel-type/label/prop-key
+# interpolation site MUST route the shortened value through _safe_rel() first.
+_SAFE_SHORT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*__[A-Za-z0-9_.\-]+$")
+
+
+def _safe_rel(short: str) -> str:
+    """Validate an n10s-shortened identifier before Cypher interpolation.
+
+    Cypher has no parameter binding for relationship types, labels, or
+    property keys, so these are string-interpolated.  Backtick-quoting is
+    insufficient because a backtick in the value escapes the quoting.  This
+    validator enforces the strict ``prefix__Local`` shape, rejecting anything
+    that could break out of a backtick-quoted identifier.
+
+    Args:
+        short: A shortened identifier (``prefix__Local``) to interpolate.
+
+    Returns:
+        The validated identifier, unchanged.
+
+    Raises:
+        ValueError: If the identifier does not match the safe pattern.
+    """
+    if not _SAFE_SHORT_RE.match(short):
+        raise ValueError(f"Unsafe Cypher identifier: {short!r}")
+    return short
+
 
 # ── Public API ────────────────────────────────────────────────────────────────
 

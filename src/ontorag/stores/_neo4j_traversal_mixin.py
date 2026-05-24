@@ -11,6 +11,7 @@ Neo4j natively handles multi-hop traversal efficiently.
 import logging
 from typing import TYPE_CHECKING, Any
 
+from ontorag.core.cypher import _safe_rel
 from ontorag.stores.base import EntityFilter, TraversalDirection, TraversalResult
 
 if TYPE_CHECKING:
@@ -221,27 +222,31 @@ class _Neo4jTraversalMixin:
                 "start_uri / start_label / start_class_uri"
             )
 
-        short_pred = self._shorten_prefixed(predicate_uri)
+        # Validate the shortened rel-type before any backtick interpolation.
+        short_pred = _safe_rel(self._shorten_prefixed(predicate_uri))
         from ontorag.stores._neo4j_entity_mixin import _first_scalar  # noqa: PLC0415
 
         if start_uri:
-            # Mode 1: instance closure
+            # Mode 1: instance closure. start_class_uri is parameterized
+            # (never f-string interpolated) to prevent Cypher injection.
             type_filter = ""
             if start_class_uri:
                 type_filter = (
-                    f"MATCH (start)-[:rdf__type]->(c:Resource)-[:rdfs__subClassOf*0..]->"
-                    f"(:Resource {{uri: '{start_class_uri}'}})"
+                    "MATCH (start)-[:rdf__type]->(c:Resource)"
+                    f"-[:rdfs__subClassOf*0..{_MAX_DEPTH_HARD}]->"
+                    "(:Resource {uri: $start_class_uri})"
                 )
             rows = await self._run(
                 f"""
                 MATCH (start:Resource {{uri: $start_uri}})
                 {type_filter}
-                MATCH (start)-[:`{short_pred}`*1..]->(reached:Resource)
+                MATCH (start)-[:`{short_pred}`*1..{_MAX_DEPTH_HARD}]->(reached:Resource)
                 RETURN DISTINCT reached.uri AS uri, reached.rdfs__label AS label
                 ORDER BY reached.uri
                 LIMIT $limit
                 """,
                 start_uri=start_uri,
+                start_class_uri=start_class_uri,
                 limit=limit,
             )
         elif start_label:
@@ -252,11 +257,11 @@ class _Neo4jTraversalMixin:
                 rows = await self._run(
                     f"""
                     MATCH (start:Resource)-[:rdf__type]->(c:Resource)
-                          -[:rdfs__subClassOf*0..]->(:Resource {{uri: $start_class_uri}})
+                          -[:rdfs__subClassOf*0..{_MAX_DEPTH_HARD}]->(:Resource {{uri: $start_class_uri}})
                     WHERE start.rdfs__label IS NOT NULL
                       AND (start.rdfs__label[0] = $start_label
                            OR toLower(start.rdfs__label[0]) = $label_lower)
-                    MATCH (start)-[:`{short_pred}`*1..]->(reached:Resource)
+                    MATCH (start)-[:`{short_pred}`*1..{_MAX_DEPTH_HARD}]->(reached:Resource)
                     RETURN DISTINCT reached.uri AS uri, reached.rdfs__label AS label
                     ORDER BY reached.uri
                     LIMIT $limit
@@ -273,7 +278,7 @@ class _Neo4jTraversalMixin:
                     WHERE start.rdfs__label IS NOT NULL
                       AND (start.rdfs__label[0] = $start_label
                            OR toLower(start.rdfs__label[0]) = $label_lower)
-                    MATCH (start)-[:`{short_pred}`*1..]->(reached:Resource)
+                    MATCH (start)-[:`{short_pred}`*1..{_MAX_DEPTH_HARD}]->(reached:Resource)
                     RETURN DISTINCT reached.uri AS uri, reached.rdfs__label AS label
                     ORDER BY reached.uri
                     LIMIT $limit
@@ -287,8 +292,8 @@ class _Neo4jTraversalMixin:
             rows = await self._run(
                 f"""
                 MATCH (start:Resource)-[:rdf__type]->(c:Resource)
-                      -[:rdfs__subClassOf*0..]->(:Resource {{uri: $start_class_uri}})
-                MATCH (start)-[:`{short_pred}`*1..]->(reached:Resource)
+                      -[:rdfs__subClassOf*0..{_MAX_DEPTH_HARD}]->(:Resource {{uri: $start_class_uri}})
+                MATCH (start)-[:`{short_pred}`*1..{_MAX_DEPTH_HARD}]->(reached:Resource)
                 RETURN DISTINCT reached.uri AS uri, reached.rdfs__label AS label
                 ORDER BY reached.uri
                 LIMIT $limit
@@ -330,7 +335,8 @@ class _Neo4jTraversalMixin:
         """
         await self._ensure_prefix_map()
 
-        short_pred = self._shorten_prefixed(predicate)
+        # Validate the shortened rel-type before any backtick interpolation.
+        short_pred = _safe_rel(self._shorten_prefixed(predicate))
         from ontorag.stores._neo4j_entity_mixin import (  # noqa: PLC0415
             _build_filter_cypher,
             _first_scalar,
@@ -372,9 +378,9 @@ class _Neo4jTraversalMixin:
         rows = await self._run(
             f"""
             MATCH (a:Resource)-[:rdf__type]->(ca:Resource)
-                  -[:rdfs__subClassOf*0..]->(:Resource {{uri: $class_uri_a}})
+                  -[:rdfs__subClassOf*0..{_MAX_DEPTH_HARD}]->(:Resource {{uri: $class_uri_a}})
             MATCH (b:Resource)-[:rdf__type]->(cb:Resource)
-                  -[:rdfs__subClassOf*0..]->(:Resource {{uri: $class_uri_b}})
+                  -[:rdfs__subClassOf*0..{_MAX_DEPTH_HARD}]->(:Resource {{uri: $class_uri_b}})
             MATCH (a)-[:`{short_pred}`]->(b)
             {where_clause}
             RETURN DISTINCT
@@ -428,7 +434,7 @@ def _rel_pattern(
         ``-[:pk__hasType*1..2]->``.
     """
     if predicate:
-        short = shorten_fn(predicate).replace(":", "__")
+        short = _safe_rel(shorten_fn(predicate).replace(":", "__"))
         rel_spec = f"[:`{short}`*1..{max_depth}]"
     else:
         rel_spec = f"[*1..{max_depth}]"
@@ -446,7 +452,7 @@ def _pred_rel_type_filter(
     """Build single-hop relationship type filter for edge detail query."""
     if not predicate:
         return ""
-    short = shorten_fn(predicate).replace(":", "__")
+    short = _safe_rel(shorten_fn(predicate).replace(":", "__"))
     return f"[:`{short}`]"
 
 

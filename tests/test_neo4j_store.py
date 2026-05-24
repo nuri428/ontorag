@@ -184,6 +184,42 @@ class TestTermHelpers:
         assert _parse_literal_value("false") is False
 
 
+# ── _safe_rel — Cypher identifier injection guard (review #2) ──────────────────
+
+
+class TestSafeRel:
+    """Regression tests for the Cypher rel-type/label/prop-key injection guard."""
+
+    def test_accepts_valid_shortened(self) -> None:
+        from ontorag.core.cypher import _safe_rel  # noqa: PLC0415
+
+        assert _safe_rel("pk__hasType") == "pk__hasType"
+        assert _safe_rel("rdf__type") == "rdf__type"
+        assert _safe_rel("pk__national_dex") == "pk__national_dex"
+        # local parts with dots/hyphens are valid n10s local names
+        assert _safe_rel("pk__has.type-x") == "pk__has.type-x"
+
+    def test_rejects_backtick(self) -> None:
+        """A value containing a backtick must raise ValueError, not interpolate."""
+        from ontorag.core.cypher import _safe_rel  # noqa: PLC0415
+
+        with pytest.raises(ValueError, match="Unsafe Cypher identifier"):
+            _safe_rel("pk__x`]->() DETACH DELETE (n) //")
+
+    def test_rejects_missing_double_underscore(self) -> None:
+        from ontorag.core.cypher import _safe_rel  # noqa: PLC0415
+
+        with pytest.raises(ValueError):
+            _safe_rel("noprefix")
+
+    def test_rejects_whitespace_and_braces(self) -> None:
+        from ontorag.core.cypher import _safe_rel  # noqa: PLC0415
+
+        for bad in ("pk__a b", "pk__a{b}", "pk__a)b", "pk__a'b"):
+            with pytest.raises(ValueError):
+                _safe_rel(bad)
+
+
 # ── Shorten / expand via Neo4jStore instance ──────────────────────────────────
 
 
@@ -253,6 +289,42 @@ class TestNeo4jStoreMapping:
         store = self._make_store()
         result = store._shorten_prefixed("<http://example.org/pokemon#Pokemon>")
         assert result == "pk__Pokemon"
+
+    @pytest.mark.asyncio
+    async def test_aggregate_backtick_predicate_raises(self) -> None:
+        """Review #2: a predicate shortening to a backtick value raises, not executes.
+
+        _safe_rel validation must fire BEFORE any Cypher is sent to the DB.
+        We assert ValueError and that _run was never awaited.
+        """
+        store = self._make_store()
+        store._run = AsyncMock()
+        store._ensure_prefix_map = AsyncMock()
+
+        # An unknown URI containing a backtick → _shorten_prefixed returns it
+        # verbatim → _safe_rel must reject it.
+        evil_pred = "http://x#a`]->() DETACH DELETE (n) //"
+        with pytest.raises(ValueError, match="Unsafe Cypher identifier"):
+            await store.aggregate(
+                "http://example.org/pokemon#Pokemon", evil_pred
+            )
+        store._run.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_find_related_backtick_predicate_raises(self) -> None:
+        """Review #2: find_related rejects a backtick-bearing predicate."""
+        store = self._make_store()
+        store._run = AsyncMock()
+        store._ensure_prefix_map = AsyncMock()
+
+        evil_pred = "http://x#p`]-() //"
+        with pytest.raises(ValueError, match="Unsafe Cypher identifier"):
+            await store.find_related(
+                "http://example.org/pokemon#Pokemon",
+                evil_pred,
+                "http://example.org/pokemon#Trainer",
+            )
+        store._run.assert_not_awaited()
 
 
 # ── Factory wiring ────────────────────────────────────────────────────────────

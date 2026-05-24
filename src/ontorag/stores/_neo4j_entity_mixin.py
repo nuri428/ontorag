@@ -15,12 +15,17 @@ Intentional divergence from FusekiStore (documented):
 import logging
 from typing import TYPE_CHECKING, Any
 
+from ontorag.core.cypher import _safe_rel
 from ontorag.stores.base import AggFunc, AggregateResult, EntityFilter, EntityResult
 
 if TYPE_CHECKING:
     from ontorag.stores.neo4j import Neo4jStore
 
 logger = logging.getLogger(__name__)
+
+# Hard cap on variable-length rdfs:subClassOf traversal to terminate on
+# pathological cyclic hierarchies (A ⊂ B ⊂ A) and bound query cost.
+_MAX_SUBCLASS_DEPTH = 10
 
 _AGG_CYPHER: dict[AggFunc, str] = {
     AggFunc.count: "count(DISTINCT inst)",
@@ -73,7 +78,7 @@ class _Neo4jEntityMixin:
         rows = await self._run(
             f"""
             MATCH (inst:Resource)-[:rdf__type]->(c:Resource)
-                  -[:rdfs__subClassOf*0..]->(:Resource {{uri: $class_uri}})
+                  -[:rdfs__subClassOf*0..{_MAX_SUBCLASS_DEPTH}]->(:Resource {{uri: $class_uri}})
             {where_clause}
             RETURN DISTINCT inst
             LIMIT $limit
@@ -211,7 +216,7 @@ class _Neo4jEntityMixin:
         rows = await self._run(
             f"""
             MATCH (inst:Resource)-[:rdf__type]->(c:Resource)
-                  -[:rdfs__subClassOf*0..]->(:Resource {{uri: $class_uri}})
+                  -[:rdfs__subClassOf*0..{_MAX_SUBCLASS_DEPTH}]->(:Resource {{uri: $class_uri}})
             {where_clause}
             RETURN count(DISTINCT inst) AS cnt
             """,
@@ -241,14 +246,16 @@ class _Neo4jEntityMixin:
         """
         await self._ensure_prefix_map()
 
-        short_prop = self._shorten_prefixed(group_by)
+        # Validate the shortened identifier before any backtick interpolation
+        # (used both as a relationship type and as a property key below).
+        short_prop = _safe_rel(self._shorten_prefixed(group_by))
         agg_expr = _AGG_CYPHER[agg]
 
         # Try relationship-based grouping first (object property)
         rows = await self._run(
             f"""
             MATCH (inst:Resource)-[:rdf__type]->(c:Resource)
-                  -[:rdfs__subClassOf*0..]->(:Resource {{uri: $class_uri}})
+                  -[:rdfs__subClassOf*0..{_MAX_SUBCLASS_DEPTH}]->(:Resource {{uri: $class_uri}})
             MATCH (inst)-[:`{short_prop}`]->(grpNode:Resource)
             RETURN grpNode.uri AS grpVal, {agg_expr} AS result
             ORDER BY result DESC
@@ -261,7 +268,7 @@ class _Neo4jEntityMixin:
             rows = await self._run(
                 f"""
                 MATCH (inst:Resource)-[:rdf__type]->(c:Resource)
-                      -[:rdfs__subClassOf*0..]->(:Resource {{uri: $class_uri}})
+                      -[:rdfs__subClassOf*0..{_MAX_SUBCLASS_DEPTH}]->(:Resource {{uri: $class_uri}})
                 WHERE inst.`{short_prop}` IS NOT NULL
                 WITH inst, inst.`{short_prop}`[0] AS grpVal
                 RETURN grpVal, {agg_expr} AS result
@@ -312,7 +319,8 @@ def _build_filter_cypher(
     params: dict[str, Any] = {}
 
     for i, f in enumerate(filters):
-        short_prop = shorten_fn(f.property)
+        # Validate the shortened property key before backtick interpolation.
+        short_prop = _safe_rel(shorten_fn(f.property))
         param_key = f"fv{i}"
         params[param_key] = f.value
 
