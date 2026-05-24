@@ -53,10 +53,10 @@ async def run_one(store: FusekiStore, llm, schema_ctx, has_data: bool, question:
     if summary is None:
         return {"error": "no phase_summary", "wall_ms": wall_ms}
 
-    per_tool: dict[str, list[float]] = defaultdict(list)
-    for p in summary["phases"]:
-        if p["phase"] == "tool_call":
-            per_tool[p["tool"]].append(p["ms"])
+    # Parallel-dispatch aware: since the parallel tool dispatch refactor, one
+    # "tool_call" phase covers a whole turn's tools (asyncio.gather), so per-tool
+    # ms attribution is no longer in the phase record. Report turn-level counts.
+    tool_phases = [p for p in summary["phases"] if p["phase"] == "tool_call"]
 
     return {
         "question": question,
@@ -66,9 +66,14 @@ async def run_one(store: FusekiStore, llm, schema_ctx, has_data: bool, question:
         "tool_total_ms": summary["tool_total_ms"],
         "overhead_ms": summary["overhead_ms"],
         "n_llm_calls": sum(1 for p in summary["phases"] if p["phase"] == "llm_call"),
-        "n_tool_calls": sum(1 for p in summary["phases"] if p["phase"] == "tool_call"),
+        "n_tool_calls": sum(p.get("n_blocks", 0) for p in tool_phases),
+        "n_tool_turns": len(tool_phases),
+        "cache_hits": sum(p.get("cache_hits", 0) for p in tool_phases),
         "tools_used": tool_calls,
-        "tool_ms_breakdown": {k: sum(v) for k, v in per_tool.items()},
+        "prompt_tokens": summary.get("prompt_tokens", 0),
+        "cached_tokens": summary.get("cached_tokens", 0),
+        "completion_tokens": summary.get("completion_tokens", 0),
+        "cache_hit_ratio": summary.get("cache_hit_ratio", 0.0),
         "answer_preview": "".join(answer_chunks)[:120],
     }
 
