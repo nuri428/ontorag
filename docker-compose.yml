@@ -22,9 +22,9 @@ services:
     profiles: ["neo4j"]
     environment:
       NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-ontorag123}
-      NEO4J_PLUGINS: '["apoc","n10s"]'
-      NEO4J_dbms_security_procedures_unrestricted: "n10s.*,apoc.*"
-      NEO4J_dbms_security_procedures_allowlist: "n10s.*,apoc.*"
+      NEO4J_PLUGINS: '["apoc","n10s","graph-data-science"]'
+      NEO4J_dbms_security_procedures_unrestricted: "n10s.*,apoc.*,gds.*"
+      NEO4J_dbms_security_procedures_allowlist: "n10s.*,apoc.*,gds.*"
     ports:
       - "7474:7474"
       - "7687:7687"
