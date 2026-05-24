@@ -42,6 +42,9 @@ app.add_typer(dump_app, name="dump")
 
 app.add_typer(eval_app, name="eval")
 
+embed_app = typer.Typer(help="그래프 임베딩을 생성합니다 (Neo4j 전용).")
+app.add_typer(embed_app, name="embed")
+
 
 # ── load subcommands ─────────────────────────────────────────────────────────
 
@@ -263,6 +266,99 @@ def dump_all(
 ) -> None:
     """TBox + ABox 전체를 파일로 덤프합니다."""
     _run_dump("all", fmt, output)
+
+
+# ── embed subcommand ─────────────────────────────────────────────────────────
+
+
+@embed_app.callback(invoke_without_command=True)
+def embed_run(
+    ctx: typer.Context,
+    mode: str = typer.Option(
+        "both",
+        "--mode",
+        help="임베딩 모드: structural | textual | both (기본값: both)",
+    ),
+) -> None:
+    """그래프 임베딩을 생성합니다 (GRAPH_STORE=neo4j 전용).
+
+    --mode structural : GDS FastRP 구조적 임베딩만 생성
+    --mode textual    : EmbeddingProvider 의미적 임베딩만 생성
+    --mode both       : 구조적 + 의미적 모두 생성 (기본값)
+
+    실행 후 find_similar MCP 툴로 유사 엔티티를 검색할 수 있습니다.
+    """
+    if ctx.invoked_subcommand is not None:
+        return
+
+    from ontorag.stores.factory import create_store
+
+    valid_modes = {"structural", "textual", "both"}
+    if mode not in valid_modes:
+        console.print(
+            f"[red]Error:[/] --mode는 {valid_modes} 중 하나여야 합니다. "
+            f"입력값: {mode!r}"
+        )
+        raise typer.Exit(1)
+
+    store = create_store()
+
+    # Verify the store supports embeddings (Neo4j only).
+    build_fn = getattr(store, "build_embeddings", None)
+    if build_fn is None:
+        console.print(
+            "[red]Error:[/] 그래프 임베딩은 GRAPH_STORE=neo4j 에서만 지원됩니다."
+        )
+        raise typer.Exit(1)
+
+    # For textual mode, resolve the embedding provider eagerly so cred errors
+    # surface before the long GDS structural step (when mode == "both").
+    embedding_provider = None
+    if mode in ("textual", "both"):
+        try:
+            from ontorag.llm.embedding import get_embedding_provider  # noqa: PLC0415
+
+            embedding_provider = get_embedding_provider()
+        except (ValueError, KeyError) as exc:
+            console.print(
+                f"[red]Error:[/] 의미적 임베딩 제공자 초기화 실패 — {exc}"
+            )
+            console.print(
+                "[dim]EMBEDDING_PROVIDER 및 관련 API 키가 설정됐는지 확인하세요.[/]"
+            )
+            raise typer.Exit(1)
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]{task.description}"),
+        TimeElapsedColumn(),
+        console=console,
+        transient=True,
+    ) as progress:
+        progress.add_task(f"임베딩 생성 중 (mode={mode})...", total=None)
+        try:
+            result = asyncio.run(
+                store.build_embeddings(mode, embedding_provider)  # type: ignore[union-attr]
+            )
+        except Exception as exc:
+            console.print(f"[red]Error:[/] 임베딩 생성 실패 — {exc}")
+            raise typer.Exit(1)
+        finally:
+            try:
+                asyncio.run(store.aclose())
+            except Exception:
+                pass
+
+    table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
+    table.add_column("모드", style="cyan")
+    table.add_column("작성된 노드 수", style="green")
+    for embed_mode, count in result.items():
+        label = "구조적 (FastRP)" if embed_mode == "structural" else "의미적 (텍스트)"
+        table.add_row(label, f"{count:,}")
+    console.print(table)
+    console.print(
+        "\n[dim]ontorag serve 후 POST /tools/similar 로 유사 엔티티를 검색하세요.[/]"
+    )
 
 
 # ── status command ───────────────────────────────────────────────────────────
