@@ -126,6 +126,25 @@ class AggregateResult(BaseModel):
     result: int | float
 
 
+class SearchHit(BaseModel):
+    """A single full-text (BM25) search hit.
+
+    Returned by the optional `search_text` capability. `score` is the
+    backend's relevance score (Lucene BM25 for Neo4j) — higher is more
+    relevant; absolute values are only meaningful relative to other hits in
+    the same response.
+    """
+
+    uri: str
+    label: str | None = None
+    class_uri: str | None = None
+    score: float
+    matched_property: str | None = Field(
+        default=None,
+        description="Property URI whose value matched, when the backend reports it.",
+    )
+
+
 class StoreStatus(BaseModel):
     """Current state of the graph store."""
 
