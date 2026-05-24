@@ -93,19 +93,24 @@ def pattern_to_cypher(
         param_counter[0] += 1
         return f"${key}"
 
-    # Build MATCH clauses from PatternTriples
+    # Accumulate MATCH fragments and WHERE conditions SEPARATELY so that a
+    # literal-object triple's filter does not get attached to the wrong MATCH
+    # in a multi-triple query (review #4). A single combined WHERE is emitted.
     match_parts: list[str] = []
     where_parts: list[str] = []
     _declared_vars: set[str] = set()
 
     for triple in query.where:
-        m = _build_triple_cypher(
+        match_frag, where_frag = _build_triple_cypher(
             triple,
             shorten_fn,
             alloc_param,
             _declared_vars,
         )
-        match_parts.append(m)
+        if match_frag:
+            match_parts.append(match_frag)
+        if where_frag:
+            where_parts.append(where_frag)
 
     # FILTER → WHERE conditions
     for f in query.filters:
@@ -137,27 +142,28 @@ def _build_triple_cypher(
     shorten_fn: "callable[[str], str]",  # type: ignore[valid-type]
     alloc_param: "callable[[object], str]",  # type: ignore[valid-type]
     declared: set[str],
-) -> str:
-    """Convert one PatternTriple to a Cypher MATCH clause fragment.
+) -> tuple[str, str]:
+    """Convert one PatternTriple to ``(match_fragment, where_fragment)``.
 
-    Handles three triple shapes:
-    - ``?s rdf:type <ClassName>``  →  ``MATCH (s:LabelName)`` when predicate
-      is rdf:type and object is a concrete URI/prefix.
-    - ``?s <predURI> ?o``  →  ``MATCH (s)-[:PRED_SHORT]->(o)``
-    - ``?s <predURI> "literal"`` → not representable as edge; skipped silently
-      (literal object properties in n10s are node properties, not edges).
+    Either fragment may be empty. Returning them separately lets the caller
+    emit ONE combined WHERE block (review #4) instead of embedding WHERE
+    inside a per-triple MATCH (which mis-attaches in multi-triple queries).
+
+    Handles four triple shapes:
+    - ``?s rdf:type <ClassName>``  →  ``(s:LabelName)`` node-label match.
+    - ``?s <predURI> "literal"``   →  ``(s)`` match + property-equality WHERE.
+    - ``?s <predURI> <Bob>``       →  ``(s)-[:REL]->(o {uri:$pN})`` — the
+      concrete object URI is BOUND on the node so it is not dropped (#5).
+    - ``?s <predURI> ?o``          →  ``(s)-[:REL]->(o)`` relationship match.
     """
     s_term = triple.s
     p_term = triple.p
     o_term = triple.o
 
-    s_cypher = _term_to_node(s_term, declared)
-    o_cypher = _term_to_node(o_term, declared)
-
     # Detect rdf:type shorthand: predicate is rdf:type (any form)
-    p_short = shorten_fn(p_term) if not _is_var(p_term) else ""
+    p_short_raw = shorten_fn(p_term) if not _is_var(p_term) else ""
     is_rdf_type = (
-        p_short == "rdf__type"
+        p_short_raw == "rdf__type"
         or p_term == "rdf:type"
         or p_term == "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"
     )
@@ -165,54 +171,81 @@ def _build_triple_cypher(
     if is_rdf_type and not _is_var(o_term):
         # rdf:type with concrete class — map object to a node label
         o_raw = o_term
-        # Strip angle brackets if present
         if o_raw.startswith("<") and o_raw.endswith(">"):
             o_raw = o_raw[1:-1]
         label_short = shorten_fn(o_raw)
         if label_short and label_short != o_raw:
-            # shorten_fn already returned prefix__local form
             label = label_short
         else:
             label = label_short.replace(":", "__") if ":" in label_short else label_short
+        label = _safe_rel(label)
         s_var = s_term.lstrip("?")
         declared.add(s_var)
-        return f"({s_var}:{label})"
+        return f"({s_var}:{label})", ""
 
-    # Predicate as relationship type
+    # Predicate as relationship / property key (shortened form)
     p_short = _term_to_rel_type(p_term, shorten_fn)
 
     if _is_literal(o_term):
-        # Literal: add WHERE clause for node property
+        # Literal object → node property filter. Emit the subject MATCH only
+        # if the subject hasn't been declared by another triple yet; emit the
+        # filter as a SEPARATE WHERE condition keyed on the subject variable.
         s_var = s_term.lstrip("?")
-        declared.add(s_var)
-        prop_key = p_short.replace(":", "__") if ":" in p_short else p_short
+        prop_key = _safe_rel(p_short)
         lit_val = _parse_literal_value(o_term)
         p_ref = alloc_param(lit_val)
-        # Store as a free-standing MATCH on the subject + WHERE on property
-        return f"({s_var}) WHERE {s_var}.`{prop_key}` = {p_ref}"
+        match_frag = "" if s_var in declared else f"({s_var})"
+        declared.add(s_var)
+        # n10s stores props as ARRAY → match either the scalar or list[0].
+        where_frag = (
+            f"({s_var}.`{prop_key}` = {p_ref} "
+            f"OR {s_var}.`{prop_key}`[0] = {p_ref})"
+        )
+        return match_frag, where_frag
 
     if p_short:
+        rel = _safe_rel(p_short)
         s_var = s_term.lstrip("?")
-        o_var_or_node = o_cypher
         declared.add(s_var)
         if _is_var(o_term):
-            declared.add(o_term.lstrip("?"))
-        return f"({s_var})-[:`{p_short}`]->({o_var_or_node})"
+            o_var = o_term.lstrip("?")
+            declared.add(o_var)
+            return f"({s_var})-[:`{rel}`]->({o_var})", ""
+        # Concrete URI object: BIND it on the node via $param so the edge is
+        # constrained to that specific target (review #5 — was dropping it).
+        o_uri = o_term[1:-1] if o_term.startswith("<") and o_term.endswith(">") else o_term
+        # Resolve prefixed names (pk:Bob) to full URI when possible.
+        o_full = _resolve_object_uri(o_uri, shorten_fn)
+        uri_ref = alloc_param(o_full)
+        return f"({s_var})-[:`{rel}`]->(:Resource {{uri: {uri_ref}}})", ""
 
-    # Fallback: just MATCH both nodes
-    return f"({s_cypher})"
+    # Fallback: bare subject match (variable subject, unknown predicate)
+    s_var = s_term.lstrip("?") if _is_var(s_term) else ""
+    if s_var:
+        declared.add(s_var)
+        return f"({s_var})", ""
+    return "", ""
 
 
-def _term_to_node(term: str, declared: set[str]) -> str:
-    """Convert a term to a Cypher node pattern fragment (without parens).
+def _resolve_object_uri(
+    o_uri: str, shorten_fn: "callable[[str], str]"  # type: ignore[valid-type]
+) -> str:
+    """Best-effort resolution of a concrete object term to a full URI.
 
-    ``?var`` → ``var``  (just the variable name)
-    ``<URI>`` or ``prefix:local`` → will be handled via shortestPath or
-    property match — return empty string (caller handles concrete objects).
+    A prefixed name (``pk:Bob``) is round-tripped through the store's
+    shorten/expand-aware ``shorten_fn`` is not directly available here, so we
+    keep the value as-is when it already looks like a full URI, and otherwise
+    pass the prefixed name unchanged (the store seeds full URIs in n10s, so an
+    angle-bracketed/full URI is the common case).
+
+    Args:
+        o_uri: Object term (full URI or prefixed name, brackets stripped).
+        shorten_fn: Identifier shortener (unused for expansion; kept for API).
+
+    Returns:
+        The object URI string to bind as a node ``uri`` parameter.
     """
-    if _is_var(term):
-        return term.lstrip("?")
-    return ""
+    return o_uri
 
 
 def _term_to_full_uri(term: str) -> str | None:

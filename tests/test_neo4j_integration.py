@@ -426,6 +426,60 @@ async def test_query_pattern_relationship(store) -> None:
     assert "type" in result.columns
 
 
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_query_pattern_multi_triple_literal_filter(store) -> None:
+    """Review #4: relationship triple + literal-filter triple on the same
+    subject var must combine correctly (one WHERE) and return right results.
+
+    Find electric-type pokemon (hasType TypeElectric) with hp = 35 → Pikachu.
+    """
+    query = PatternQuery(
+        select=["?p"],
+        where=[
+            PatternTriple(
+                s="?p",
+                p="<http://example.org/pokemon#hasType>",
+                o="<http://example.org/pokemon/data#TypeElectric>",
+            ),
+            PatternTriple(
+                s="?p",
+                p="<http://example.org/pokemon#hp>",
+                o="35",
+            ),
+        ],
+        limit=20,
+    )
+    result = await store.query_pattern(query)
+    uris = [row.get("p") for row in result.rows if row.get("p")]
+    # Pikachu is electric with hp 35; Pichu (hp 20) / Raichu (hp 60) excluded.
+    assert _PIKACHU_URI in uris
+    assert "http://example.org/pokemon/data#Pichu" not in uris
+    assert "http://example.org/pokemon/data#Raichu" not in uris
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_query_pattern_concrete_uri_object(store) -> None:
+    """Review #5: ?p evolvesFrom <Pikachu> must bind the object and return
+    only Raichu, not every pokemon with an evolvesFrom edge."""
+    query = PatternQuery(
+        select=["?p"],
+        where=[
+            PatternTriple(
+                s="?p",
+                p="<http://example.org/pokemon#evolvesFrom>",
+                o="<http://example.org/pokemon/data#Pikachu>",
+            )
+        ],
+        limit=20,
+    )
+    result = await store.query_pattern(query)
+    uris = {row.get("p") for row in result.rows if row.get("p")}
+    # Only Raichu evolves from Pikachu.
+    assert uris == {"http://example.org/pokemon/data#Raichu"}
+
+
 # ── dump_graph ────────────────────────────────────────────────────────────────
 
 

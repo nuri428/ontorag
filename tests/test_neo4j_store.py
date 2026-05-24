@@ -139,6 +139,55 @@ class TestPatternToCypher:
         cypher, _ = pattern_to_cypher(query, shorten_fn=self._shorten)
         assert "pk__hasType" in cypher
 
+    def test_multi_triple_literal_filter_emits_single_where(self) -> None:
+        """Review #4: a relationship triple + literal-filter triple sharing a
+        subject var must produce ONE combined WHERE, not WHERE inside a MATCH."""
+        query = PatternQuery(
+            select=["?p", "?t"],
+            where=[
+                PatternTriple(
+                    s="?p",
+                    p="<http://example.org/pokemon#hasType>",
+                    o="?t",
+                ),
+                PatternTriple(
+                    s="?p",
+                    p="<http://example.org/pokemon#hp>",
+                    o="100",
+                ),
+            ],
+        )
+        cypher, params = pattern_to_cypher(query, shorten_fn=self._shorten)
+        # Exactly one WHERE keyword
+        assert cypher.count("WHERE") == 1
+        # WHERE must come after all MATCH lines (no WHERE embedded mid-MATCH)
+        where_idx = cypher.index("WHERE")
+        return_idx = cypher.index("RETURN")
+        assert where_idx < return_idx
+        # The relationship MATCH and the literal value both present
+        assert "pk__hasType" in cypher
+        assert 100 in params.values()
+        # The literal filter references the shared subject var p
+        assert "p.`pk__hp`" in cypher
+
+    def test_concrete_uri_object_is_bound(self) -> None:
+        """Review #5: ?p knows <Bob> must bind Bob on the object node, not
+        match any node."""
+        query = PatternQuery(
+            select=["?p"],
+            where=[
+                PatternTriple(
+                    s="?p",
+                    p="<http://example.org/pokemon#evolvesFrom>",
+                    o="<http://example.org/pokemon/data#Pikachu>",
+                )
+            ],
+        )
+        cypher, params = pattern_to_cypher(query, shorten_fn=self._shorten)
+        # Object URI must be bound as a parameter on a uri-constrained node
+        assert "uri:" in cypher.replace(" ", "")
+        assert "http://example.org/pokemon/data#Pikachu" in params.values()
+
 
 # ── _is_var / _is_literal / _parse_literal_value ─────────────────────────────
 
