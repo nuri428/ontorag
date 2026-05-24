@@ -8,3 +8,26 @@ wheels/
 
 # Virtual environments
 .venv
+
+# OS / editor junk
+.DS_Store
+
+# Test / coverage artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Secrets & local config (never commit)
+.env
+.env.local
+
+# Runtime data
+chat.db
+
+# Benchmark outputs (regenerable, not source of truth)
+bench_*.log
+bench_ragas_*/
+bench_speed_*/
+
+# Local Claude Code skills (personal tooling)
+.claude/skills/
