@@ -37,15 +37,13 @@ from rdflib import Graph
 from ontorag.core.loader import detect_mode, parse_rdf
 from ontorag.core.sparql import STANDARD_PREFIXES
 from ontorag.stores._neo4j_entity_mixin import _Neo4jEntityMixin
+from ontorag.stores._neo4j_export import triples_to_ttl, triples_to_xlsx
+from ontorag.stores._neo4j_schema_mixin import _Neo4jSchemaMixin
 from ontorag.stores._neo4j_traversal_mixin import _Neo4jTraversalMixin
 from ontorag.stores.base import (
-    ClassDetail,
-    ClassSummary,
     LoadResult,
     PatternQuery,
-    PropertySummary,
     QueryResult,
-    SchemaResult,
     StoreStatus,
 )
 
@@ -73,7 +71,7 @@ _OWL_TYPE_MAP: dict[str, str] = {
 }
 
 
-class Neo4jStore(_Neo4jEntityMixin, _Neo4jTraversalMixin):
+class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin):
     """Apache Neo4j + neosemantics (n10s) graph store adapter.
 
     All public methods implement the GraphStore protocol exactly.
@@ -507,281 +505,6 @@ class Neo4jStore(_Neo4jEntityMixin, _Neo4jTraversalMixin):
             data_loaded=data_cnt > 0,
         )
 
-    # ── Schema ────────────────────────────────────────────────────────────────
-
-    async def get_schema(self) -> SchemaResult:
-        """Return compact schema overview: class hierarchy + property counts.
-
-        Returns:
-            SchemaResult with classes, properties, and namespace mapping.
-        """
-        await self._ensure_prefix_map()
-
-        # 1. All owl:Class nodes + optional label, subClassOf parent, comment
-        cls_rows, prop_rows, inst_rows = await asyncio.gather(
-            self._run("""
-                MATCH (c:owl__Class)
-                OPTIONAL MATCH (c)-[:rdfs__subClassOf]->(parent:Resource)
-                RETURN DISTINCT
-                    c.uri AS uri,
-                    c.rdfs__label AS label,
-                    parent.uri AS parent_uri,
-                    c.rdfs__comment AS comment
-                ORDER BY c.uri
-            """),
-            self._run("""
-                MATCH (p:Resource)-[:rdf__type]->(t:Resource)
-                WHERE t.uri IN $prop_types
-                OPTIONAL MATCH (p)-[:rdfs__domain]->(d:Resource)
-                OPTIONAL MATCH (p)-[:rdfs__range]->(r:Resource)
-                OPTIONAL MATCH (p)-[:owl__inverseOf]->(inv:Resource)
-                OPTIONAL MATCH (p)-[:rdf__type]->(trans:Resource {uri: $transitive_uri})
-                RETURN DISTINCT
-                    p.uri AS uri,
-                    p.rdfs__label AS label,
-                    t.uri AS prop_type,
-                    d.uri AS domain_uri,
-                    r.uri AS range_uri,
-                    inv.uri AS inverse_uri,
-                    p.rdfs__comment AS comment,
-                    CASE WHEN trans IS NOT NULL THEN true ELSE false END AS is_transitive
-                ORDER BY p.uri
-            """,
-                prop_types=[
-                    "http://www.w3.org/2002/07/owl#ObjectProperty",
-                    "http://www.w3.org/2002/07/owl#DatatypeProperty",
-                    "http://www.w3.org/2002/07/owl#AnnotationProperty",
-                ],
-                transitive_uri="http://www.w3.org/2002/07/owl#TransitiveProperty",
-            ),
-            # Instance count per class (subclass inference via *0.. hop)
-            self._run("""
-                MATCH (inst:Resource)-[:rdf__type]->(c:owl__Class)
-                WHERE NOT (c:owl__ObjectProperty OR c:owl__DatatypeProperty
-                           OR c:owl__AnnotationProperty OR c:owl__Ontology)
-                RETURN c.uri AS class_uri, count(DISTINCT inst) AS cnt
-            """),
-        )
-
-        # Build instance count map
-        inst_count: dict[str, int] = {
-            r["class_uri"]: r["cnt"] for r in inst_rows if r.get("class_uri")
-        }
-
-        # Build property count per domain class
-        prop_count_map: dict[str, int] = {}
-        prop_meta: dict[str, dict] = {}
-        for row in prop_rows:
-            uri = row.get("uri")
-            if not uri:
-                continue
-            domain = row.get("domain_uri")
-            if domain:
-                prop_count_map[domain] = prop_count_map.get(domain, 0) + 1
-            meta = prop_meta.setdefault(
-                uri,
-                {
-                    "label": None,
-                    "prop_type": "annotation",
-                    "domain": None,
-                    "range": None,
-                    "is_transitive": False,
-                    "inverse": None,
-                    "description": None,
-                },
-            )
-            lbl = _first_value(row.get("label"))
-            if lbl and not meta["label"]:
-                meta["label"] = lbl
-            raw_type = row.get("prop_type") or ""
-            if raw_type in _OWL_TYPE_MAP:
-                meta["prop_type"] = _OWL_TYPE_MAP[raw_type]
-            if not meta["domain"]:
-                meta["domain"] = domain
-            if not meta["range"]:
-                meta["range"] = row.get("range_uri")
-            if row.get("is_transitive"):
-                meta["is_transitive"] = True
-            if not meta["inverse"]:
-                meta["inverse"] = row.get("inverse_uri")
-            if not meta["description"]:
-                meta["description"] = _first_value(row.get("comment"))
-
-        all_properties = [
-            PropertySummary(
-                uri=uri,
-                label=m["label"],
-                prop_type=m["prop_type"],  # type: ignore[arg-type]
-                domain_uri=m["domain"],
-                range_uri=m["range"],
-                is_transitive=m["is_transitive"],
-                inverse_of_uri=m["inverse"],
-                description=m["description"],
-            )
-            for uri, m in prop_meta.items()
-        ]
-
-        # Build ClassSummary list
-        class_meta: dict[str, dict] = {}
-        for row in cls_rows:
-            uri = row.get("uri")
-            if not uri:
-                continue
-            meta_c = class_meta.setdefault(
-                uri, {"label": None, "parent": None, "description": None}
-            )
-            lbl = _first_value(row.get("label"))
-            if lbl and not meta_c["label"]:
-                meta_c["label"] = lbl
-            if not meta_c["parent"]:
-                meta_c["parent"] = row.get("parent_uri")
-            cmt = _first_value(row.get("comment"))
-            if cmt and not meta_c["description"]:
-                meta_c["description"] = cmt
-
-        classes = [
-            ClassSummary(
-                uri=uri,
-                label=meta_c["label"],
-                parent_uri=meta_c["parent"],
-                property_count=prop_count_map.get(uri, 0),
-                instance_count=inst_count.get(uri, 0),
-                description=meta_c["description"],
-            )
-            for uri, meta_c in class_meta.items()
-        ]
-
-        namespaces = {**STANDARD_PREFIXES, **{
-            p: ns for p, ns in self._prefix_to_ns.items()
-        }}
-
-        return SchemaResult(
-            total_classes=len(classes),
-            total_properties=len(all_properties),
-            namespaces=namespaces,
-            classes=classes,
-            properties=all_properties,
-        )
-
-    async def get_class_detail(self, class_uri: str) -> ClassDetail:
-        """Return full TBox detail for a single ontology class.
-
-        Args:
-            class_uri: Full URI of the class.
-
-        Returns:
-            ClassDetail with properties, hierarchy, and sample instances.
-
-        Raises:
-            KeyError: If the class does not exist in the store.
-        """
-        await self._ensure_prefix_map()
-
-        # Explicit existence probe (review #9): a real leaf class with no
-        # label/comment/parent/children/props/instances must NOT be reported
-        # as "not found". Decide existence on the node alone.
-        exists_rows = await self._run(
-            "MATCH (c:Resource {uri: $uri}) RETURN c.uri AS uri LIMIT 1",
-            uri=class_uri,
-        )
-        if not exists_rows:
-            raise KeyError(f"Class not found: {class_uri}")
-
-        meta_rows, prop_rows, child_rows, inst_rows = await asyncio.gather(
-            self._run("""
-                MATCH (c:Resource {uri: $uri})
-                OPTIONAL MATCH (c)-[:rdfs__subClassOf]->(parent:Resource)
-                RETURN
-                    c.rdfs__label AS label,
-                    c.rdfs__comment AS comment,
-                    parent.uri AS parent_uri
-            """, uri=class_uri),
-            self._run("""
-                MATCH (p:Resource)-[:rdfs__domain]->(c:Resource {uri: $uri})
-                MATCH (p)-[:rdf__type]->(t:Resource)
-                WHERE t.uri IN $prop_types
-                OPTIONAL MATCH (p)-[:rdfs__range]->(r:Resource)
-                RETURN DISTINCT
-                    p.uri AS uri,
-                    p.rdfs__label AS label,
-                    t.uri AS prop_type,
-                    r.uri AS range_uri
-                ORDER BY p.uri
-            """,
-                uri=class_uri,
-                prop_types=[
-                    "http://www.w3.org/2002/07/owl#ObjectProperty",
-                    "http://www.w3.org/2002/07/owl#DatatypeProperty",
-                    "http://www.w3.org/2002/07/owl#AnnotationProperty",
-                ],
-            ),
-            self._run("""
-                MATCH (child:Resource)-[:rdfs__subClassOf]->(c:Resource {uri: $uri})
-                RETURN DISTINCT child.uri AS child_uri
-            """, uri=class_uri),
-            self._run("""
-                MATCH (inst:Resource)-[:rdf__type]->(c:Resource {uri: $uri})
-                RETURN DISTINCT inst.uri AS uri
-                LIMIT 3
-            """, uri=class_uri),
-        )
-
-        # Existence already confirmed above (review #9) — no emptiness check
-        # here, so a real leaf class with no metadata is returned, not raised.
-
-        label = None
-        description = None
-        parent_uris_set: set[str] = set()
-        for row in meta_rows:
-            lbl = _first_value(row.get("label"))
-            if lbl and not label:
-                label = lbl
-            cmt = _first_value(row.get("comment"))
-            if cmt and not description:
-                description = cmt
-            if row.get("parent_uri"):
-                parent_uris_set.add(row["parent_uri"])
-
-        properties = []
-        seen_props: set[str] = set()
-        for row in prop_rows:
-            uri = row.get("uri")
-            if not uri or uri in seen_props:
-                continue
-            seen_props.add(uri)
-            properties.append(
-                PropertySummary(
-                    uri=uri,
-                    label=_first_value(row.get("label")),
-                    prop_type=_OWL_TYPE_MAP.get(
-                        row.get("prop_type") or "", "annotation"
-                    ),  # type: ignore[arg-type]
-                    domain_uri=class_uri,
-                    range_uri=row.get("range_uri"),
-                )
-            )
-
-        # Count instances with subclass inference
-        cnt_rows = await self._run(
-            """
-            MATCH (inst:Resource)-[:rdf__type]->(c:Resource)-[:rdfs__subClassOf*0..]->(:Resource {uri: $uri})
-            RETURN count(DISTINCT inst) AS cnt
-            """,
-            uri=class_uri,
-        )
-        inst_count = cnt_rows[0]["cnt"] if cnt_rows else 0
-
-        return ClassDetail(
-            uri=class_uri,
-            label=label,
-            description=description,
-            parent_uris=list(parent_uris_set),
-            child_uris=[r["child_uri"] for r in child_rows if r.get("child_uri")],
-            properties=properties,
-            instance_count=inst_count,
-            sample_instance_uris=[r["uri"] for r in inst_rows if r.get("uri")],
-        )
-
     # ── Layer 2 — query_pattern ───────────────────────────────────────────────
 
     async def query_pattern(self, query: PatternQuery) -> QueryResult:
@@ -923,10 +646,10 @@ class Neo4jStore(_Neo4jEntityMixin, _Neo4jTraversalMixin):
             return ("\n".join(lines) + "\n").encode() if lines else b""
 
         if fmt == "xlsx":
-            return _triples_to_xlsx(triples, label=target)
+            return triples_to_xlsx(triples, label=target)
 
         # Default: TTL — build using rdflib
-        return _triples_to_ttl(triples)
+        return triples_to_ttl(triples)
 
     # ── Clear ─────────────────────────────────────────────────────────────────
 
@@ -962,111 +685,3 @@ class Neo4jStore(_Neo4jEntityMixin, _Neo4jTraversalMixin):
             await self._driver.close()
         except Exception:
             pass
-
-
-# ── Module helpers ────────────────────────────────────────────────────────────
-
-
-def _first_value(val: Any) -> Any:
-    """Unwrap single-element lists produced by handleMultival=ARRAY.
-
-    n10s stores every RDF property as a list. This helper returns the first
-    element for scalar display, or None if the value is empty.
-
-    Args:
-        val: Raw value from Neo4j (may be list or scalar).
-
-    Returns:
-        Scalar value (first element if list), or None.
-    """
-    if val is None:
-        return None
-    if isinstance(val, list):
-        if not val:
-            return None
-        return val[0]
-    return val
-
-
-def _unpack_value(val: Any) -> Any:
-    """Unwrap an ARRAY-config multi-value to scalar or list.
-
-    If the list has exactly one element, return that element (scalar parity
-    with Fuseki which returns single-value triples as scalars). If it has
-    multiple elements, return the list. If empty, return None.
-
-    Args:
-        val: Raw property value from Neo4j.
-
-    Returns:
-        Scalar, list, or None.
-    """
-    if isinstance(val, list):
-        if len(val) == 0:
-            return None
-        if len(val) == 1:
-            return val[0]
-        return val
-    return val
-
-
-def _triples_to_ttl(triples: list[dict]) -> bytes:
-    """Serialize SPO rows from n10s export as Turtle bytes.
-
-    Args:
-        triples: List of dicts with keys s, p, o, isLiteral, literalType, literalLang.
-
-    Returns:
-        UTF-8 encoded Turtle bytes.
-    """
-    from rdflib import Graph, Literal, URIRef  # noqa: PLC0415
-    from rdflib.namespace import XSD  # noqa: PLC0415
-
-    g = Graph()
-    for t in triples:
-        subj = URIRef(t["s"])
-        pred = URIRef(t["p"])
-        if t.get("isLiteral"):
-            lang = t.get("literalLang") or ""
-            dtype = t.get("literalType") or ""
-            if lang and lang != "null":
-                obj = Literal(t["o"], lang=lang)
-            elif dtype and dtype != "null" and dtype != str(XSD.string):
-                obj = Literal(t["o"], datatype=URIRef(dtype))
-            else:
-                obj = Literal(t["o"])
-        else:
-            obj = URIRef(t["o"])
-        g.add((subj, pred, obj))
-    return g.serialize(format="turtle").encode()
-
-
-def _triples_to_xlsx(triples: list[dict], label: str = "data") -> bytes:
-    """Serialize SPO rows as an XLSX workbook.
-
-    Args:
-        triples: List of dicts with keys s, p, o.
-        label: Sheet name.
-
-    Returns:
-        XLSX bytes.
-    """
-    import io  # noqa: PLC0415
-
-    try:
-        import openpyxl  # noqa: PLC0415
-    except ImportError as exc:
-        raise ImportError(
-            "openpyxl is not installed. Run: uv add openpyxl"
-        ) from exc
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = label
-    ws.append(["Subject", "Predicate", "Object"])
-    for t in triples:
-        ws.append([t["s"], t["p"], t["o"]])
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    return buf.getvalue()
