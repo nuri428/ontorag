@@ -36,6 +36,7 @@ from rdflib import Graph
 
 from ontorag.core.loader import detect_mode, parse_rdf
 from ontorag.core.sparql import STANDARD_PREFIXES
+from ontorag.stores._neo4j_embedding_mixin import _Neo4jEmbeddingMixin
 from ontorag.stores._neo4j_entity_mixin import _Neo4jEntityMixin
 from ontorag.stores._neo4j_export import triples_to_ttl, triples_to_xlsx
 from ontorag.stores._neo4j_schema_mixin import _Neo4jSchemaMixin
@@ -72,7 +73,7 @@ _OWL_TYPE_MAP: dict[str, str] = {
 }
 
 
-class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Neo4jSearchMixin):
+class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Neo4jSearchMixin, _Neo4jEmbeddingMixin):
     """Apache Neo4j + neosemantics (n10s) graph store adapter.
 
     All public methods implement the GraphStore protocol exactly.
