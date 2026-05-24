@@ -549,6 +549,21 @@ class GraphStore(Protocol):
         """
         ...
 
+    async def clear_graph(
+        self,
+        target: Literal["schema", "data", "all"],
+    ) -> dict[str, int]:
+        """Drop one or both graphs and report how many triples were removed.
+
+        Args:
+            target: "schema" clears the TBox, "data" clears the ABox,
+                "all" clears both.
+
+        Returns:
+            Mapping of graph name → triple count removed before deletion.
+        """
+        ...
+
     # ── Store management ─────────────────────────────────────────────────────
 
     async def status(self) -> StoreStatus:
@@ -556,5 +571,13 @@ class GraphStore(Protocol):
 
         Returns:
             Connected flag, total triple count, schema/data load state.
+        """
+        ...
+
+    async def aclose(self) -> None:
+        """Release backend resources (HTTP clients, driver sessions, sockets).
+
+        Idempotent: safe to call when the store is already closed. Callers
+        (CLI commands, request lifecycle) invoke this for clean shutdown.
         """
         ...

@@ -52,13 +52,13 @@ def _run_load(
     replace: bool = False,
 ) -> None:
     """Parse + upload RDF file with a Rich spinner and result summary."""
-    from ontorag.stores.fuseki import FusekiStore
+    from ontorag.stores.factory import create_store
 
     if not file.exists():
         console.print(f"[red]Error:[/] 파일을 찾을 수 없습니다: {file}")
         raise typer.Exit(1)
 
-    store = FusekiStore.from_env()
+    store = create_store()
 
     with Progress(
         SpinnerColumn(),
@@ -137,7 +137,7 @@ def load_data(
 
 def _run_clear(target: str) -> None:
     """Drop named graph(s) from the store with confirmation prompt."""
-    from ontorag.stores.fuseki import FusekiStore
+    from ontorag.stores.factory import create_store
 
     label = {
         "schema": "스키마(TBox)",
@@ -149,7 +149,7 @@ def _run_clear(target: str) -> None:
         console.print("[dim]취소했습니다.[/]")
         raise typer.Exit(0)
 
-    store = FusekiStore.from_env()
+    store = create_store()
     try:
         removed = asyncio.run(store.clear_graph(target))  # type: ignore[arg-type]
     except Exception as exc:
@@ -187,7 +187,7 @@ _DUMP_EXT = {"ttl": "ttl", "json": "json", "jsonl": "jsonl", "xlsx": "xlsx"}
 
 def _run_dump(target: str, fmt: str, output: Path | None) -> None:
     """Export a named graph to a local file with a Rich spinner."""
-    from ontorag.stores.fuseki import FusekiStore
+    from ontorag.stores.factory import create_store
 
     if fmt not in _DUMP_FORMATS:
         console.print(
@@ -196,7 +196,7 @@ def _run_dump(target: str, fmt: str, output: Path | None) -> None:
         )
         raise typer.Exit(1)
 
-    store = FusekiStore.from_env()
+    store = create_store()
 
     with Progress(
         SpinnerColumn(),
@@ -271,9 +271,9 @@ def dump_all(
 @app.command()
 def status() -> None:
     """그래프 스토어 연결 및 데이터 로드 상태를 표시합니다."""
-    from ontorag.stores.fuseki import FusekiStore
+    from ontorag.stores.factory import create_store
 
-    store = FusekiStore.from_env()
+    store = create_store()
     try:
         s = asyncio.run(store.status())
     except Exception as exc:
@@ -462,7 +462,7 @@ def chat(
 
     from ontorag.chat import store as chat_store
     from ontorag.llm.factory import get_llm_provider
-    from ontorag.stores.fuseki import FusekiStore
+    from ontorag.stores.factory import create_store
 
     try:
         llm = get_llm_provider()
@@ -481,7 +481,7 @@ def chat(
 
     async def _repl(initial: Optional[str]) -> None:
         # store는 async 컨텍스트 안에서 생성 — httpx 클라이언트가 현재 루프에 바인딩됨
-        store = FusekiStore.from_env()
+        store = create_store()
 
         from ontorag.chat.agent import AgentLoop, _format_schema_for_prompt
 

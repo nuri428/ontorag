@@ -19,7 +19,7 @@ def _get_learner():
     """Build an LLMOntologyLearner from the current environment."""
     from ontorag.learn.pipeline import LLMOntologyLearner
     from ontorag.llm.factory import get_llm_provider
-    from ontorag.stores.fuseki import FusekiStore
+    from ontorag.stores.factory import create_store
 
     try:
         llm = get_llm_provider()
@@ -30,7 +30,7 @@ def _get_learner():
         )
         raise typer.Exit(1)
 
-    store = FusekiStore.from_env()
+    store = create_store()
     return LLMOntologyLearner(store, llm)
 
 

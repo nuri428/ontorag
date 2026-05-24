@@ -359,7 +359,7 @@ def _build_baseline(
             OntoragNativeBaseline,
         )
         from ontorag.llm.factory import get_llm_provider  # noqa: PLC0415
-        from ontorag.stores.fuseki import FusekiStore  # noqa: PLC0415
+        from ontorag.stores.factory import create_store  # noqa: PLC0415
 
         try:
             llm = get_llm_provider()
@@ -367,7 +367,7 @@ def _build_baseline(
             raise typer.BadParameter(
                 f"ontorag_native baseline requires LLM provider config: {e}"
             ) from e
-        store = FusekiStore.from_env()
+        store = create_store()
         # Synchronous construction — schema is fetched lazily inside the
         # BenchRunner's asyncio loop on the first answer() call, so the
         # store's httpx client is bound to the right loop.
