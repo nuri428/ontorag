@@ -127,6 +127,12 @@ class TestBuildEmbeddingsUnit:
         )
         store._build_structural = lambda: _Neo4jEmbeddingMixin._build_structural(store)
         store._build_textual = lambda p: _Neo4jEmbeddingMixin._build_textual(store, p)
+        store._rows_to_text_pairs = _Neo4jEmbeddingMixin._rows_to_text_pairs
+        store._write_text_vectors = (
+            lambda uris, vectors: _Neo4jEmbeddingMixin._write_text_vectors(
+                store, uris, vectors
+            )
+        )
         store._ensure_vector_index = AsyncMock()
         store._get_vector_index_info = AsyncMock(
             return_value={"state": "ONLINE", "options": {"indexConfig": {"vector.dimensions": 256}}}
@@ -197,6 +203,37 @@ class TestBuildEmbeddingsUnit:
         result = await mock_store._build_textual(provider)
         assert result == 0
         mock_store._run_write.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_textual_pages_the_node_fetch(self, mock_store, monkeypatch):
+        """_build_textual pages the node fetch (HIGH review #1): a full page
+        triggers another fetch so the whole ABox never lands in memory."""
+        monkeypatch.setattr(
+            "ontorag.stores._neo4j_embedding_mixin._TEXT_PAGE_SIZE", 2
+        )
+        mock_store._run.side_effect = [
+            [{"k": "rdfs__label"}],  # discovery
+            [  # page 1 — full page (== page size) → must fetch again
+                {"uri": "http://ex.org/A", "rdfs__label": "Alpha"},
+                {"uri": "http://ex.org/B", "rdfs__label": "Beta"},
+            ],
+            [{"uri": "http://ex.org/C", "rdfs__label": "Gamma"}],  # page 2 — short → stop
+        ]
+        mock_store._run_write.side_effect = [[{"cnt": 2}], [{"cnt": 1}]]
+
+        embedded: list[str] = []
+
+        class CountingProvider(FakeEmbeddingProvider):
+            async def embed(self, texts: list[str]) -> list[list[float]]:
+                embedded.extend(texts)
+                return await super().embed(texts)
+
+        result = await mock_store._build_textual(CountingProvider())
+
+        assert result == 3  # 2 + 1 written across two pages
+        assert len(embedded) == 3  # every node embedded, none dropped
+        assert mock_store._run.call_count == 3  # discovery + 2 fetch pages
+        assert mock_store._run_write.call_count == 2  # one write per page
 
     @pytest.mark.asyncio
     async def test_build_both_calls_both(self, mock_store):

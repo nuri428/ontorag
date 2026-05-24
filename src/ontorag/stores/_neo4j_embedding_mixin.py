@@ -60,6 +60,10 @@ _TEXT_PROPS_ORDERED: list[str] = [
 # Minimum text length (chars) to bother embedding.
 _MIN_TEXT_LEN: int = 3
 
+# Node-fetch page size for textual embeddings — bounds peak memory so the whole
+# ABox never lands in a single Python list (HIGH review #1).
+_TEXT_PAGE_SIZE: int = 2000
+
 
 class _Neo4jEmbeddingMixin:
     """Structural + textual graph-embedding capability mixed into Neo4jStore.
@@ -278,22 +282,92 @@ class _Neo4jEmbeddingMixin:
             if k not in ordered_keys:
                 ordered_keys.append(k)
 
-        # Fetch all ABox instance URIs + their text props.
-        # Build the RETURN clause with safe, validated property keys.
-        # Each key is backtick-quoted after _safe_rel validation.
-        prop_return = ", ".join(
-            f"n.`{k}` AS `{k}`" for k in ordered_keys
-        )
-        rows = await self._run(
-            f"""
-            MATCH (n:Resource)
-            WHERE NOT n:_NsPrefDef AND NOT n:_GraphConfig
-            RETURN n.uri AS uri, {prop_return}
-            """
+        # Page the node fetch so the whole ABox never lands in memory at once.
+        # Each page is fetched, embedded, and written before advancing — bounded
+        # memory regardless of graph size (HIGH review #1).
+        prop_return = ", ".join(f"n.`{k}` AS `{k}`" for k in ordered_keys)
+        fetch_cypher = (
+            "MATCH (n:Resource) "
+            "WHERE NOT n:_NsPrefDef AND NOT n:_GraphConfig "
+            "WITH n ORDER BY n.uri "
+            "SKIP $skip LIMIT $page "
+            f"RETURN n.uri AS uri, {prop_return}"
         )
 
-        # Build text strings per node.
-        uri_text_pairs: list[tuple[str, str]] = []
+        written = 0
+        total_embedded = 0
+        skip = 0
+        while True:
+            rows = await self._run(fetch_cypher, skip=skip, page=_TEXT_PAGE_SIZE)
+            if not rows:
+                break
+
+            page_pairs = self._rows_to_text_pairs(rows, ordered_keys)
+            skip += len(rows)
+
+            # Some pages may yield no embeddable text — still advance the cursor.
+            if not page_pairs:
+                if len(rows) < _TEXT_PAGE_SIZE:
+                    break
+                continue
+
+            uris = [u for u, _ in page_pairs]
+            texts = [t for _, t in page_pairs]
+            total_embedded += len(texts)
+
+            try:
+                vectors = await provider.embed(texts)
+            except Exception as exc:
+                logger.error("EmbeddingProvider.embed() failed: %s", exc)
+                return written
+
+            if len(vectors) != len(uris):
+                logger.error(
+                    "Provider returned %d vectors for %d texts; aborting page.",
+                    len(vectors),
+                    len(uris),
+                )
+                return written
+
+            written += await self._write_text_vectors(uris, vectors)
+
+            # Short page → no more nodes to fetch.
+            if len(rows) < _TEXT_PAGE_SIZE:
+                break
+
+        logger.info(
+            "Embedded %d nodes via %s (dim=%d); wrote %d _text_embedding properties",
+            total_embedded,
+            provider.model,
+            provider.dimension,
+            written,
+        )
+
+        if written == 0:
+            logger.info("No non-empty text found for textual embeddings.")
+            return 0
+
+        # Ensure the vector index for textual embeddings.
+        await self._ensure_vector_index(_TEXT_INDEX, _TEXT_PROP, provider.dimension)
+        return written
+
+    @staticmethod
+    def _rows_to_text_pairs(
+        rows: list[dict[str, Any]],
+        ordered_keys: list[str],
+    ) -> list[tuple[str, str]]:
+        """Build (uri, combined_text) pairs from a page of node rows.
+
+        Skips nodes whose combined text is shorter than ``_MIN_TEXT_LEN``.
+
+        Args:
+            rows: Raw node rows with a ``uri`` key and per-property keys.
+            ordered_keys: Property keys to concatenate, in priority order.
+
+        Returns:
+            List of (uri, text) pairs for nodes with embeddable text.
+        """
+        pairs: list[tuple[str, str]] = []
         for row in rows:
             uri = row.get("uri")
             if not uri:
@@ -316,61 +390,36 @@ class _Neo4jEmbeddingMixin:
                         parts.append(text)
             combined = " ".join(parts)
             if len(combined) >= _MIN_TEXT_LEN:
-                uri_text_pairs.append((uri, combined))
+                pairs.append((uri, combined))
+        return pairs
 
-        if not uri_text_pairs:
-            logger.info("No non-empty text found for textual embeddings.")
-            return 0
+    async def _write_text_vectors(
+        self: "Neo4jStore",
+        uris: list[str],
+        vectors: list[list[float]],
+    ) -> int:
+        """Write a batch of textual embeddings via a single UNWIND write.
 
-        # Batch embed.
-        uris = [u for u, _ in uri_text_pairs]
-        texts = [t for _, t in uri_text_pairs]
+        Args:
+            uris: Node URIs (bound parameter values, never interpolated).
+            vectors: Embedding vectors aligned with ``uris``.
 
-        logger.info(
-            "Embedding %d nodes via %s (dim=%d)...",
-            len(texts),
-            provider.model,
-            provider.dimension,
-        )
+        Returns:
+            Number of nodes whose ``_text_embedding`` property was set.
+        """
+        pairs = [{"uri": u, "vec": v} for u, v in zip(uris, vectors)]
         try:
-            vectors = await provider.embed(texts)
-        except Exception as exc:
-            logger.error("EmbeddingProvider.embed() failed: %s", exc)
-            return 0
-
-        if len(vectors) != len(uris):
-            logger.error(
-                "Provider returned %d vectors for %d texts; aborting.",
-                len(vectors),
-                len(uris),
+            write_rows = await self._run_write(
+                "UNWIND $pairs AS pair "
+                "MATCH (n:Resource {uri: pair.uri}) "
+                f"SET n.`{_TEXT_PROP}` = pair.vec "
+                "RETURN count(n) AS cnt",
+                pairs=pairs,
             )
+            return write_rows[0]["cnt"] if write_rows else 0
+        except Exception as exc:
+            logger.error("Batch write of textual embeddings failed: %s", exc)
             return 0
-
-        # Write embeddings in batches of 100 (bound parameters).
-        batch_size = 100
-        written = 0
-        for start in range(0, len(uris), batch_size):
-            batch_uris = uris[start : start + batch_size]
-            batch_vecs = vectors[start : start + batch_size]
-            pairs = [{"uri": u, "vec": v} for u, v in zip(batch_uris, batch_vecs)]
-            try:
-                write_rows = await self._run_write(
-                    "UNWIND $pairs AS pair "
-                    "MATCH (n:Resource {uri: pair.uri}) "
-                    f"SET n.`{_TEXT_PROP}` = pair.vec "
-                    "RETURN count(n) AS cnt",
-                    pairs=pairs,
-                )
-                cnt = write_rows[0]["cnt"] if write_rows else 0
-                written += cnt
-            except Exception as exc:
-                logger.error("Batch write of textual embeddings failed: %s", exc)
-
-        logger.info("Wrote %d _text_embedding properties", written)
-
-        # Ensure the vector index for textual embeddings.
-        await self._ensure_vector_index(_TEXT_INDEX, _TEXT_PROP, provider.dimension)
-        return written
 
     # ── Index lifecycle ───────────────────────────────────────────────────────
 
@@ -416,8 +465,37 @@ class _Neo4jEmbeddingMixin:
         info = await self._get_vector_index_info(index_name)
         if info is not None:
             state = info.get("state", "")
-            if state == "ONLINE":
-                # Check if the dimension matches — stored in indexConfig.
+            if state == "POPULATING":
+                # Index is being built; wait for it to become ONLINE before
+                # inspecting its dimension (recreating mid-POPULATING can error).
+                logger.info(
+                    "Vector index '%s' is POPULATING; waiting up to %.0fs for ONLINE...",
+                    index_name,
+                    wait_online_secs,
+                )
+                online = await self._wait_for_index_online(
+                    index_name, wait_online_secs
+                )
+                if online:
+                    logger.info("Vector index '%s' is now ONLINE.", index_name)
+                    info = await self._get_vector_index_info(index_name)
+                    state = info.get("state", "") if info else ""
+                else:
+                    # Did not reach ONLINE — treat as unusable and recreate so a
+                    # stale wrong-dim index can never be queried (MEDIUM #2).
+                    logger.warning(
+                        "Vector index '%s' did not reach ONLINE within %.0fs; recreating.",
+                        index_name,
+                        wait_online_secs,
+                    )
+                    await self._run_write(f"DROP INDEX {index_name} IF EXISTS")
+                    info = None
+
+            if info is not None and state == "ONLINE":
+                # Check if the dimension matches — stored in indexConfig.  This
+                # path is reached both for a directly-ONLINE index and for one
+                # that just finished POPULATING, so an OpenAI(1536)→Ollama(768)
+                # switch never leaves a wrong-dim index in place (MEDIUM #2).
                 options = info.get("options") or {}
                 idx_cfg = options.get("indexConfig") or {}
                 existing_dim = idx_cfg.get("vector.dimensions")
@@ -436,27 +514,7 @@ class _Neo4jEmbeddingMixin:
                     dimension,
                 )
                 await self._run_write(f"DROP INDEX {index_name} IF EXISTS")
-            elif state == "POPULATING":
-                # Index is being built; wait for it to become ONLINE rather than
-                # recreating (recreation during POPULATING can cause errors).
-                logger.info(
-                    "Vector index '%s' is POPULATING; waiting up to %.0fs for ONLINE...",
-                    index_name,
-                    wait_online_secs,
-                )
-                online = await self._wait_for_index_online(
-                    index_name, wait_online_secs
-                )
-                if online:
-                    logger.info("Vector index '%s' is now ONLINE.", index_name)
-                else:
-                    logger.warning(
-                        "Vector index '%s' did not reach ONLINE within %.0fs.",
-                        index_name,
-                        wait_online_secs,
-                    )
-                return
-            else:
+            elif info is not None:
                 # FAILED or unknown — drop and recreate.
                 logger.warning(
                     "Vector index '%s' is in unexpected state '%s'; dropping and recreating.",
@@ -723,18 +781,29 @@ class _Neo4jEmbeddingMixin:
 
             existing = seen.get(hit_uri)
             if existing is not None:
-                if cls_hit and existing.class_uri is None:
-                    existing.class_uri = cls_hit
                 if existing.score >= score:
+                    # Keep the higher-scoring hit, but backfill a class_uri /
+                    # label it was missing — via model_copy, never in-place
+                    # mutation (immutability policy, MEDIUM #3).
+                    updates: dict[str, Any] = {}
+                    if cls_hit and existing.class_uri is None:
+                        updates["class_uri"] = cls_hit
+                    if label and existing.label is None:
+                        updates["label"] = label
+                    if updates:
+                        seen[hit_uri] = existing.model_copy(update=updates)
                     continue
-                # Better score from another rdf:type row — update.
+                # Better score from another rdf:type row — replace, but never
+                # drop a class_uri / label resolved on the previous row.
                 resolved_cls = cls_hit or existing.class_uri
+                resolved_label = label or existing.label
             else:
                 resolved_cls = cls_hit
+                resolved_label = label
 
             seen[hit_uri] = SimilarHit(
                 uri=hit_uri,
-                label=label,
+                label=resolved_label,
                 class_uri=resolved_cls,
                 score=score,
                 mode=mode,

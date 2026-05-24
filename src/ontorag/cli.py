@@ -302,52 +302,55 @@ def embed_run(
         raise typer.Exit(1)
 
     store = create_store()
-
-    # Verify the store supports embeddings (Neo4j only).
-    build_fn = getattr(store, "build_embeddings", None)
-    if build_fn is None:
-        console.print(
-            "[red]Error:[/] 그래프 임베딩은 GRAPH_STORE=neo4j 에서만 지원됩니다."
-        )
-        raise typer.Exit(1)
-
-    # For textual mode, resolve the embedding provider eagerly so cred errors
-    # surface before the long GDS structural step (when mode == "both").
-    embedding_provider = None
-    if mode in ("textual", "both"):
-        try:
-            from ontorag.llm.embedding import get_embedding_provider  # noqa: PLC0415
-
-            embedding_provider = get_embedding_provider()
-        except (ValueError, KeyError) as exc:
+    # Wrap the whole store lifetime so every exit path (including the early
+    # capability/provider guards below) releases the store's connection — a
+    # bare guard `raise` would otherwise leak the Fuseki httpx client.
+    try:
+        # Verify the store supports embeddings (Neo4j only).
+        build_fn = getattr(store, "build_embeddings", None)
+        if build_fn is None:
             console.print(
-                f"[red]Error:[/] 의미적 임베딩 제공자 초기화 실패 — {exc}"
-            )
-            console.print(
-                "[dim]EMBEDDING_PROVIDER 및 관련 API 키가 설정됐는지 확인하세요.[/]"
+                "[red]Error:[/] 그래프 임베딩은 GRAPH_STORE=neo4j 에서만 지원됩니다."
             )
             raise typer.Exit(1)
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[bold blue]{task.description}"),
-        TimeElapsedColumn(),
-        console=console,
-        transient=True,
-    ) as progress:
-        progress.add_task(f"임베딩 생성 중 (mode={mode})...", total=None)
-        try:
-            result = asyncio.run(
-                store.build_embeddings(mode, embedding_provider)  # type: ignore[union-attr]
-            )
-        except Exception as exc:
-            console.print(f"[red]Error:[/] 임베딩 생성 실패 — {exc}")
-            raise typer.Exit(1)
-        finally:
+        # For textual mode, resolve the embedding provider eagerly so cred errors
+        # surface before the long GDS structural step (when mode == "both").
+        embedding_provider = None
+        if mode in ("textual", "both"):
             try:
-                asyncio.run(store.aclose())
-            except Exception:
-                pass
+                from ontorag.llm.embedding import get_embedding_provider  # noqa: PLC0415
+
+                embedding_provider = get_embedding_provider()
+            except (ValueError, KeyError) as exc:
+                console.print(
+                    f"[red]Error:[/] 의미적 임베딩 제공자 초기화 실패 — {exc}"
+                )
+                console.print(
+                    "[dim]EMBEDDING_PROVIDER 및 관련 API 키가 설정됐는지 확인하세요.[/]"
+                )
+                raise typer.Exit(1)
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.description}"),
+            TimeElapsedColumn(),
+            console=console,
+            transient=True,
+        ) as progress:
+            progress.add_task(f"임베딩 생성 중 (mode={mode})...", total=None)
+            try:
+                result = asyncio.run(
+                    store.build_embeddings(mode, embedding_provider)  # type: ignore[union-attr]
+                )
+            except Exception as exc:
+                console.print(f"[red]Error:[/] 임베딩 생성 실패 — {exc}")
+                raise typer.Exit(1)
+    finally:
+        try:
+            asyncio.run(store.aclose())
+        except Exception:
+            pass
 
     table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
     table.add_column("모드", style="cyan")

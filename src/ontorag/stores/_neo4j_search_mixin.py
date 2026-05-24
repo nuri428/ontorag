@@ -301,8 +301,10 @@ class _Neo4jSearchMixin:
             existing_hit = seen.get(uri)
             if existing_hit is not None:
                 # Keep the best score; backfill a class_uri if we now have one.
+                # Immutable update (no in-place mutation of the pydantic model).
                 if cls_hit and existing_hit.class_uri is None:
-                    existing_hit.class_uri = cls_hit
+                    existing_hit = existing_hit.model_copy(update={"class_uri": cls_hit})
+                    seen[uri] = existing_hit
                 if existing_hit.score >= score:
                     continue
 

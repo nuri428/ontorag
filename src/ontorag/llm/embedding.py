@@ -41,6 +41,11 @@ class OpenAIEmbeddingProvider:
     ) -> None:
         from openai import AsyncOpenAI  # noqa: PLC0415 — optional dep, import lazily
 
+        if dimension <= 0:
+            raise ValueError(
+                f"Embedding dimension must be a positive integer, got {dimension}. "
+                "Check EMBEDDING_DIMENSION."
+            )
         self.model = model
         self.dimension = dimension
         self._client = AsyncOpenAI(api_key=api_key, base_url=base_url)
