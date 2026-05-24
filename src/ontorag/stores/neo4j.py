@@ -39,6 +39,7 @@ from ontorag.core.sparql import STANDARD_PREFIXES
 from ontorag.stores._neo4j_entity_mixin import _Neo4jEntityMixin
 from ontorag.stores._neo4j_export import triples_to_ttl, triples_to_xlsx
 from ontorag.stores._neo4j_schema_mixin import _Neo4jSchemaMixin
+from ontorag.stores._neo4j_search_mixin import _Neo4jSearchMixin
 from ontorag.stores._neo4j_traversal_mixin import _Neo4jTraversalMixin
 from ontorag.stores.base import (
     LoadResult,
@@ -71,7 +72,7 @@ _OWL_TYPE_MAP: dict[str, str] = {
 }
 
 
-class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin):
+class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Neo4jSearchMixin):
     """Apache Neo4j + neosemantics (n10s) graph store adapter.
 
     All public methods implement the GraphStore protocol exactly.
@@ -404,6 +405,10 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin):
             resolved_mode,
             path,
         )
+
+        # B2: keep the BM25 full-text index in sync after every load.
+        await self._ensure_fulltext_index()
+
         return LoadResult(
             triples_loaded=loaded,
             source=path,
