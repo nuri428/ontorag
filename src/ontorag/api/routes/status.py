@@ -3,8 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from ontorag.api.deps import get_store
-from ontorag.stores.base import StoreStatus
-from ontorag.stores.fuseki import FusekiStore
+from ontorag.stores.base import GraphStore, StoreStatus
 
 router = APIRouter(tags=["system"])
 
@@ -15,7 +14,7 @@ router = APIRouter(tags=["system"])
     summary="그래프 스토어 연결 및 데이터 로드 상태 확인",
     response_model=StoreStatus,
 )
-async def get_status(store: FusekiStore = Depends(get_store)) -> StoreStatus:
+async def get_status(store: GraphStore = Depends(get_store)) -> StoreStatus:
     """Return graph store connection status and triple counts.
 
     Returns:

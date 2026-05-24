@@ -3,8 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 
 from ontorag.api.deps import get_store
-from ontorag.stores.base import ClassDetail, SchemaResult
-from ontorag.stores.fuseki import FusekiStore
+from ontorag.stores.base import ClassDetail, GraphStore, SchemaResult
 
 router = APIRouter(prefix="/tools", tags=["tools"])
 
@@ -15,7 +14,7 @@ router = APIRouter(prefix="/tools", tags=["tools"])
     summary="온톨로지 클래스·속성·계층 구조 반환 (LLM 컨텍스트용)",
     response_model=SchemaResult,
 )
-async def get_schema(store: FusekiStore = Depends(get_store)) -> SchemaResult:
+async def get_schema(store: GraphStore = Depends(get_store)) -> SchemaResult:
     """Return a compact view of ontology classes, properties, and hierarchy.
 
     Token-efficient: ~30 tokens per class. For full property detail on a
@@ -35,7 +34,7 @@ async def get_schema(store: FusekiStore = Depends(get_store)) -> SchemaResult:
 )
 async def get_class_detail(
     class_uri: str,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> ClassDetail:
     """Return full TBox detail for one ontology class.
 

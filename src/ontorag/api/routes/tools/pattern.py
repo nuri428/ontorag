@@ -3,8 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 
 from ontorag.api.deps import get_store
-from ontorag.stores.base import PatternQuery, QueryResult
-from ontorag.stores.fuseki import FusekiStore
+from ontorag.stores.base import GraphStore, PatternQuery, QueryResult
 
 router = APIRouter(prefix="/tools", tags=["tools"])
 
@@ -17,7 +16,7 @@ router = APIRouter(prefix="/tools", tags=["tools"])
 )
 async def query_pattern(
     query: PatternQuery,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> QueryResult:
     """Execute a structured JSON DSL query translated to SPARQL internally.
 

@@ -8,8 +8,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from ontorag.api.deps import get_store
-from ontorag.stores.base import LoadResult
-from ontorag.stores.fuseki import FusekiStore
+from ontorag.stores.base import GraphStore, LoadResult
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["ontology"])
@@ -30,7 +29,7 @@ async def load_rdf(
         Literal["schema", "data", "auto"],
         Form(description="schema=TBox, data=ABox, auto=내용으로 자동 감지"),
     ] = "auto",
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> LoadResult:
     """Upload an RDF file and load it into the graph store.
 

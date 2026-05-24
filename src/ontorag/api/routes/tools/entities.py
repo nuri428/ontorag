@@ -10,8 +10,8 @@ from ontorag.stores.base import (
     AggregateResult,
     EntityFilter,
     EntityResult,
+    GraphStore,
 )
-from ontorag.stores.fuseki import FusekiStore
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/tools", tags=["tools"])
@@ -48,7 +48,7 @@ class AggregateRequest(BaseModel):
 )
 async def find_entities(
     body: FindEntitiesRequest,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> list[EntityResult]:
     """Find instances of an ontology class matching optional filter conditions.
 
@@ -80,7 +80,7 @@ async def describe_entity(
         list[str] | None,
         Query(description="반환할 predicate URI 목록. 미지정 시 전체 반환."),
     ] = None,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> EntityResult:
     """Return all properties and relationships of an entity.
 
@@ -111,7 +111,7 @@ async def describe_entity(
 )
 async def count_entities(
     body: CountEntitiesRequest,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> int:
     """Count instances of a class matching optional filters.
 
@@ -136,7 +136,7 @@ async def count_entities(
 )
 async def aggregate(
     body: AggregateRequest,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> list[AggregateResult]:
     """Group instances by a property and apply an aggregation function.
 

@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from ontorag.api.deps import get_store
 from ontorag.stores.base import (
     EntityFilter,
+    GraphStore,
     TraversalDirection,
     TraversalResult,
 )
-from ontorag.stores.fuseki import FusekiStore
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/tools", tags=["tools"])
@@ -52,7 +52,7 @@ class FindRelatedRequest(BaseModel):
 )
 async def traverse_graph(
     body: TraverseRequest,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> TraversalResult:
     """Traverse the graph from a starting node.
 
@@ -83,7 +83,7 @@ async def traverse_graph(
 )
 async def find_path(
     body: FindPathRequest,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> TraversalResult:
     """Find the shortest path between two entities.
 
@@ -109,7 +109,7 @@ async def find_path(
 )
 async def find_related(
     body: FindRelatedRequest,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> list[dict]:
     """Find pairs of entities from two classes connected by a predicate.
 
