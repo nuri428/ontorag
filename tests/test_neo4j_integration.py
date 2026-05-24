@@ -527,6 +527,53 @@ async def test_clear_and_reload(store) -> None:
     assert count_restored == count_before
 
 
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_clear_data_preserves_internal_n10s_nodes(store) -> None:
+    """Review #8: clear_graph('data') must NOT delete _NsPrefDef/_GraphConfig.
+
+    With correct OR/AND precedence the guards apply to the whole WHERE, so
+    n10s internal nodes and the prefix mapping survive a data clear.
+    """
+    pref_before = await store._run("MATCH (p:_NsPrefDef) RETURN count(p) AS c")
+    cfg_before = await store._run("MATCH (g:_GraphConfig) RETURN count(g) AS c")
+    assert pref_before[0]["c"] >= 1
+    assert cfg_before[0]["c"] >= 1
+
+    await store.clear_graph("data")
+
+    pref_after = await store._run("MATCH (p:_NsPrefDef) RETURN count(p) AS c")
+    cfg_after = await store._run("MATCH (g:_GraphConfig) RETURN count(g) AS c")
+    assert pref_after[0]["c"] == pref_before[0]["c"]
+    assert cfg_after[0]["c"] == cfg_before[0]["c"]
+
+    # Prefix mapping still resolvable after the clear.
+    await store._reload_prefix_map()
+    assert store._prefix_to_ns.get("pk") == "http://example.org/pokemon#"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_get_class_detail_leaf_class_not_raised(store) -> None:
+    """Review #9: a real class node with no children/props/instances must be
+    returned, not raised as KeyError."""
+    leaf = "http://example.org/leaf#Orphan"
+    await store._run_write(
+        "MERGE (c:Resource {uri: $uri}) SET c:owl__Class",
+        uri=leaf,
+    )
+    try:
+        detail = await store.get_class_detail(leaf)
+        assert detail.uri == leaf
+        assert detail.child_uris == []
+        assert detail.properties == []
+        assert detail.instance_count == 0
+    finally:
+        await store._run_write(
+            "MATCH (c:Resource {uri: $uri}) DETACH DELETE c", uri=leaf
+        )
+
+
 # ── Injection / safety regression tests (review CRITICAL #1, #2, HIGH #3) ──────
 
 

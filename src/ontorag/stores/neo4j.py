@@ -276,15 +276,18 @@ class Neo4jStore(_Neo4jEntityMixin, _Neo4jTraversalMixin):
 
         n10s only allows one graphconfig per database — re-init raises an
         error. We check first and silently skip if already configured.
+
+        Raises:
+            Exception: Propagates auth/permission/connection errors from Neo4j.
+                ``CREATE CONSTRAINT ... IF NOT EXISTS`` is itself idempotent,
+                so we do NOT swallow its errors (which would hide auth issues).
         """
-        # Ensure unique constraint
-        try:
-            await self._run_write(
-                "CREATE CONSTRAINT n10s_unique_uri IF NOT EXISTS "
-                "FOR (r:Resource) REQUIRE r.uri IS UNIQUE"
-            )
-        except Exception:
-            pass  # already exists
+        # Idempotent — no try/except: a failure here is a real error (auth,
+        # permissions, connectivity) that must surface, not be masked.
+        await self._run_write(
+            "CREATE CONSTRAINT n10s_unique_uri IF NOT EXISTS "
+            "FOR (r:Resource) REQUIRE r.uri IS UNIQUE"
+        )
 
         # Check whether graphconfig exists
         rows = await self._run("MATCH (n:_GraphConfig) RETURN count(n) AS cnt")
@@ -418,14 +421,20 @@ class Neo4jStore(_Neo4jEntityMixin, _Neo4jTraversalMixin):
         Returns:
             Number of nodes deleted.
         """
+        # Precedence: the "is-not-TBox" OR predicate is parenthesized so the
+        # _NsPrefDef / _GraphConfig guards apply to the WHOLE WHERE, not just
+        # the right OR branch. Without the parens an internal n10s node with no
+        # rdf__type edge could be deleted (review #8).
         records = await self._run_write(
             """
             MATCH (n:Resource)
-            WHERE NOT (n)-[:rdf__type]->(:Resource)
-               OR NOT EXISTS {
-                   MATCH (n)-[:rdf__type]->(t:Resource)
-                   WHERE t.uri IN $tbox_uris
-               }
+            WHERE (
+                   NOT (n)-[:rdf__type]->(:Resource)
+                OR NOT EXISTS {
+                       MATCH (n)-[:rdf__type]->(t:Resource)
+                       WHERE t.uri IN $tbox_uris
+                   }
+            )
             AND NOT n:_NsPrefDef AND NOT n:_GraphConfig
             WITH collect(n) AS abox
             UNWIND abox AS n
@@ -668,6 +677,16 @@ class Neo4jStore(_Neo4jEntityMixin, _Neo4jTraversalMixin):
         """
         await self._ensure_prefix_map()
 
+        # Explicit existence probe (review #9): a real leaf class with no
+        # label/comment/parent/children/props/instances must NOT be reported
+        # as "not found". Decide existence on the node alone.
+        exists_rows = await self._run(
+            "MATCH (c:Resource {uri: $uri}) RETURN c.uri AS uri LIMIT 1",
+            uri=class_uri,
+        )
+        if not exists_rows:
+            raise KeyError(f"Class not found: {class_uri}")
+
         meta_rows, prop_rows, child_rows, inst_rows = await asyncio.gather(
             self._run("""
                 MATCH (c:Resource {uri: $uri})
@@ -707,8 +726,8 @@ class Neo4jStore(_Neo4jEntityMixin, _Neo4jTraversalMixin):
             """, uri=class_uri),
         )
 
-        if not meta_rows and not prop_rows and not child_rows and not inst_rows:
-            raise KeyError(f"Class not found: {class_uri}")
+        # Existence already confirmed above (review #9) — no emptiness check
+        # here, so a real leaf class with no metadata is returned, not raised.
 
         label = None
         description = None
