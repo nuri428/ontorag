@@ -33,11 +33,14 @@ def create_store() -> GraphStore:
         return FusekiStore.from_env()
 
     if backend == "neo4j":
-        # Adapter lands later in v0.5.0 (P1). Recognised but not yet wired.
-        raise ValueError(
-            "GRAPH_STORE=neo4j is not available yet — the Neo4j adapter ships "
-            "in v0.5.0. Use GRAPH_STORE=fuseki for now."
-        )
+        try:
+            from ontorag.stores.neo4j import Neo4jStore  # noqa: PLC0415
+        except ImportError as exc:
+            raise ValueError(
+                "GRAPH_STORE=neo4j requires the 'neo4j' Python driver. "
+                "Install it with: uv add 'ontorag[neo4j]' (or pip install neo4j)"
+            ) from exc
+        return Neo4jStore.from_env()
 
     raise ValueError(
         f"Unknown GRAPH_STORE: {backend!r}. Valid values: {', '.join(VALID_BACKENDS)}."

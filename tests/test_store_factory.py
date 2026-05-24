@@ -29,11 +29,23 @@ def test_create_store_returns_graphstore_protocol(monkeypatch):
     assert isinstance(create_store(), GraphStore)
 
 
-def test_create_store_neo4j_not_yet_supported(monkeypatch):
-    """neo4j is a recognised backend but its adapter ships later in v0.5.0."""
+def test_create_store_neo4j_returns_neo4j_store(monkeypatch):
+    """neo4j backend is now wired — GRAPH_STORE=neo4j returns Neo4jStore."""
+    import neo4j  # noqa: PLC0415
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
     monkeypatch.setenv("GRAPH_STORE", "neo4j")
-    with pytest.raises(ValueError, match="neo4j"):
-        create_store()
+    monkeypatch.setenv("NEO4J_PASSWORD", "test")
+
+    original_driver = neo4j.AsyncGraphDatabase.driver
+    neo4j.AsyncGraphDatabase.driver = MagicMock(return_value=MagicMock())
+    try:
+        from ontorag.stores.neo4j import Neo4jStore  # noqa: PLC0415
+
+        store = create_store()
+        assert isinstance(store, Neo4jStore)
+    finally:
+        neo4j.AsyncGraphDatabase.driver = original_driver
 
 
 def test_create_store_unknown_backend_raises(monkeypatch):
