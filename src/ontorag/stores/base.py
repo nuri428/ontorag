@@ -145,6 +145,22 @@ class SearchHit(BaseModel):
     )
 
 
+class SimilarHit(BaseModel):
+    """A single nearest-neighbour result from `find_similar`.
+
+    `mode` records which embedding produced the hit: "structural" (graph
+    topology, e.g. FastRP), "textual" (semantic content embedding), or
+    "hybrid" (rank-fused). `score` is cosine similarity for single-mode hits
+    (0–1, higher = closer) or the fused rank score for hybrid.
+    """
+
+    uri: str
+    label: str | None = None
+    class_uri: str | None = None
+    score: float
+    mode: Literal["structural", "textual", "hybrid"]
+
+
 class StoreStatus(BaseModel):
     """Current state of the graph store."""
 
