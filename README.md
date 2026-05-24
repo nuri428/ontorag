@@ -99,6 +99,19 @@ all string properties (`db.index.fulltext.queryNodes`). It returns ranked
 `SearchHit`s with relevance scores; an optional `class_uri` restricts hits to a
 class and its subclasses. On Fuseki this tool returns `501 Not Implemented`.
 
+…and **graph embeddings** for semantic / structural similarity. Build them once
+with `ontorag embed`, then call the `find_similar(uri, top_k, mode)` MCP tool:
+
+```bash
+ontorag embed --mode both     # structural (GDS FastRP) + textual (EmbeddingProvider)
+```
+
+- `mode=structural` — graph topology (Neo4j GDS FastRP).
+- `mode=textual` — node text embedded via `EMBEDDING_PROVIDER` (OpenAI or Ollama).
+- `mode=hybrid` — reciprocal-rank fusion of both.
+
+Both vectors live in native Neo4j vector indexes; `find_similar` is `501` on Fuseki.
+
 ---
 
 ## Web UI

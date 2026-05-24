@@ -72,10 +72,12 @@ Out of scope for v0.3:
 - **subClassOf inference is implemented natively on Neo4j** (Cypher `[:rdfs__subClassOf*0..N]`), so `find_entities(Animal)` includes Dog/Cat instances. ⚠️ This *diverges* from the current Fuseki deployment, which runs `--mem` with inference OFF (plain type-match). See Open questions.
 - L2 `query_pattern` translated via `core/cypher.py` (`pattern_to_cypher`), symmetric to the SPARQL translator. All Cypher rel-types/labels routed through `_safe_rel()` (injection-safe).
 - Design note: `docs/design/neo4j-n10s.md`. Verified live against `neo4j:5.26` + n10s 5.26.
+- **BM25 full-text search** (`search_text`): Neo4j Lucene full-text index over string properties; capability tool, 501 on Fuseki. `docs/design/neo4j-bm25.md`.
+- **Graph embeddings** (`find_similar` + `ontorag embed`): structural (GDS FastRP) + textual (`EmbeddingProvider`: OpenAI/Ollama via `EMBEDDING_PROVIDER`) + `hybrid` (RRF) over native vector indexes; explicit `ontorag embed` trigger. `docs/design/neo4j-embedding.md`. Verified live on GDS 2.13.10.
 
 ### v0.5+ (still planned)
-- Vector similarity tool `find_similar` (Neo4j vector index or Qdrant) + BM25/full-text search
 - Multi-ontology per instance
+- Fuseki text/vector parity (jena-text + reasoning) to remove backend capability gaps
 
 ## Architecture
 
@@ -157,6 +159,7 @@ Protocol 공통이 아니라 특정 백엔드 능력. 라우트가 `getattr`로 
 | operation_id | 엔드포인트 | 백엔드 | 설명 |
 |---|---|---|---|
 | `search_text` | POST /tools/search/text | Neo4j (v0.5) | BM25 풀텍스트 검색. Neo4j fulltext 인덱스(`db.index.fulltext.queryNodes`) → ranked `SearchHit`. `class_uri` 주면 subClassOf 포함 instance로 제한. Fuseki는 501. |
+| `find_similar` | POST /tools/similar | Neo4j (v0.5) | 그래프 임베딩 kNN. `mode=structural`(GDS FastRP) \| `textual`(EmbeddingProvider) \| `hybrid`(RRF). `db.index.vector.queryNodes` → ranked `SimilarHit`. 임베딩은 `ontorag embed`로 사전 생성. Fuseki는 501. |
 
 Inference 레이어: Fuseki 데이터셋을 `ja:OntModelSpec` 추론 모델로 구성하면 `find_entities(Animal)`이 rdfs:subClassOf를 통해 Dog/Cat 인스턴스를 자동 포함 — 툴 코드 변경 없음. (Neo4j 백엔드는 이 추론을 이미 Cypher로 구현 — v0.5 참고.)
 
@@ -178,6 +181,11 @@ ontorag serve [--host 0.0.0.0] [--port 8000]
 
 # 채팅 REPL
 ontorag chat
+
+# 그래프 임베딩 생성 (Neo4j 전용 — v0.5)
+ontorag embed --mode both          # structural(GDS FastRP) + textual(EmbeddingProvider)
+ontorag embed --mode structural    # 구조만 (외부 API 불필요)
+ontorag embed --mode textual       # 텍스트만 (EMBEDDING_PROVIDER 필요)
 
 # 상태 확인
 ontorag status   # 그래프 스토어 연결 + 로드된 트리플 수 + LLM 설정
@@ -340,8 +348,10 @@ ontorag/
 │   │           ├── entities.py    # L1: find/count/aggregate + GET /tools/entities/{uri}
 │   │           ├── traversal.py   # L1: traverse + path + related
 │   │           ├── pattern.py     # L2: POST /tools/query/pattern
-│   │           ├── _query.py      # L3: POST /tools/query/sparql (MCP exclude)
-│   │           └── learning.py    # v0.3 L1: type_term, extract_triples (MCP exposed)
+│   │           ├── _sparql.py     # L3: POST /tools/query/sparql (Fuseki-only, getattr 501)
+│   │           ├── learning.py    # v0.3 L1: type_term, extract_triples (MCP exposed)
+│   │           ├── search.py      # v0.5 POST /tools/search/text (BM25, Neo4j capability)
+│   │           └── similar.py     # v0.5 POST /tools/similar (find_similar, Neo4j capability)
 │   ├── core/
 │   │   ├── loader.py          # RDF parsing & loading (with progress callback)
 │   │   ├── sparql.py          # PatternQuery DSL → SPARQL translator (Fuseki)
@@ -355,12 +365,15 @@ ontorag/
 │   │   ├── _neo4j_entity_mixin.py    # find/describe/count/aggregate
 │   │   ├── _neo4j_traversal_mixin.py # traverse/path/closure/related
 │   │   ├── _neo4j_export.py          # dump_graph TTL/XLSX serialisation
-│   │   └── _neo4j_values.py          # n10s ARRAY-multival unpack helpers
+│   │   ├── _neo4j_values.py          # n10s ARRAY-multival unpack helpers
+│   │   ├── _neo4j_search_mixin.py    # v0.5 BM25 full-text (search_text)
+│   │   └── _neo4j_embedding_mixin.py # v0.5 GDS FastRP + textual embeddings (build_embeddings, find_similar)
 │   ├── llm/
 │   │   ├── base.py            # LLMProvider abstract base
 │   │   ├── anthropic.py
 │   │   ├── openai.py
-│   │   └── ollama.py
+│   │   ├── ollama.py
+│   │   └── embedding.py       # v0.5 EmbeddingProvider (OpenAI/Ollama) for textual embeddings
 │   ├── chat/
 │   │   └── agent.py           # Agentic MCP loop (LLM + tool calls + SSE emit)
 │   └── learn/                 # v0.3 — LLMs4OL ontology learning
