@@ -116,7 +116,7 @@ Ontology-aware tools exposed via MCP, embedded in FastAPI process. Each tool ret
 
 툴은 `src/ontorag/api/routes/tools/` 아래 FastAPI 라우트로 구현되며, `fastapi-mcp`가 자동으로 MCP 툴로 변환합니다. 라우트 `operation_id`가 MCP 툴 이름이 됩니다.
 
-### 3-레이어 설계 (spaql접근법.md 기반)
+### 3-레이어 설계 (docs/design/sparql-approach.md 기반)
 
 **Layer 1 — 의도 기반 고수준 툴 (MCP 노출, 90% 사용 케이스)**
 
