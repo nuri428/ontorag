@@ -84,8 +84,30 @@ async def store():
     await s.load_rdf(SCHEMA_TTL, mode="schema")
     await s.load_rdf(DATA_TTL, mode="data")
 
+    # The index is created POPULATING; wait until ONLINE so result-asserting
+    # tests are deterministic.  (search_text itself correctly returns [] while
+    # POPULATING — see test_search_immediately_after_load_never_raises.)
+    await _wait_index_online(s)
+
     yield s
     await s.aclose()
+
+
+async def _wait_index_online(store, attempts: int = 50) -> None:
+    """Poll SHOW INDEXES until ontorag_fulltext reaches the ONLINE state.
+
+    Args:
+        store: Neo4jStore instance.
+        attempts: Max polling attempts (each ~50ms apart).
+    """
+    import asyncio
+
+    for _ in range(attempts):
+        rows = await store._run("SHOW INDEXES WHERE type = 'FULLTEXT'")
+        idx = next((r for r in rows if r["name"] == "ontorag_fulltext"), None)
+        if idx is not None and idx.get("state") == "ONLINE":
+            return
+        await asyncio.sleep(0.05)
 
 
 # ── B2: index creation ────────────────────────────────────────────────────────
@@ -261,3 +283,131 @@ async def test_ensure_fulltext_index_noop_when_properties_unchanged(store) -> No
     assert idx_after["id"] == id_before, (
         "Index was unnecessarily recreated when property set did not change."
     )
+
+
+# ── Regression: HIGH #1 — search right after load never raises ───────────────
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_search_immediately_after_load_never_raises(store) -> None:
+    """A search issued right after load_rdf returns hits or [] — never 500.
+
+    Regression for HIGH #1: if the index were still POPULATING the guard now
+    short-circuits to []; once ONLINE it returns real hits.  Either way the
+    call must not raise.
+    """
+    # The fixture has just loaded data; query immediately.
+    try:
+        hits = await store.search_text(_PIKACHU_LABEL_KO)
+    except Exception as exc:  # pragma: no cover — failure path
+        pytest.fail(f"search_text raised right after load: {exc!r}")
+
+    assert isinstance(hits, list)
+    # When ONLINE it should find Pikachu; when (rarely) still POPULATING it is [].
+    if hits:
+        assert any(h.uri == _PIKACHU_URI for h in hits)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_search_returns_empty_when_index_dropped(store) -> None:
+    """Dropping the index makes search_text return [] (no 500)."""
+    await store._run_write("DROP INDEX ontorag_fulltext IF EXISTS")
+    # Reset the ready cache to force a fresh DB probe.
+    store._fulltext_index_ready = None
+
+    hits = await store.search_text(_PIKACHU_LABEL_KO)
+    assert hits == []
+
+
+# ── Regression: HIGH #2 — multi-rdf:type node not under-counted ──────────────
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_multi_type_node_not_under_delivered(store) -> None:
+    """A node with multiple rdf:type edges still counts as one distinct hit,
+    and a limit larger than 1 delivers other distinct matches alongside it.
+
+    Regression for HIGH #2: the old LIMIT-then-dedup logic consumed limit
+    slots on duplicate rows of the same node, under-delivering distinct hits.
+    """
+    # Give two ABox instances a shared, distinctive label token so a single
+    # query matches both; give the first instance TWO explicit rdf:type edges.
+    token = "ZZqueryZZ"
+    a_uri = "http://example.org/pokemon/data#MultiTypeA"
+    b_uri = "http://example.org/pokemon/data#MultiTypeB"
+
+    await store._run_write(
+        """
+        MERGE (a:Resource {uri: $a_uri})
+          SET a.rdfs__label = [$label_a]
+        MERGE (b:Resource {uri: $b_uri})
+          SET b.rdfs__label = [$label_b]
+        MERGE (pk:Resource {uri: $pokemon})
+        MERGE (mv:Resource {uri: $move})
+        MERGE (a)-[:rdf__type]->(pk)
+        MERGE (a)-[:rdf__type]->(mv)
+        MERGE (b)-[:rdf__type]->(pk)
+        """,
+        a_uri=a_uri,
+        b_uri=b_uri,
+        label_a=f"{token} alpha",
+        label_b=f"{token} beta",
+        pokemon=_POKEMON_CLASS,
+        move=_MOVE_CLASS,
+    )
+
+    # Confirm node A really has >= 2 rdf:type edges.
+    type_rows = await store._run(
+        "MATCH (n:Resource {uri: $uri})-[:rdf__type]->(t:Resource) RETURN count(t) AS c",
+        uri=a_uri,
+    )
+    assert type_rows[0]["c"] >= 2, "Fixture node A must have 2+ rdf:type edges"
+
+    # Rebuild the index so the new nodes are searchable.
+    await store._run_write("DROP INDEX ontorag_fulltext IF EXISTS")
+    store._fulltext_index_ready = None
+    await store._ensure_fulltext_index()
+    await _wait_index_online(store)
+
+    hits = await store.search_text(token, limit=2)
+    uris = {h.uri for h in hits}
+
+    # Both distinct nodes must be returned despite A having 2 rdf:type rows.
+    assert a_uri in uris, f"Multi-type node A missing from hits: {uris}"
+    assert b_uri in uris, f"Node B missing — limit consumed by A's duplicates: {uris}"
+    # And A appears exactly once (deduplicated).
+    assert [h.uri for h in hits].count(a_uri) == 1
+
+
+# ── Regression: MEDIUM — class_uri excludes vocab (TBox) types ───────────────
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_search_hit_class_uri_is_abox_not_vocab(store) -> None:
+    """Reported class_uri must be an ABox class, never owl:Class / rdfs:Class.
+
+    Regression for MEDIUM: search a token matching an ABox instance and assert
+    the hit's class_uri is the domain class, not a vocabulary type.
+    """
+    hits = await store.search_text(_PIKACHU_LABEL_KO)
+    pikachu = next((h for h in hits if h.uri == _PIKACHU_URI), None)
+    assert pikachu is not None
+
+    vocab = {
+        "http://www.w3.org/2002/07/owl#Class",
+        "http://www.w3.org/2000/01/rdf-schema#Class",
+        "http://www.w3.org/2002/07/owl#ObjectProperty",
+        "http://www.w3.org/2002/07/owl#DatatypeProperty",
+        "http://www.w3.org/2002/07/owl#AnnotationProperty",
+        "http://www.w3.org/2002/07/owl#Ontology",
+        "http://www.w3.org/2002/07/owl#TransitiveProperty",
+    }
+    assert pikachu.class_uri not in vocab, (
+        f"Vocab type leaked into class_uri: {pikachu.class_uri}"
+    )
+    # Pikachu is a Pokemon in the ontology.
+    assert pikachu.class_uri == _POKEMON_CLASS

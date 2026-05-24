@@ -348,3 +348,217 @@ def test_discover_text_property_keys_rejects_unsafe():
     assert "bad`key" not in keys
     assert "rdfs__label" in keys
     assert "ok__key" in keys
+
+
+# ── Regression: HIGH #1 — POPULATING / FAILED index state ────────────────────
+
+
+def _index_row(state: str) -> dict:
+    """Build a fake SHOW INDEXES row for the ontorag_fulltext index."""
+    return {
+        "name": "ontorag_fulltext",
+        "type": "FULLTEXT",
+        "state": state,
+        "properties": ["rdfs__label", "pk__category"],
+        "id": 7,
+    }
+
+
+@pytest.mark.parametrize("state", ["POPULATING", "FAILED"])
+def test_get_existing_index_properties_none_when_not_online(state):
+    """A non-ONLINE index (POPULATING/FAILED) is treated as absent → None.
+
+    Regression for HIGH #1: querying a POPULATING index raises in Neo4j, so
+    _get_existing_index_properties must report None for any non-ONLINE state.
+    """
+    import asyncio
+
+    from ontorag.stores._neo4j_search_mixin import _Neo4jSearchMixin
+
+    async def fake_run(cypher: str, **params):
+        return [_index_row(state)]
+
+    mixin = _Neo4jSearchMixin()
+    mixin._run = fake_run  # type: ignore[assignment]
+
+    props = asyncio.run(mixin._get_existing_index_properties())  # type: ignore[arg-type]
+
+    assert props is None, f"Expected None for state={state}, got {props}"
+    # The ready cache must reflect not-ready.
+    assert mixin._fulltext_index_ready is False
+
+
+def test_get_existing_index_properties_list_when_online():
+    """An ONLINE index returns its property list and marks the ready cache."""
+    import asyncio
+
+    from ontorag.stores._neo4j_search_mixin import _Neo4jSearchMixin
+
+    async def fake_run(cypher: str, **params):
+        return [_index_row("ONLINE")]
+
+    mixin = _Neo4jSearchMixin()
+    mixin._run = fake_run  # type: ignore[assignment]
+
+    props = asyncio.run(mixin._get_existing_index_properties())  # type: ignore[arg-type]
+
+    assert props == ["rdfs__label", "pk__category"]
+    assert mixin._fulltext_index_ready is True
+
+
+def test_search_text_returns_empty_when_index_populating():
+    """search_text returns [] (never raises) while the index is POPULATING.
+
+    Regression for HIGH #1: the guard now checks ONLINE state, so a populating
+    index short-circuits to [] and the fulltext query is never issued.
+    """
+    import asyncio
+
+    from ontorag.stores._neo4j_search_mixin import _Neo4jSearchMixin
+
+    run_calls: list[str] = []
+
+    async def fake_run(cypher: str, **params):
+        run_calls.append(cypher)
+        if cypher.strip().startswith("SHOW INDEXES"):
+            return [_index_row("POPULATING")]
+        # Any fulltext query against a populating index would raise in real Neo4j.
+        raise AssertionError("fulltext query issued against a POPULATING index")
+
+    mixin = _Neo4jSearchMixin()
+    mixin._run = fake_run  # type: ignore[assignment]
+    mixin._ensure_prefix_map = AsyncMock()
+
+    hits = asyncio.run(mixin.search_text("Pikachu"))  # type: ignore[arg-type]
+
+    assert hits == []
+    # Only the SHOW INDEXES probe ran; the fulltext query was skipped.
+    assert all(c.strip().startswith("SHOW INDEXES") for c in run_calls)
+
+
+# ── Regression: HIGH #2 — LIMIT before dedup under-delivers ──────────────────
+
+
+def test_search_text_limit_after_dedup_full_delivery():
+    """Distinct hits up to `limit` are delivered even when nodes have N types.
+
+    Regression for HIGH #2: with limit=2 and each node carrying 3 rdf:type
+    rows, the old LIMIT-then-dedup logic returned a single distinct hit.  The
+    fix over-fetches (internal cap) then slices the deduped list to `limit`,
+    so two distinct hits must be returned.
+    """
+    import asyncio
+
+    from ontorag.stores._neo4j_search_mixin import _Neo4jSearchMixin
+
+    a = "http://example.org/pokemon/data#NodeA"
+    b = "http://example.org/pokemon/data#NodeB"
+    c = "http://example.org/pokemon/data#NodeC"
+
+    def _rows_for(uri, score, label):
+        # Three rdf:type rows per node (multi-type multiplication).
+        return [
+            {"uri": uri, "raw_label": label, "cls_uri": f"{uri}#T1", "score": score},
+            {"uri": uri, "raw_label": label, "cls_uri": f"{uri}#T2", "score": score},
+            {"uri": uri, "raw_label": label, "cls_uri": f"{uri}#T3", "score": score},
+        ]
+
+    captured_limit: dict[str, int] = {}
+
+    async def fake_run(cypher: str, **params):
+        if "limit" in params:
+            captured_limit["value"] = params["limit"]
+        # Highest score first (matching ORDER BY score DESC).
+        return (
+            _rows_for(a, 3.0, "A")
+            + _rows_for(b, 2.0, "B")
+            + _rows_for(c, 1.0, "C")
+        )
+
+    mixin = _Neo4jSearchMixin()
+    mixin._run = fake_run  # type: ignore[assignment]
+    mixin._ensure_prefix_map = AsyncMock()
+
+    async def fake_existing(self=None):  # noqa: ARG001
+        return ["rdfs__label"]
+
+    mixin._get_existing_index_properties = fake_existing  # type: ignore[assignment]
+
+    hits = asyncio.run(mixin.search_text("x", limit=2))  # type: ignore[arg-type]
+
+    # Two DISTINCT hits requested → two distinct hits delivered.
+    assert len(hits) == 2, f"Expected 2 distinct hits, got {len(hits)}"
+    assert [h.uri for h in hits] == [a, b], "Top-2 distinct hits by score"
+    # The Cypher over-fetched beyond the caller's limit (internal cap > limit).
+    assert captured_limit.get("value", 0) > 2
+
+
+# ── Regression: MEDIUM — class_uri must exclude vocab (TBox) types ───────────
+
+
+def test_search_hit_excludes_rdfs_class_vocab_type():
+    """A node typed rdfs:Class must NOT leak that vocab URI as class_uri.
+
+    Regression for MEDIUM: the old 'owl#' string heuristic let rdfs:Class
+    (and other non-OWL vocab types) through.  The fix uses _TBOX_TYPE_URIS.
+    """
+    import asyncio
+
+    from ontorag.stores._neo4j_search_mixin import _Neo4jSearchMixin
+
+    node_uri = "http://example.org/pokemon#SomeClass"
+    rdfs_class = "http://www.w3.org/2000/01/rdf-schema#Class"
+    real_class = "http://example.org/pokemon#Pokemon"
+
+    async def fake_run(cypher: str, **params):
+        return [
+            # Vocab type first (rdfs:Class) — must be filtered out.
+            {"uri": node_uri, "raw_label": "label", "cls_uri": rdfs_class, "score": 1.0},
+            # A genuine ABox class second — should be reported instead.
+            {"uri": node_uri, "raw_label": "label", "cls_uri": real_class, "score": 1.0},
+        ]
+
+    mixin = _Neo4jSearchMixin()
+    mixin._run = fake_run  # type: ignore[assignment]
+    mixin._ensure_prefix_map = AsyncMock()
+
+    async def fake_existing(self=None):  # noqa: ARG001
+        return ["rdfs__label"]
+
+    mixin._get_existing_index_properties = fake_existing  # type: ignore[assignment]
+
+    hits = asyncio.run(mixin.search_text("x"))  # type: ignore[arg-type]
+
+    assert len(hits) == 1
+    assert hits[0].class_uri == real_class, (
+        f"Expected ABox class, got vocab type leak: {hits[0].class_uri}"
+    )
+
+
+def test_search_hit_class_uri_none_when_only_vocab_type():
+    """When the only rdf:type is a vocab type, class_uri stays None."""
+    import asyncio
+
+    from ontorag.stores._neo4j_search_mixin import _Neo4jSearchMixin
+
+    node_uri = "http://example.org/pokemon#SomeClass"
+    owl_class = "http://www.w3.org/2002/07/owl#Class"
+
+    async def fake_run(cypher: str, **params):
+        return [
+            {"uri": node_uri, "raw_label": "label", "cls_uri": owl_class, "score": 1.0},
+        ]
+
+    mixin = _Neo4jSearchMixin()
+    mixin._run = fake_run  # type: ignore[assignment]
+    mixin._ensure_prefix_map = AsyncMock()
+
+    async def fake_existing(self=None):  # noqa: ARG001
+        return ["rdfs__label"]
+
+    mixin._get_existing_index_properties = fake_existing  # type: ignore[assignment]
+
+    hits = asyncio.run(mixin.search_text("x"))  # type: ignore[arg-type]
+
+    assert len(hits) == 1
+    assert hits[0].class_uri is None
