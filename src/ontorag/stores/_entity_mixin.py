@@ -3,7 +3,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from ontorag.core.ontology import data_graph_uri, schema_graph_uri, validate_ontology_id
+from ontorag.core.ontology import (
+    data_graph_uri,
+    graph_clause,
+    schema_graph_uri,
+    validate_ontology_id,
+)
 from ontorag.core.sparql import (
     STANDARD_PREFIXES,
     build_filter_sparql,
@@ -14,40 +19,11 @@ from ontorag.stores.base import AggFunc, AggregateResult, EntityFilter, EntityRe
 
 logger = logging.getLogger(__name__)
 
-# Legacy defaults used when ontology=None (union default graph via
-# tdb2:unionDefaultGraph true — no GRAPH wrapper in the query).
-_DATA = "urn:ontorag:data"
-_SCHEMA = "urn:ontorag:schema"
-
-
-def _data_clause(data_g: str | None, body: str) -> str:
-    """Wrap body in GRAPH <data_g> { } or just { } for union default.
-
-    Args:
-        data_g: Named-graph URI or None for the union default graph.
-        body: SPARQL graph pattern body.
-
-    Returns:
-        SPARQL graph pattern string.
-    """
-    if data_g is None:
-        return f"{{ {body} }}"
-    return f"GRAPH <{data_g}> {{ {body} }}"
-
-
-def _schema_clause(schema_g: str | None, body: str) -> str:
-    """Wrap body in GRAPH <schema_g> { } or just { } for union default.
-
-    Args:
-        schema_g: Named-graph URI or None for the union default graph.
-        body: SPARQL graph pattern body.
-
-    Returns:
-        SPARQL graph pattern string.
-    """
-    if schema_g is None:
-        return f"{{ {body} }}"
-    return f"GRAPH <{schema_g}> {{ {body} }}"
+# Both data- and schema-graph fragments come from the same authoritative
+# helper (ontorag.core.ontology.graph_clause): None → union default graph
+# (no GRAPH wrapper), a URI → GRAPH <uri> { ... }.
+_data_clause = graph_clause
+_schema_clause = graph_clause
 
 _AGG_EXPR: dict[AggFunc, str] = {
     AggFunc.count: "COUNT(DISTINCT ?inst)",
@@ -103,18 +79,32 @@ class _EntityMixin:
         # wrapper) — tdb2:unionDefaultGraph true makes the default graph the
         # union of all named graphs, backward-compat behavior preserved.
         # ontology=id: data patterns scoped to data_g, schema to schema_g.
-        data_main = (
+        #
+        # The direct-match arm is itself scoped to the data graph (HIGH #3):
+        # it re-binds ?inst a <cls> inside GRAPH <data_g> rather than relying
+        # on a bare FILTER(?type = <cls>) over the outer ?type binding — so
+        # correctness no longer depends on the optimizer's join order.
+        sub_main = (
             f"?inst a ?type .\n"
+            f"    OPTIONAL {{ ?inst rdfs:label ?label . }}\n"
+            f"{filter_triples}"
+        )
+        direct_main = (
+            f"?inst a {cls} .\n"
             f"    OPTIONAL {{ ?inst rdfs:label ?label . }}\n"
             f"{filter_triples}"
         )
         uri_query = f"""{pfx}
 SELECT DISTINCT ?inst ?label
 WHERE {{
-  {_data_clause(data_g, data_main)}
-  {{ {_schema_clause(schema_g, f"?type rdfs:subClassOf* {cls} .")} }}
+  {{
+    {_data_clause(data_g, sub_main)}
+    {_schema_clause(schema_g, f"?type rdfs:subClassOf* {cls} .")}
+  }}
   UNION
-  {{ FILTER(?type = {cls}) }}
+  {{
+    {_data_clause(data_g, direct_main)}
+  }}
 {filter_line}
 }}
 LIMIT {limit}"""
@@ -274,15 +264,23 @@ WHERE {{
         cls = uri_ref(class_uri)
         filter_triples, filter_line = build_filter_sparql(filters or [])
 
-        # Subclass-aware count (reasoning parity) — see find_entities.
-        data_main = f"?inst a ?type .\n{filter_triples}"
+        # Subclass-aware count (reasoning parity) — see find_entities. The
+        # direct-match arm is scoped to the data graph (HIGH #3) instead of a
+        # bare FILTER(?type = <cls>), so correctness does not depend on the
+        # optimizer's join order.
+        sub_main = f"?inst a ?type .\n{filter_triples}"
+        direct_main = f"?inst a {cls} .\n{filter_triples}"
         query = f"""{pfx}
 SELECT (COUNT(DISTINCT ?inst) AS ?n)
 WHERE {{
-  {_data_clause(data_g, data_main)}
-  {{ {_schema_clause(schema_g, f"?type rdfs:subClassOf* {cls} .")} }}
+  {{
+    {_data_clause(data_g, sub_main)}
+    {_schema_clause(schema_g, f"?type rdfs:subClassOf* {cls} .")}
+  }}
   UNION
-  {{ FILTER(?type = {cls}) }}
+  {{
+    {_data_clause(data_g, direct_main)}
+  }}
 {filter_line}
 }}"""
         result = await self._sparql_select(query)

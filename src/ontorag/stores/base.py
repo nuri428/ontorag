@@ -604,6 +604,7 @@ class GraphStore(Protocol):
         self,
         target: Literal["schema", "data", "all"],
         fmt: Literal["ttl", "json", "jsonl", "xlsx"] = "ttl",
+        ontology: str | None = None,
     ) -> bytes:
         """Export one or both named graphs as bytes in the requested format.
 
@@ -611,6 +612,8 @@ class GraphStore(Protocol):
             target: "schema" (TBox only), "data" (ABox only), or "all" (both).
             fmt: Serialisation format — "ttl" (Turtle), "json" (triple array),
                  "jsonl" (one triple per line), "xlsx" (spreadsheet).
+            ontology: Ontology id to export, or None for the default/legacy
+                graph pair.
 
         Returns:
             Serialised bytes ready to write to a file or HTTP response.
@@ -620,12 +623,15 @@ class GraphStore(Protocol):
     async def clear_graph(
         self,
         target: Literal["schema", "data", "all"],
+        ontology: str | None = None,
     ) -> dict[str, int]:
         """Drop one or both graphs and report how many triples were removed.
 
         Args:
             target: "schema" clears the TBox, "data" clears the ABox,
                 "all" clears both.
+            ontology: Ontology id to clear, or None for the default/legacy
+                graph pair.
 
         Returns:
             Mapping of graph name → triple count removed before deletion.

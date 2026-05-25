@@ -12,7 +12,13 @@ if TYPE_CHECKING:
     from ontorag.stores._qdrant import QdrantWrapper
 
 from ontorag.core.loader import detect_mode, parse_rdf
-from ontorag.core.ontology import data_graph_uri, schema_graph_uri, validate_ontology_id
+from ontorag.core.ontology import (
+    data_graph_uri,
+    graph_clause,
+    schema_graph_uri,
+    scoped_graph,
+    validate_ontology_id,
+)
 from ontorag.core.sparql import STANDARD_PREFIXES, pattern_to_sparql, uri_ref
 from ontorag.stores._entity_mixin import _EntityMixin
 from ontorag.stores._fuseki_embedding_mixin import _FusekiEmbeddingMixin
@@ -37,42 +43,10 @@ logger = logging.getLogger(__name__)
 SCHEMA_GRAPH_URI = "urn:ontorag:schema"
 DATA_GRAPH_URI = "urn:ontorag:data"
 
-
-def _scoped_graph(ontology: str | None, kind: str) -> str | None:
-    """Return the named-graph URI for a given ontology scope and graph kind.
-
-    Args:
-        ontology: Validated ontology id or None (union/default).
-        kind: "schema" or "data".
-
-    Returns:
-        The named-graph URI string, or None when ontology is None (meaning
-        queries should use the union default graph — no GRAPH wrapper).
-    """
-    if ontology is None:
-        # None → union default graph (no GRAPH wrapper in SPARQL).
-        # tdb2:unionDefaultGraph true makes the default graph the union of
-        # all named graphs, preserving backward compatibility.
-        return None
-    if kind == "schema":
-        return schema_graph_uri(ontology)
-    return data_graph_uri(ontology)
-
-
-def _graph_clause(graph_uri: str | None, body: str) -> str:
-    """Wrap *body* in a GRAPH clause if graph_uri is not None, else return as-is.
-
-    Args:
-        graph_uri: Named-graph URI or None (→ default/union graph).
-        body: SPARQL graph pattern body (the part inside { }).
-
-    Returns:
-        Either ``GRAPH <uri> { <body> }`` or just ``{ <body> }`` (for
-        union-default queries).
-    """
-    if graph_uri is None:
-        return f"{{ {body} }}"
-    return f"GRAPH <{graph_uri}> {{ {body} }}"
+# Backward-compat aliases — the authoritative implementations now live in
+# ontorag.core.ontology (single source of truth for scoping fragments).
+_scoped_graph = scoped_graph
+_graph_clause = graph_clause
 
 
 class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _TraversalMixin):
@@ -258,12 +232,18 @@ class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _Trav
         self,
         target: Literal["schema", "data", "all"],
         fmt: Literal["ttl", "json", "jsonl", "xlsx"] = "ttl",
+        ontology: str | None = None,
     ) -> bytes:
         """Export one or both named graphs as bytes in the requested format.
+
+        When ontology=None (default), exports the legacy default graphs
+        (urn:ontorag:schema / urn:ontorag:data). When ontology="<id>",
+        exports that ontology's per-ontology graph pair instead.
 
         Args:
             target: "schema" (TBox), "data" (ABox), or "all" (both).
             fmt: "ttl" | "json" (triple array) | "jsonl" | "xlsx".
+            ontology: Ontology id slug or None for the default graph pair.
 
         Note — all + xlsx vs. all + ttl/json/jsonl:
             XLSX exports TBox and ABox as **separate sheets** (more useful in a
@@ -272,19 +252,26 @@ class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _Trav
 
         Returns:
             Serialised bytes.
+
+        Raises:
+            ValueError: If ontology id fails validation.
         """
         import json as _json
 
+        ontology = validate_ontology_id(ontology)
         await self._ensure_dataset()
 
+        graph_schema = schema_graph_uri(ontology)
+        graph_data = data_graph_uri(ontology)
+
         if target == "schema":
-            graphs: dict[str, Graph] = {"TBox": await self._gsp_get(SCHEMA_GRAPH_URI)}
+            graphs: dict[str, Graph] = {"TBox": await self._gsp_get(graph_schema)}
         elif target == "data":
-            graphs = {"ABox": await self._gsp_get(DATA_GRAPH_URI)}
+            graphs = {"ABox": await self._gsp_get(graph_data)}
         else:
             schema_g, data_g = await asyncio.gather(
-                self._gsp_get(SCHEMA_GRAPH_URI),
-                self._gsp_get(DATA_GRAPH_URI),
+                self._gsp_get(graph_schema),
+                self._gsp_get(graph_data),
             )
             graphs = {"TBox": schema_g, "ABox": data_g}
 
@@ -414,7 +401,14 @@ class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _Trav
     # ── Status ────────────────────────────────────────────────────────────────
 
     async def status(self) -> StoreStatus:
-        """Return connection state and triple counts per named graph."""
+        """Return connection state and union triple counts across all ontologies.
+
+        Counts the **union default graph** (``tdb2:unionDefaultGraph true``),
+        so data loaded under any per-ontology graph pair — not just the legacy
+        default graphs — is reflected. ``schema_loaded`` / ``data_loaded`` are
+        derived from TBox-declaration / ABox-instance presence in the union,
+        rather than from the legacy named graphs alone.
+        """
         try:
             client = await self._http()
             response = await client.get(f"{self._base}/$/ping")
@@ -429,16 +423,76 @@ class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _Trav
                 data_loaded=False,
             )
 
-        schema_count = await self._count_graph(SCHEMA_GRAPH_URI)
-        data_count = await self._count_graph(DATA_GRAPH_URI)
+        # All three counts query the union default graph (no GRAPH wrapper),
+        # so per-ontology graphs are included.
+        total_count, schema_count, data_count = await asyncio.gather(
+            self._count_union_total(),
+            self._count_union_schema(),
+            self._count_union_data(),
+        )
 
         return StoreStatus(
             connected=True,
             store_type="fuseki",
-            triple_count=schema_count + data_count,
+            triple_count=total_count,
             schema_loaded=schema_count > 0,
             data_loaded=data_count > 0,
         )
+
+    async def _count_union_total(self) -> int:
+        """Total triple count across the union default graph (all ontologies)."""
+        result = await self._sparql_select(
+            "SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }"
+        )
+        bindings = result.get("results", {}).get("bindings", [])
+        return int(bindings[0]["n"]["value"]) if bindings else 0
+
+    async def _count_union_schema(self) -> int:
+        """Count TBox declarations (classes / properties) across all ontologies.
+
+        Queries the union default graph for owl:Class / rdfs:Class /
+        owl:*Property declarations so schema_loaded is True whenever a TBox
+        is present in any per-ontology graph (or the legacy default).
+        """
+        result = await self._sparql_select(
+            "PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
+            "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
+            "PREFIX owl:  <http://www.w3.org/2002/07/owl#>\n"
+            "SELECT (COUNT(*) AS ?n) WHERE {\n"
+            "  ?decl a ?declType .\n"
+            "  VALUES ?declType {\n"
+            "    owl:Class rdfs:Class owl:ObjectProperty\n"
+            "    owl:DatatypeProperty owl:AnnotationProperty\n"
+            "  }\n"
+            "}"
+        )
+        bindings = result.get("results", {}).get("bindings", [])
+        return int(bindings[0]["n"]["value"]) if bindings else 0
+
+    async def _count_union_data(self) -> int:
+        """Count ABox instances across all ontologies (union default graph).
+
+        An instance is any subject typed with a class that is not itself a
+        TBox vocabulary type (owl:Class, owl:*Property, …). This mirrors the
+        instance-vs-vocabulary distinction used elsewhere in the store.
+        """
+        result = await self._sparql_select(
+            "PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
+            "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
+            "PREFIX owl:  <http://www.w3.org/2002/07/owl#>\n"
+            "SELECT (COUNT(DISTINCT ?inst) AS ?n) WHERE {\n"
+            "  ?inst a ?cls .\n"
+            "  FILTER(?cls NOT IN (\n"
+            "    owl:Class, rdfs:Class, owl:ObjectProperty,\n"
+            "    owl:DatatypeProperty, owl:AnnotationProperty,\n"
+            "    owl:TransitiveProperty, owl:FunctionalProperty,\n"
+            "    owl:InverseFunctionalProperty, owl:SymmetricProperty,\n"
+            "    rdf:Property, owl:Ontology\n"
+            "  ))\n"
+            "}"
+        )
+        bindings = result.get("results", {}).get("bindings", [])
+        return int(bindings[0]["n"]["value"]) if bindings else 0
 
     # ── Layer 1 tools ────────────────────────────────────────────────────────
 

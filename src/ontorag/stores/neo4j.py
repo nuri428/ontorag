@@ -570,10 +570,11 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
 
     # ── Dump ─────────────────────────────────────────────────────────────────
 
-    async def dump_graph(
+    async def dump_graph(  # type: ignore[override]
         self,
         target: Literal["schema", "data", "all"],
         fmt: Literal["ttl", "json", "jsonl", "xlsx"] = "ttl",
+        ontology: str | None = None,
     ) -> bytes:
         """Export TBox, ABox, or both as bytes in the requested format.
 
@@ -583,6 +584,8 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
         Args:
             target: "schema" (TBox), "data" (ABox), or "all".
             fmt: Serialisation format (ttl, json, jsonl, xlsx).
+            ontology: Accepted for protocol conformance; ignored in Neo4j.
+                # TODO(E4): scope by _ontology node property.
 
         Returns:
             Serialised bytes.
@@ -675,9 +678,10 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
 
     # ── Clear ─────────────────────────────────────────────────────────────────
 
-    async def clear_graph(
+    async def clear_graph(  # type: ignore[override]
         self,
         target: Literal["schema", "data", "all"],
+        ontology: str | None = None,
     ) -> dict[str, int]:
         """Delete TBox, ABox, or all nodes and report how many were removed.
 
@@ -685,6 +689,8 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
 
         Args:
             target: "schema" clears TBox, "data" clears ABox, "all" clears both.
+            ontology: Accepted for protocol conformance; ignored in Neo4j.
+                # TODO(E4): scope by _ontology node property.
 
         Returns:
             Mapping of graph name → nodes deleted.

@@ -35,10 +35,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Legacy default graph URIs — used when ontology=None (union default graph).
-_DATA = "urn:ontorag:data"
-_SCHEMA = "urn:ontorag:schema"
-
 # Vocabulary type URIs that should not be reported as the instance's class_uri.
 # These appear as rdf:type triples for ontology classes themselves, not for
 # ABox instances — mirrors _TBOX_TYPE_URIS in the Neo4j mixin.
@@ -164,7 +160,11 @@ class _FusekiSearchMixin:
 
         try:
             rows = await self._run_text_query(
-                safe_query, class_uri, internal_limit, ontology=ontology
+                safe_query,
+                class_uri,
+                internal_limit,
+                ontology=ontology,
+                scoped=ontology is not None,
             )
         except Exception as exc:
             logger.warning(
@@ -226,6 +226,7 @@ class _FusekiSearchMixin:
         class_uri: str | None,
         internal_limit: int,
         ontology: str | None = None,
+        scoped: bool = False,
     ) -> list[dict[str, Any]]:
         """Execute the jena-text SPARQL query and return raw result rows.
 
@@ -233,11 +234,25 @@ class _FusekiSearchMixin:
         has already been processed by ``_escape_lucene_query_for_sparql``
         before being passed here.
 
+        Recall trade-off when scoped (HIGH #2): ``text:query`` asks Lucene for
+        its top-N hits across the WHOLE index (all named graphs), and the
+        mandatory ``GRAPH <…:{id}:data> rdf:type`` gate then filters them to
+        the requested ontology. If other ontologies' hits dominate the top-N,
+        a scoped search could under-deliver. To keep scoped recall reliable we
+        ask Lucene for a much larger candidate pool (``lucene_fetch``) than the
+        SELECT ``LIMIT`` — trading a bigger Lucene fetch + post-filter cost for
+        correctness. The fetch is capped so a pathological limit can't blow up
+        the query. (Scoping is enforced by the graph gate, not by this number,
+        so a larger pool never leaks across ontologies.)
+
         Args:
             safe_query: SPARQL-safe (escaped) Lucene query string.
             class_uri: Optional class URI for subClassOf-aware filtering.
-            internal_limit: Over-fetch cap before Python-side deduplication.
+            internal_limit: Over-fetch cap before Python-side deduplication
+                (also the SELECT-level LIMIT).
             ontology: Validated ontology id or None for union default graph.
+            scoped: True when ontology is not None — enlarges the Lucene fetch
+                so the scoped graph gate has enough candidates.
 
         Returns:
             Raw SPARQL result bindings (list of dicts).
@@ -254,6 +269,15 @@ class _FusekiSearchMixin:
             data_g = None
             schema_g = None
 
+        # Lucene candidate pool. For a scoped query the post-filter discards
+        # hits from other ontologies, so we ask for a much larger pool (with a
+        # generous floor + hard cap) than the SELECT LIMIT. For union queries
+        # the gate accepts everything, so the existing internal_limit suffices.
+        if scoped:
+            lucene_fetch = min(max(internal_limit * 20, 2000), 50_000)
+        else:
+            lucene_fetch = internal_limit
+
         def _g(uri: str | None, body: str) -> str:
             """Local helper to emit GRAPH <uri> { body } or just { body }."""
             if uri is None:
@@ -267,7 +291,7 @@ class _FusekiSearchMixin:
 PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 SELECT ?inst ?score ?label ?type WHERE {{
-  (?inst ?score) text:query ("{safe_query}" {internal_limit}) .
+  (?inst ?score) text:query ("{safe_query}" {lucene_fetch}) .
   {_g(data_g, f"?inst rdf:type ?itype .")}
   {{ {_g(schema_g, f"?itype rdfs:subClassOf* {safe_cls} .")} }}
   UNION
@@ -284,7 +308,7 @@ LIMIT {internal_limit}"""
 PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 SELECT ?inst ?score ?label ?type WHERE {{
-  (?inst ?score) text:query ("{safe_query}" {internal_limit}) .
+  (?inst ?score) text:query ("{safe_query}" {lucene_fetch}) .
   {_g(data_g, "?inst rdf:type ?anytype .")}
   OPTIONAL {{ {_g(data_g, "?inst rdfs:label ?label .")} }}
   OPTIONAL {{

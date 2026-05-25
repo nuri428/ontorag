@@ -4,7 +4,12 @@ import asyncio
 import logging
 from typing import Any
 
-from ontorag.core.ontology import data_graph_uri, validate_ontology_id
+from ontorag.core.ontology import (
+    data_graph_uri,
+    graph_clause,
+    schema_graph_uri,
+    validate_ontology_id,
+)
 from ontorag.core.sparql import (
     build_filter_sparql,
     uri_ref,
@@ -13,23 +18,11 @@ from ontorag.stores.base import EntityFilter, TraversalDirection, TraversalResul
 
 logger = logging.getLogger(__name__)
 
-_DATA = "urn:ontorag:data"
 _MAX_DEPTH_HARD = 6
 
-
-def _data_clause(data_g: str | None, body: str) -> str:
-    """Wrap body in GRAPH <data_g> { } or just { } for union default.
-
-    Args:
-        data_g: Named-graph URI or None for the union default graph.
-        body: SPARQL graph pattern body.
-
-    Returns:
-        SPARQL graph pattern string.
-    """
-    if data_g is None:
-        return f"{{ {body} }}"
-    return f"GRAPH <{data_g}> {{ {body} }}"
+# Data-graph fragment helper — authoritative implementation lives in
+# ontorag.core.ontology.graph_clause (None → union default graph).
+_data_clause = graph_clause
 
 
 class _TraversalMixin:
@@ -60,6 +53,7 @@ class _TraversalMixin:
         """
         ontology = validate_ontology_id(ontology)
         data_g = data_graph_uri(ontology) if ontology is not None else None
+        schema_g = schema_graph_uri(ontology) if ontology is not None else None
 
         max_depth = min(max_depth, _MAX_DEPTH_HARD)
         pfx = self._pfx()
@@ -158,14 +152,16 @@ WHERE {{
                 node["label"] = uri_labels.get(node["uri"])
 
         # Predicate labels live in the schema graph, not the data graph.
-        # Query without a graph scope so they are found even in scoped mode —
-        # schema properties declared in any graph will be matched.
+        # When scoped (ontology=id), restrict the lookup to that ontology's
+        # schema graph so a scoped traversal never surfaces another
+        # ontology's rdfs:label for the same predicate URI (HIGH #4). When
+        # ontology=None, query the union default graph (no GRAPH wrapper).
         if edges:
             pred_uris = list({e["predicate"] for e in edges})
             pred_block = " ".join(f"<{u}>" for u in pred_uris)
             pred_q = (
                 f"{pfx}\nSELECT ?p ?label WHERE {{ VALUES ?p {{ {pred_block} }} "
-                f"?p rdfs:label ?label . }}"
+                f"{_data_clause(schema_g, '?p rdfs:label ?label .')} }}"
             )
             try:
                 pred_bindings = (
