@@ -490,3 +490,68 @@ async def test_agent_dedup_does_not_cache_errors():
 async def test_agent_max_turns_is_eight():
     """Document the runaway guard — was 12, trimmed to 8 (measured worst ≈ 3)."""
     assert AgentLoop.MAX_TURNS == 8
+
+
+# ── v0.5 capability tools wired into the agent (search_text / find_similar) ────
+
+
+def test_search_text_and_find_similar_in_toolset():
+    """The v0.5 BM25 + vector tools must be exposed to the LLM."""
+    from ontorag.chat.agent import _TOOLS  # noqa: PLC0415
+
+    names = {t["name"] for t in _TOOLS}
+    assert "search_text" in names
+    assert "find_similar" in names
+
+
+async def test_dispatch_search_text():
+    """_call_tool('search_text') calls store.search_text and shapes the result."""
+    store = _make_store()
+    store.search_text = AsyncMock(
+        return_value=[
+            MagicMock(model_dump=lambda: {"uri": "d:Charizard", "score": 1.0})
+        ]
+    )
+    agent = AgentLoop(store, AsyncMock())
+
+    out = await agent._call_tool(
+        "search_text", {"query": "리자*", "class_uri": "pk:Pokemon", "limit": 5}
+    )
+
+    store.search_text.assert_awaited_once_with("리자*", class_uri="pk:Pokemon", limit=5)
+    assert out["returned"] == 1
+    assert out["hits"][0]["uri"] == "d:Charizard"
+
+
+async def test_dispatch_find_similar():
+    """_call_tool('find_similar') calls store.find_similar with mode/top_k."""
+    store = _make_store()
+    store.find_similar = AsyncMock(
+        return_value=[MagicMock(model_dump=lambda: {"uri": "d:Charmeleon"})]
+    )
+    agent = AgentLoop(store, AsyncMock())
+
+    out = await agent._call_tool(
+        "find_similar", {"uri": "d:Charizard", "top_k": 3, "mode": "structural"}
+    )
+
+    store.find_similar.assert_awaited_once_with("d:Charizard", top_k=3, mode="structural")
+    assert out["returned"] == 1
+    assert out["hits"][0]["uri"] == "d:Charmeleon"
+
+
+async def test_dispatch_capability_tool_absent_degrades_gracefully():
+    """A backend lacking the capability returns an error dict, not a crash.
+
+    A plain object (not AsyncMock, which auto-creates attributes) genuinely
+    lacks find_similar, so getattr(store, 'find_similar', None) is None.
+    """
+
+    class _NoCapStore:  # no search_text / find_similar
+        pass
+
+    agent = AgentLoop(_NoCapStore(), AsyncMock())
+
+    out = await agent._call_tool("find_similar", {"uri": "d:X"})
+    assert out["returned"] == 0
+    assert "not supported" in out["error"]
