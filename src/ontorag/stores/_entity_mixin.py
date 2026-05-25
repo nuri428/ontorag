@@ -171,9 +171,17 @@ WHERE {{
     ) -> EntityResult:
         """Return all (or selected) properties of an entity.
 
+        Surfaces outgoing triples AND incoming edges whose predicate has an
+        ``owl:inverseOf`` declaration in the TBox.  For each incoming edge
+        ``X p <uri>`` where the TBox declares ``p owl:inverseOf q`` (in either
+        direction), the inverse triple ``<uri> q X`` is merged into properties
+        as if it were a direct outgoing triple.  Incoming edges with no declared
+        inverse are NOT surfaced.
+
         Args:
             uri: Full URI of the entity.
             predicates: Optional list of predicate URIs to restrict output.
+                Applied to both outgoing predicates and inverse predicates.
             ontology: Ontology id for scoped query, or None for union.
 
         Returns:
@@ -184,6 +192,7 @@ WHERE {{
         """
         ontology = validate_ontology_id(ontology)
         data_g = data_graph_uri(ontology) if ontology is not None else None
+        schema_g = schema_graph_uri(ontology) if ontology is not None else None
 
         pfx = self._pfx()
         subj = uri_ref(uri)
@@ -235,6 +244,76 @@ WHERE {{
                 existing.append(obj)
             else:
                 properties[pred] = [existing, obj]
+
+        # -- Incoming-via-inverse pass ------------------------------------------
+        # For every incoming edge  X p <uri>  where the TBox declares
+        # p owl:inverseOf q  (in either direction), surface  q -> X  in
+        # properties.  This is a second SPARQL query; failures here must NOT
+        # raise KeyError (the entity existence is already proven above).
+        #
+        # The inverse predicate is filtered against the caller's predicates list
+        # (if given) so only requested inverse predicates are returned.
+        inv_values_clause = ""
+        if predicates:
+            inv_values_clause = (
+                "  VALUES ?invPred { "
+                + " ".join(uri_ref(p) for p in predicates)
+                + " }\n"
+            )
+
+        # incoming_body: X p <uri>  in the data graph
+        incoming_body = f"?other ?p {subj} ."
+        # inverse_union: p owl:inverseOf q in either direction, in the schema graph
+        inv_forward = f"?p owl:inverseOf ?invPred ."
+        inv_backward = f"?invPred owl:inverseOf ?p ."
+        label_body = f"OPTIONAL {{ {_data_clause(data_g, '?other rdfs:label ?otherLabel .')} }}"
+
+        inv_query = f"""{pfx}
+SELECT ?invPred ?other ?otherLabel
+WHERE {{
+{inv_values_clause}  {_data_clause(data_g, incoming_body)}
+  {{
+    {_schema_clause(schema_g, inv_forward)}
+  }}
+  UNION
+  {{
+    {_schema_clause(schema_g, inv_backward)}
+  }}
+  {label_body}
+}}"""
+        try:
+            inv_result = await self._sparql_select(inv_query)
+            inv_bindings = inv_result.get("results", {}).get("bindings", [])
+        except Exception:
+            # Inverse query is best-effort; log and continue.
+            logger.warning(
+                "describe_entity: inverse-of query failed for %s — skipping", uri
+            )
+            inv_bindings = []
+
+        predicates_set = set(predicates) if predicates else None
+        for b in inv_bindings:
+            # Guard: skip malformed rows (missing expected keys) — can occur when
+            # a mock returns the same payload for both calls or if Fuseki returns
+            # a partial binding for an OPTIONAL-heavy query.
+            if "invPred" not in b or "other" not in b:
+                continue
+            inv_pred = b["invPred"]["value"]
+            other_uri = b["other"]["value"]
+            other_label = b.get("otherLabel", {}).get("value")
+            # Client-side guard: the VALUES clause filters server-side, but apply
+            # the predicates set here too so tests with mocked back-ends are
+            # consistent and results are never wider than requested.
+            if predicates_set is not None and inv_pred not in predicates_set:
+                continue
+            inv_obj: Any = {"uri": other_uri, "label": other_label}
+            existing = properties.get(inv_pred)
+            if existing is None:
+                properties[inv_pred] = inv_obj
+            elif isinstance(existing, list):
+                existing.append(inv_obj)
+            else:
+                properties[inv_pred] = [existing, inv_obj]
 
         return EntityResult(
             uri=uri, label=label, class_uri=class_uri, properties=properties

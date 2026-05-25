@@ -129,10 +129,17 @@ class _Neo4jEntityMixin:
 
         Includes outgoing relationships (as URI-valued properties) and
         expands shortened property keys / relationship types back to full URIs.
+        Additionally surfaces incoming edges whose predicate has an
+        ``owl:inverseOf`` declaration in the TBox: for each incoming edge
+        ``X p <uri>`` where ``p owl:inverseOf q`` is declared (either
+        direction), the inverse triple ``<uri> q X`` is merged into properties.
+        Incoming edges with no declared inverse are NOT surfaced.
 
         Args:
             uri: Full URI of the entity.
             predicates: Optional list of predicate URIs to restrict output.
+                Applied to both outgoing predicates and the resolved inverse
+                predicates.
             ontology: Ontology id to scope lookup, or None for all (union).
 
         Returns:
@@ -203,6 +210,86 @@ class _Neo4jEntityMixin:
                 existing.append(obj)
             else:
                 props[full_pred] = [existing, obj]
+
+        # -- Incoming-via-inverse pass ------------------------------------------
+        # Query incoming edges (exclude rdf:type links as they are ABox → TBox).
+        # When ontology is given, scope the "other" node too via its _ontology
+        # list-property so cross-ontology false positives are excluded.
+        other_scope_frag, other_scope_params = ontology_scope_filter(
+            ontology, node_alias="other"
+        )
+        # Merge scope params: n-scope already in scope_params; other-scope uses
+        # "ontology_id" key — same value, so merging is safe (identical value).
+        incoming_where_parts = ["type(r) <> 'rdf__type'"]
+        if other_scope_frag:
+            incoming_where_parts.append(other_scope_frag)
+        incoming_where = "WHERE " + " AND ".join(incoming_where_parts)
+
+        incoming_rows = await self._run(
+            f"""
+            MATCH (other:Resource)-[r]->(e:Resource {{uri: $uri}})
+            {incoming_where}
+            RETURN other.uri AS other_uri,
+                   type(r) AS rel_type,
+                   head(other.rdfs__label) AS other_label
+            """,
+            uri=uri,
+            **other_scope_params,
+        )
+
+        if incoming_rows:
+            # Collect unique predicate full-URIs from all incoming edges
+            incoming: list[tuple[str, str, Any]] = []
+            seen_pred_uris: set[str] = set()
+            for row in incoming_rows:
+                rel_short = row.get("rel_type")
+                other_uri_val = row.get("other_uri")
+                if not rel_short or not other_uri_val:
+                    continue
+                pred_uri = self._expand(rel_short)
+                incoming.append((pred_uri, other_uri_val, row.get("other_label")))
+                seen_pred_uris.add(pred_uri)
+
+            if seen_pred_uris:
+                # Query owl:inverseOf in either direction for the collected
+                # predicate URIs.  Undirected relationship traversal
+                # (-[:owl__inverseOf]-) catches both declaration orderings in
+                # a single query.
+                inv_rows = await self._run(
+                    """
+                    MATCH (p:Resource)-[:owl__inverseOf]-(inv:Resource)
+                    WHERE p.uri IN $puris
+                    RETURN p.uri AS p_uri, inv.uri AS inv_uri
+                    """,
+                    puris=list(seen_pred_uris),
+                )
+
+                # Build predicate URI → inverse URI map
+                inverse_map: dict[str, str] = {
+                    row["p_uri"]: row["inv_uri"] for row in inv_rows if row.get("p_uri") and row.get("inv_uri")
+                }
+
+                rdf_type_uri = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+                for pred_uri, other_uri_val, other_label_raw in incoming:
+                    inv_pred = inverse_map.get(pred_uri)
+                    if inv_pred is None:
+                        continue  # no declared inverse — skip per contract
+                    if inv_pred == rdf_type_uri:
+                        continue  # never surface rdf:type as an inverse
+                    if predicates and inv_pred not in predicates:
+                        continue  # filtered out by caller
+
+                    inv_obj: Any = {
+                        "uri": other_uri_val,
+                        "label": first_scalar(other_label_raw),
+                    }
+                    existing = props.get(inv_pred)
+                    if existing is None:
+                        props[inv_pred] = inv_obj
+                    elif isinstance(existing, list):
+                        existing.append(inv_obj)
+                    else:
+                        props[inv_pred] = [existing, inv_obj]
 
         # Filter to requested predicates if given (apply to final props dict)
         if predicates:
