@@ -392,6 +392,9 @@ _TOOLS: list[dict[str, Any]] = [
             "pre-built (ontorag embed); returns no hits if absent. "
             "mode: structural (graph topology) | textual (label/comment "
             "semantics) | hybrid (RRF fusion). "
+            "IMPORTANT: pass class_uri to restrict neighbours to one class "
+            "(subClassOf-aware) — e.g. for 'Pokémon similar to X' set "
+            "class_uri to the Pokémon class so moves/types are excluded. "
             "Result shape: {hits: list[{uri, label, class_uri, score, mode}], "
             "returned: int}."
         ),
@@ -404,6 +407,14 @@ _TOOLS: list[dict[str, Any]] = [
                     "type": "string",
                     "enum": ["structural", "textual", "hybrid"],
                     "default": "hybrid",
+                },
+                "class_uri": {
+                    "type": "string",
+                    "description": (
+                        "Optional class URI to restrict neighbours to instances "
+                        "of that class (rdfs:subClassOf-aware). Use when the "
+                        "question asks for similar entities of a specific kind."
+                    ),
                 },
             },
             "required": ["uri"],
@@ -788,6 +799,7 @@ class AgentLoop:
                 args["uri"],
                 top_k=args.get("top_k", 5),
                 mode=args.get("mode", "hybrid"),
+                class_uri=args.get("class_uri"),
             )
             return {"hits": [h.model_dump() for h in sim], "returned": len(sim)}
 

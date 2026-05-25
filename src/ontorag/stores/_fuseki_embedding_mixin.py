@@ -65,6 +65,10 @@ _STRUCT_DIM: int = 256
 #: Rank-fusion constant (standard RRF k0 ≈ 60).
 _RRF_K0: int = 60
 
+#: kNN over-fetch multiplier when a class filter is active — many neighbours
+#: belong to other classes (moves, types) and get dropped, so fetch more.
+_CLASS_FILTER_OVERFETCH: int = 10
+
 #: Minimum text length (chars) to bother embedding.
 _MIN_TEXT_LEN: int = 3
 
@@ -530,6 +534,7 @@ LIMIT {limit}
         uri: str,
         top_k: int = 10,
         mode: Literal["structural", "textual", "hybrid"] = "structural",
+        class_uri: str | None = None,
         ontology: str | None = None,
     ) -> list[SimilarHit]:
         """Find the most similar ontology entities using graph embeddings.
@@ -539,6 +544,11 @@ LIMIT {limit}
                 before any SPARQL or Qdrant use.
             top_k: Maximum results to return (1–100).
             mode: "structural", "textual", or "hybrid" (RRF fusion).
+            class_uri: Optional class URI to restrict hits to instances of
+                that class (rdfs:subClassOf-aware).  None (default) returns
+                similar entities of any class — moves, types, etc.  When set,
+                kNN is over-fetched and post-filtered so only same-class
+                neighbours remain (e.g. "Pokémon similar to X").
             ontology: Optional ontology id to restrict results to that
                 ontology's embeddings.  None means no filter (current default
                 behaviour — searches across all ontologies).
@@ -562,14 +572,19 @@ LIMIT {limit}
         ontology = validate_ontology_id(ontology)
 
         if mode == "hybrid":
-            return await self._find_similar_hybrid(uri, top_k, ontology=ontology)
-        return await self._find_similar_single(uri, top_k, mode, ontology=ontology)
+            return await self._find_similar_hybrid(
+                uri, top_k, class_uri=class_uri, ontology=ontology
+            )
+        return await self._find_similar_single(
+            uri, top_k, mode, class_uri=class_uri, ontology=ontology
+        )
 
     async def _find_similar_single(
         self: "FusekiStore",
         uri: str,
         top_k: int,
         mode: Literal["structural", "textual"],
+        class_uri: str | None = None,
         ontology: str | None = None,
     ) -> list[SimilarHit]:
         """Execute a single-mode kNN query against Qdrant.
@@ -578,6 +593,7 @@ LIMIT {limit}
             uri: Query entity URI (already validated by caller).
             top_k: Maximum results to return.
             mode: "structural" or "textual".
+            class_uri: Optional class URI to restrict hits (subClassOf-aware).
             ontology: Optional ontology id for Qdrant payload pre-filter.
 
         Returns:
@@ -597,10 +613,13 @@ LIMIT {limit}
             )
             return []
 
-        # Over-fetch to allow dedup / self-exclusion.
-        # When ontology_filter is active the Qdrant pre-filter guarantees exact
-        # scope — no over-fetch needed for correctness, but +1 handles self-hit.
-        k_plus = top_k + 1
+        # Over-fetch to allow dedup / self-exclusion.  When a class filter is
+        # active many kNN hits will be dropped (other classes), so over-fetch
+        # aggressively and post-filter; otherwise +1 just handles the self-hit.
+        if class_uri is not None:
+            k_plus = min(max(top_k * _CLASS_FILTER_OVERFETCH, top_k + 1), 200)
+        else:
+            k_plus = top_k + 1
         hits = await qdrant.query(collection, vec, k_plus, ontology_filter=ontology)
         if not hits:
             return []
@@ -610,6 +629,17 @@ LIMIT {limit}
         hit_uris = [hit_uri for hit_uri, _ in hits if hit_uri and hit_uri != uri]
         if not hit_uris:
             return []
+
+        # subClassOf-aware class filter: keep only hits that are instances of
+        # class_uri (or a subclass).  Preserves kNN rank order.
+        if class_uri is not None:
+            allowed = await self._filter_uris_by_class(
+                hit_uris, class_uri, ontology=ontology
+            )
+            hits = [(h, s) for h, s in hits if h in allowed]
+            hit_uris = [h for h in hit_uris if h in allowed]
+            if not hit_uris:
+                return []
 
         meta = await self._resolve_entity_meta(hit_uris)
 
@@ -636,6 +666,7 @@ LIMIT {limit}
         self: "FusekiStore",
         uri: str,
         top_k: int,
+        class_uri: str | None = None,
         ontology: str | None = None,
     ) -> list[SimilarHit]:
         """Fuse structural + textual rankings via Reciprocal Rank Fusion.
@@ -646,6 +677,8 @@ LIMIT {limit}
         Args:
             uri: Query entity URI.
             top_k: Maximum results to return after fusion.
+            class_uri: Optional class URI propagated to both single-mode calls
+                (each is class-filtered before fusion).
             ontology: Optional ontology id propagated to both single-mode calls.
 
         Returns:
@@ -653,10 +686,10 @@ LIMIT {limit}
             modes return nothing.
         """
         struct_hits = await self._find_similar_single(
-            uri, top_k * 2, "structural", ontology=ontology
+            uri, top_k * 2, "structural", class_uri=class_uri, ontology=ontology
         )
         text_hits = await self._find_similar_single(
-            uri, top_k * 2, "textual", ontology=ontology
+            uri, top_k * 2, "textual", class_uri=class_uri, ontology=ontology
         )
 
         if not struct_hits and not text_hits:
@@ -694,6 +727,81 @@ LIMIT {limit}
         return results
 
     # ── SPARQL helper ─────────────────────────────────────────────────────────
+
+    async def _filter_uris_by_class(
+        self: "FusekiStore",
+        uris: list[str],
+        class_uri: str,
+        ontology: str | None = None,
+    ) -> set[str]:
+        """Return the subset of *uris* that are instances of *class_uri*.
+
+        rdfs:subClassOf-aware: an instance of any subclass of class_uri
+        matches (the ``subClassOf*`` path is reflexive, so direct instances
+        match too).  Joins instance types (data graph) with the class
+        hierarchy (schema graph) using the same scoped-GRAPH + UNION pattern
+        as ``find_entities``: ``ontology=None`` leaves both unwrapped (union
+        default graph), a scoped id wraps each in its named graph.  The UNION
+        direct-match arm keeps results correct even when no subClassOf is
+        loaded.  Every URI is validated by ``uri_ref`` before interpolation.
+        Fail-open: on an invalid class_uri or query error the input set is
+        returned unfiltered, so a transient issue never silently drops all hits.
+
+        Args:
+            uris: Candidate entity URIs (from Qdrant kNN).
+            class_uri: Class URI to test membership against.
+            ontology: Ontology id for scoped graphs, or None for union.
+
+        Returns:
+            Set of URIs that are instances of class_uri or a subclass.
+        """
+        safe: list[str] = []
+        for u in uris:
+            try:
+                safe.append(uri_ref(u))
+            except ValueError:
+                logger.warning("_filter_uris_by_class: skipping unsafe URI %r", u)
+        if not safe:
+            return set()
+        try:
+            cls = uri_ref(class_uri)
+        except ValueError:
+            logger.warning(
+                "_filter_uris_by_class: invalid class_uri %r; skipping filter",
+                class_uri,
+            )
+            return set(uris)
+
+        data_g = scoped_graph(ontology, "data")
+        schema_g = scoped_graph(ontology, "schema")
+        values_block = " ".join(safe)
+        sub_arm = (
+            f"{graph_clause(data_g, '?inst a ?cls .')}\n"
+            f"    {graph_clause(schema_g, f'?cls rdfs:subClassOf* {cls} .')}"
+        )
+        direct_arm = graph_clause(data_g, f"?inst a {cls} .")
+        sparql = f"""
+PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT DISTINCT ?inst WHERE {{
+  VALUES ?inst {{ {values_block} }}
+  {{ {sub_arm} }}
+  UNION
+  {{ {direct_arm} }}
+}}
+"""
+        try:
+            res = await self._sparql_select(sparql)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "_filter_uris_by_class query failed (%s); skipping filter", exc
+            )
+            return set(uris)
+        return {
+            b["inst"]["value"]
+            for b in res.get("results", {}).get("bindings", [])
+            if b.get("inst", {}).get("value")
+        }
 
     async def _resolve_entity_meta(
         self: "FusekiStore",

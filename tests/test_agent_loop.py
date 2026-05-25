@@ -532,12 +532,33 @@ async def test_dispatch_find_similar():
     agent = AgentLoop(store, AsyncMock())
 
     out = await agent._call_tool(
-        "find_similar", {"uri": "d:Charizard", "top_k": 3, "mode": "structural"}
+        "find_similar",
+        {
+            "uri": "d:Charizard",
+            "top_k": 3,
+            "mode": "structural",
+            "class_uri": "pk:Pokemon",
+        },
     )
 
-    store.find_similar.assert_awaited_once_with("d:Charizard", top_k=3, mode="structural")
+    store.find_similar.assert_awaited_once_with(
+        "d:Charizard", top_k=3, mode="structural", class_uri="pk:Pokemon"
+    )
     assert out["returned"] == 1
     assert out["hits"][0]["uri"] == "d:Charmeleon"
+
+
+async def test_dispatch_find_similar_class_uri_defaults_none():
+    """class_uri is optional — omitted → forwarded as None (no class filter)."""
+    store = _make_store()
+    store.find_similar = AsyncMock(return_value=[])
+    agent = AgentLoop(store, AsyncMock())
+
+    await agent._call_tool("find_similar", {"uri": "d:Charizard"})
+
+    store.find_similar.assert_awaited_once_with(
+        "d:Charizard", top_k=5, mode="hybrid", class_uri=None
+    )
 
 
 async def test_dispatch_capability_tool_absent_degrades_gracefully():
