@@ -680,6 +680,14 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
         # the ontology id is rendered as a string literal here.
         # Safety: ontology has been validated by validate_ontology_id above —
         # it satisfies ^[a-zA-Z0-9_-]+$ so no Cypher injection is possible.
+        # Re-validate at the interpolation site so the injection invariant
+        # survives any future copy-paste / refactor of this block (MEDIUM
+        # hardening — defense in depth, not a substitute for the call above).
+        if ontology is not None:
+            assert validate_ontology_id(ontology) == ontology, (
+                "ontology id must be re-validated immediately before string "
+                "interpolation into the export sub-Cypher"
+            )
         scope_and = (
             f" AND '{ontology}' IN n._ontology" if ontology is not None else ""
         )

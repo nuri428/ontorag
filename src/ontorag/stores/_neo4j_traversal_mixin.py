@@ -96,11 +96,14 @@ class _Neo4jTraversalMixin:
                 seen_uris.add(tgt)
                 nodes.append({"uri": tgt, "depth": 1})
 
-        # Fetch relationship details for edge info
+        # Fetch relationship details for edge info.  The neighbor scope filter
+        # MUST be applied here too: without it, edges to out-of-scope neighbors
+        # leak into TraversalResult.edges even though those nodes were excluded
+        # from the primary (node) query above (HIGH #1 scope leak).
         edge_rows = await self._run(
             f"""
             MATCH (start:Resource {{uri: $start_uri}})-[rel{_pred_rel_type_filter(predicate, self._shorten_prefixed)}]->(neighbor:Resource)
-            WHERE neighbor.uri <> $start_uri
+            WHERE neighbor.uri <> $start_uri{scope_and}
             RETURN DISTINCT
                 start.uri AS from_uri,
                 type(rel) AS rel_type,
@@ -108,6 +111,7 @@ class _Neo4jTraversalMixin:
             LIMIT 500
             """,
             start_uri=start_uri,
+            **scope_params,
         )
 
         for row in edge_rows:
@@ -284,9 +288,16 @@ class _Neo4jTraversalMixin:
                     f"-[:rdfs__subClassOf*0..{_MAX_DEPTH_HARD}]->"
                     "(:Resource {uri: $start_class_uri})"
                 )
+            # Scope the start node too (HIGH #2): a start_uri belonging to a
+            # different ontology must NOT be accepted under this scope — yields
+            # empty, consistent with describe_entity's scope check.
+            start_where = (
+                f"WHERE {start_scope_frag}" if start_scope_frag else ""
+            )
             rows = await self._run(
                 f"""
                 MATCH (start:Resource {{uri: $start_uri}})
+                {start_where}
                 {type_filter}
                 MATCH (start)-[:`{short_pred}`*1..{_MAX_DEPTH_HARD}]->(reached:Resource)
                 WHERE reached.uri IS NOT NULL{reached_scope_and}

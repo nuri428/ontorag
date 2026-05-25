@@ -13,6 +13,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from ontorag.core.sparql import STANDARD_PREFIXES
+from ontorag.stores._neo4j_scope import build_where as _build_where
 from ontorag.stores._neo4j_scope import ontology_scope_filter
 from ontorag.stores._neo4j_values import first_scalar as _first_value
 from ontorag.stores.base import (
@@ -77,13 +78,18 @@ class _Neo4jSchemaMixin:
         prop_scope_frag, prop_scope_params = ontology_scope_filter(ontology, "p")
         inst_scope_frag, inst_scope_params = ontology_scope_filter(ontology, "inst")
 
-        cls_where = f"WHERE {cls_scope_frag}" if cls_scope_frag else ""
-        prop_where = (
-            f"WHERE t.uri IN $prop_types AND {prop_scope_frag}"
-            if prop_scope_frag
-            else "WHERE t.uri IN $prop_types"
+        # Assemble each WHERE via where_parts/AND.join (robust to fragment
+        # ordering — preferred over appending leading-" AND " to a hard-coded
+        # WHERE body, which is fragile if conditions are reordered).
+        cls_where = _build_where([cls_scope_frag])
+        prop_where = _build_where(["t.uri IN $prop_types", prop_scope_frag])
+        inst_where = _build_where(
+            [
+                "NOT (c:owl__ObjectProperty OR c:owl__DatatypeProperty "
+                "OR c:owl__AnnotationProperty OR c:owl__Ontology)",
+                inst_scope_frag,
+            ]
         )
-        inst_where_extra = f" AND {inst_scope_frag}" if inst_scope_frag else ""
 
         cls_rows, prop_rows, inst_rows = await asyncio.gather(
             self._run(
@@ -126,9 +132,7 @@ class _Neo4jSchemaMixin:
             self._run(
                 f"""
                 MATCH (inst:Resource)-[:rdf__type]->(c:owl__Class)
-                WHERE NOT (c:owl__ObjectProperty OR c:owl__DatatypeProperty
-                           OR c:owl__AnnotationProperty OR c:owl__Ontology)
-                {inst_where_extra}
+                {inst_where}
                 RETURN c.uri AS class_uri, count(DISTINCT inst) AS cnt
                 """,
                 **inst_scope_params,
@@ -237,20 +241,23 @@ class _Neo4jSchemaMixin:
     ) -> ClassDetail:
         """Return full TBox detail for a single ontology class.
 
-        Instance counts and sample instances are scoped to the given ontology
-        when not None.  The class node itself is returned regardless of its
-        ``_ontology`` tag — the class definition is in the TBox which may be
-        shared; only ABox instance counts are scoped.
+        When ``ontology`` is not None, the class node itself must be tagged with
+        that id (``$ontology_id IN c._ontology``); an out-of-scope class raises
+        KeyError — consistent with ``get_schema`` and ``find_entities`` scope
+        semantics.  Instance counts and sample instances are likewise scoped.
+        When ``ontology`` is None, the class is returned regardless of tagging
+        (union/legacy behavior).
 
         Args:
             class_uri: Full URI of the class.
-            ontology: Ontology id to scope instance counts, or None for all.
+            ontology: Ontology id to scope the class + instance counts, or None.
 
         Returns:
             ClassDetail with properties, hierarchy, and sample instances.
 
         Raises:
-            KeyError: If the class does not exist in the store.
+            KeyError: If the class does not exist, or is not tagged with the
+                requested ``ontology`` id.
         """
         await self._ensure_prefix_map()
 
@@ -260,12 +267,22 @@ class _Neo4jSchemaMixin:
         )
         inst_scope_and = f" AND {inst_scope_frag}" if inst_scope_frag else ""
 
+        # Build class-node scope filter for the existence probe.
+        cls_scope_frag, cls_scope_params = ontology_scope_filter(
+            ontology, node_alias="c"
+        )
+        cls_where_parts = [cls_scope_frag] if cls_scope_frag else []
+        cls_where = "WHERE " + " AND ".join(cls_where_parts) if cls_where_parts else ""
+
         # Explicit existence probe (review #9): a real leaf class with no
         # label/comment/parent/children/props/instances must NOT be reported
-        # as "not found". Decide existence on the node alone.
+        # as "not found". Decide existence on the node alone.  When scoped, the
+        # class node must also carry the ontology id (MEDIUM scope-consistency).
         exists_rows = await self._run(
-            "MATCH (c:Resource {uri: $uri}) RETURN c.uri AS uri LIMIT 1",
+            f"MATCH (c:Resource {{uri: $uri}}) {cls_where} "
+            f"RETURN c.uri AS uri LIMIT 1",
             uri=class_uri,
+            **cls_scope_params,
         )
         if not exists_rows:
             raise KeyError(f"Class not found: {class_uri}")

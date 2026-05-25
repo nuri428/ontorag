@@ -51,3 +51,25 @@ def ontology_scope_filter(
     # Use a fixed param name so callers can pass **params directly;
     # collisions are prevented by the unique param name "ontology_id".
     return f"$ontology_id IN {node_alias}._ontology", {"ontology_id": ontology}
+
+
+def build_where(conditions: list[str]) -> str:
+    """Assemble a Cypher WHERE clause from condition fragments.
+
+    Empty/falsey fragments are dropped, so an empty ``ontology_scope_filter``
+    result (``""``) contributes nothing.  This is more robust than appending a
+    leading ``" AND "`` to a hard-coded WHERE body, which breaks if conditions
+    are reordered or the first condition becomes optional.
+
+    Args:
+        conditions: Cypher boolean fragments (e.g.
+            ``"t.uri IN $prop_types"``, ``"$ontology_id IN p._ontology"``).
+            Falsey entries are skipped.
+
+    Returns:
+        ``"WHERE a AND b"`` for the non-empty fragments, or ``""`` when none.
+    """
+    parts = [c for c in conditions if c]
+    if not parts:
+        return ""
+    return "WHERE " + " AND ".join(parts)
