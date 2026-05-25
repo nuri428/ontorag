@@ -2,6 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.5.0 — 2026-05-25
+
+### Added — Neo4j backend, full backend parity, multi-ontology
+
+- **Pluggable graph store** via `GRAPH_STORE=fuseki|neo4j` (default `fuseki`).
+  A `create_store()` factory selects the backend; all MCP tools, routes, and
+  the CLI depend only on the `GraphStore` protocol. Phase-0 refactor made the
+  store layer backend-neutral (`clear_graph`/`aclose` promoted to the protocol;
+  raw SPARQL isolated as a Fuseki-only capability).
+- **Neo4j + neosemantics (n10s) adapter** — full `GraphStore` protocol in
+  Cypher. `handleVocabUris=SHORTEN` + `handleRDFTypes=LABELS_AND_NODES`; URIs
+  round-trip through a shorten/expand layer. Native `rdfs:subClassOf` inference
+  via `[:rdfs__subClassOf*]`. `docker compose --profile neo4j up` (n10s + apoc +
+  GDS auto-installed); install the `[neo4j]` extra for the driver.
+- **Full backend parity** — reasoning, full-text, and vector similarity now
+  work on **both** backends, each with its native tech:
+  - *Reasoning*: Fuseki uses a query-level `?inst a/rdfs:subClassOf*` join
+    (no reasoner config); Neo4j uses Cypher subClassOf paths. `find_entities`,
+    `count_entities`, and `aggregate` are all subclass-aware.
+  - *BM25 full-text* (`search_text` MCP tool): Fuseki via jena-text (Lucene,
+    TDB2 config); Neo4j via a native full-text index.
+  - *Graph embeddings* (`find_similar` MCP tool + `ontorag embed` CLI):
+    structural + textual + `hybrid` (RRF). Neo4j uses GDS FastRP + native
+    vector index; Fuseki uses pure-Python FastRP (`core/fastrp.py`) +
+    `EmbeddingProvider` (OpenAI/Ollama via `EMBEDDING_PROVIDER`) → **Qdrant**
+    (`[vector]` extra, `--profile qdrant`).
+- **Multi-ontology per instance** — load and query many ontologies in one
+  instance. `load`/`embed`/all read tools take an optional `ontology` scope
+  (`None` = union of all, backward-compatible). Fuseki isolates with
+  per-ontology named graphs (`urn:ontorag:{id}:schema/data`); Neo4j tags nodes
+  with an `_ontology` list. Embeddings are scoped too (Qdrant `ontology`
+  payload with un-tag-on-shared semantics; Neo4j `_ontology` post-filter).
+- **`describe_entity` now surfaces `owl:inverseOf`** relationships (incoming
+  edges presented under their declared inverse predicate).
+- **CLI**: `ontorag embed [--mode structural|textual|both] [--ontology <id>]`;
+  `ontorag load [--ontology <id>]`. **API**: `/load` gains an `ontology` form
+  field; the api image installs the `[neo4j,vector]` extras.
+
+### Security / fixes
+
+- Hardened `uri_ref` to validate prefixed names and `urn:` (not only `://`),
+  closing a latent SPARQL-injection path used across all Fuseki tools.
+- Cypher rel-types/labels/keys are gated by `_safe_rel`; embedding/search query
+  strings and ontology ids are bound/validated.
+
 ## v0.4.1 — 2026-05-19
 
 ### Added — prompt externalization + SHACL validation gate
