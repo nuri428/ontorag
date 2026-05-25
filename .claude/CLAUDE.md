@@ -74,11 +74,12 @@ Out of scope for v0.3:
 - Design note: `docs/design/neo4j-n10s.md`. Verified live against `neo4j:5.26` + n10s 5.26.
 - **BM25 full-text search** (`search_text`): **both backends** — Neo4j fulltext index / Fuseki jena-text (Lucene). `docs/design/neo4j-bm25.md`.
 - **Graph embeddings** (`find_similar` + `ontorag embed`): **both backends** — structural + textual (`EmbeddingProvider`: OpenAI/Ollama via `EMBEDDING_PROVIDER`) + `hybrid` (RRF), explicit `ontorag embed` trigger. Neo4j: GDS FastRP + native vector index. Fuseki: `core/fastrp.py` + EmbeddingProvider → **Qdrant**. `docs/design/neo4j-embedding.md`, `docs/design/fuseki-parity.md`.
-- **Reasoning, full-text, and vector similarity now have full backend parity** (Fuseki ⇄ Neo4j); each uses its native tech.
+- **Reasoning, full-text, and vector similarity have full backend parity** (Fuseki ⇄ Neo4j); each uses its native tech.
+- **Multi-ontology per instance** (shipped): one instance hosts many ontologies; every read tool + `load` takes an optional `ontology` scope (`None` = union/all, backward-compatible). Fuseki = per-ontology named graphs (`urn:ontorag:{id}:schema/data`); Neo4j = node `_ontology` list tag (no named graphs). `docs/design/multi-ontology.md`.
 
 ### v0.5+ (still planned)
-- Multi-ontology per instance
-- Fuseki text/vector parity (jena-text + reasoning) to remove backend capability gaps
+- Per-ontology scoping of `build_embeddings`/`find_similar` (currently global — deferred follow-up)
+- Per-ontology access control / cross-ontology entity alignment
 
 ## Architecture
 
@@ -462,9 +463,12 @@ Fuseki healthcheck: `GET /$/ping` → 200 OK.
 - Neo4j + n10s adapter behind `GRAPH_STORE` env var (factory-selected); full GraphStore protocol in Cypher with native subClassOf inference; `pattern_to_cypher` for L2; live-tested against neo4j:5.26.
 - `docker compose --profile neo4j up neo4j` to run the backend; `[neo4j]` extra for the driver.
 
-### v0.5+ (planned)
-- Vector similarity tool `find_similar` + BM25/full-text search
-- Multi-ontology per instance
+### v0.5 — also shipped
+- BM25 full-text (`search_text`) + vector similarity (`find_similar`/`ontorag embed`) — both backends.
+- Multi-ontology per instance (`ontology` scope on all read tools + `load`).
+
+### v0.6+ (planned)
+- Per-ontology scoping of embeddings/find_similar (currently global)
 
 ## What NOT to do (anti-patterns)
 
@@ -483,8 +487,8 @@ Fuseki healthcheck: `GET /$/ping` → 200 OK.
 - ✅ L2 `query_pattern` DSL 검증: 구조적 검증(SPARQL 측 `PatternTriple` regex) + Cypher 측 `_safe_rel()` allowlist + `*` 경로 상한으로 결정.
 - ✅ Neo4j SPARQL via n10s endpoint vs. native Cypher translation: **native Cypher translation** 채택 (`core/cypher.py`).
 - ✅ **subClassOf 추론 백엔드 divergence 해소**: 이제 양 백엔드 모두 추론 ON. Neo4j는 Cypher `[:rdfs__subClassOf*]`, Fuseki는 쿼리 레벨 `?inst a/rdfs:subClassOf*`(SCHEMA·DATA named graph 조인 + 직접매치 UNION). `ja:OntModelSpec` reasoner 없이 쿼리 레벨로 수렴 — `find_entities`/`count_entities` 결과 일치.
-- Vector similarity tool (Phase 2): Neo4j vector index vs. Qdrant? 별도 L1 툴 `find_similar`로 추가할지, `query_pattern`에 vector filter로 통합할지 결정 필요.
-- Multi-ontology per instance: not in v0.1. Single ontology assumption.
+- ✅ Vector similarity: **별도 L1 툴 `find_similar`** 채택 — Neo4j는 native vector index, Fuseki는 Qdrant. `ontorag embed`로 사전 생성.
+- ✅ **Multi-ontology per instance 해소**: named-graph 스코핑(Fuseki) + 노드 `_ontology` 태깅(Neo4j), 모든 read 툴 + `load`에 `ontology` 파라미터. 단일 온톨로지 가정 제거(`ontology=None`이 하위호환).
 - Auth/multi-tenant: not in v0.1. Single-user assumption.
 
 ## How to work with Claude Code on this repo

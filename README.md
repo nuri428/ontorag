@@ -109,6 +109,21 @@ ontorag embed --mode both       # structural (FastRP) + textual (EMBEDDING_PROVI
 and `find_similar` return ranked hits with scores; an optional `class_uri`
 restricts to a class and its subclasses.
 
+### Multiple ontologies in one instance
+
+Load ontologies under an id and scope queries to one — or query the union:
+
+```bash
+ontorag load schema foaf.ttl   --ontology foaf
+ontorag load data   people.ttl --ontology foaf
+ontorag load schema gist.ttl   --ontology gist
+```
+
+Every read tool (`get_schema`, `find_entities`, `search_text`, …) takes an
+optional `ontology` argument: pass an id to isolate, omit it for the union of
+all ontologies (the default, backward-compatible). Fuseki isolates with
+per-ontology named graphs; Neo4j tags nodes with an `_ontology` property.
+
 ---
 
 ## Web UI
