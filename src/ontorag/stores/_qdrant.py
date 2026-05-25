@@ -319,26 +319,42 @@ class QdrantWrapper:
         collection: str,
         ontology: str,
     ) -> None:
-        """Delete points whose ``ontology`` payload list contains the given id.
+        """Remove the given ontology id from points before a scoped rebuild.
 
-        Used by scoped ``build_embeddings(ontology=id)`` to wipe only the
-        target ontology's stale points before rebuilding — other ontologies'
-        points are untouched.
+        Used by scoped ``build_embeddings(ontology=id)`` to clear the target
+        ontology's stale points before re-upserting — other ontologies' points
+        are untouched.
 
-        Points shared across multiple ontologies (payload ontology contains
-        both the target id and other ids) are ALSO deleted here because the
-        full point will be re-upserted with the merged ontology list during the
-        scoped build.  The next build for the other ontology will re-upsert
-        those shared points — no data is permanently lost.
+        **Un-tag semantics (not whole-point delete):**  Each matching point's
+        ``ontology`` payload list may carry OTHER ontology ids too (shared-URI
+        nodes, e.g. ``["pkmn", "other"]``).  Deleting the whole point would
+        silently drop those other ids on rebuild — a re-build of one ontology
+        must not erase another's tag.  So we:
+
+          1. Scroll all points whose ``ontology`` list contains ``ontology``.
+          2. For points whose list still has OTHER ids after removing the
+             target id, ``overwrite_payload`` to keep only the remaining ids
+             (preserving the ``uri``).
+          3. Delete a point only when removing the target id would leave its
+             list empty (the target was its sole owner).
+
+        The matching points (including shared ones) are re-upserted with the
+        freshly-built vector + merged ontology list later in the same build, so
+        the un-tag is transient for in-scope points but never loses other
+        ontologies' ownership for points that are NOT rebuilt.
 
         Args:
             collection: Collection to delete from.
-            ontology: Ontology id; points whose ``ontology`` list contains
-                this id will be removed.
+            ontology: Ontology id to remove from matching points' payload.
         """
-        from qdrant_client.models import FieldCondition, Filter, MatchAny  # noqa: PLC0415
+        from qdrant_client.models import (  # noqa: PLC0415
+            FieldCondition,
+            Filter,
+            MatchAny,
+            PointIdsList,
+        )
 
-        delete_filter = Filter(
+        match_filter = Filter(
             must=[
                 FieldCondition(
                     key="ontology",
@@ -346,13 +362,63 @@ class QdrantWrapper:
                 )
             ]
         )
+
+        # Point ids to delete outright (target was the sole owner).
+        to_delete: list[str | int] = []
+        # Point id → remaining payload to overwrite (shared with other ids).
+        to_retag: list[tuple[str | int, dict]] = []
+
         try:
-            await self._client.delete(
-                collection_name=collection,
-                points_selector=delete_filter,
-            )
+            offset = None
+            while True:
+                records, offset = await self._client.scroll(
+                    collection_name=collection,
+                    scroll_filter=match_filter,
+                    with_payload=True,
+                    with_vectors=False,
+                    limit=256,
+                    offset=offset,
+                )
+                for rec in records:
+                    payload = dict(rec.payload or {})
+                    ont_list = payload.get("ontology")
+                    if not isinstance(ont_list, list):
+                        # Defensive: a matched point without a list payload —
+                        # remove it (cannot safely un-tag).
+                        to_delete.append(rec.id)
+                        continue
+                    remaining = [o for o in ont_list if o != ontology]
+                    if remaining:
+                        # Shared point: keep the other ids, preserve uri.
+                        new_payload = {**payload, "ontology": remaining}
+                        to_retag.append((rec.id, new_payload))
+                    else:
+                        # Sole owner: delete the whole point.
+                        to_delete.append(rec.id)
+                if offset is None:
+                    break
+
+            # Un-tag shared points (preserve other ontologies' ownership).
+            for pid, new_payload in to_retag:
+                await self._client.overwrite_payload(
+                    collection_name=collection,
+                    payload=new_payload,
+                    points=[pid],
+                )
+
+            # Delete points where the target ontology was the sole owner.
+            if to_delete:
+                await self._client.delete(
+                    collection_name=collection,
+                    points_selector=PointIdsList(points=to_delete),
+                )
+
             logger.debug(
-                "Deleted Qdrant points in '%s' with ontology=%r.", collection, ontology
+                "delete_by_ontology in '%s' for ontology=%r: deleted %d, un-tagged %d.",
+                collection,
+                ontology,
+                len(to_delete),
+                len(to_retag),
             )
         except Exception as exc:
             logger.debug(

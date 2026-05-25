@@ -108,20 +108,66 @@ class _FakeClient:
                 results.append(_Hit2())
         return results[:limit]
 
-    async def delete(self, collection_name: str, points_selector) -> None:
-        """Delete points matching the MatchAny filter on 'ontology' field."""
+    async def scroll(
+        self,
+        collection_name,
+        scroll_filter=None,
+        with_payload=True,
+        with_vectors=False,
+        limit=256,
+        offset=None,
+    ):
+        """Scroll points matching the MatchAny filter; single-page (offset=None)."""
         col = self._store.get(collection_name, {})
-        to_remove = []
+        records = []
         for pid, entry in col.items():
             pay = entry.get("payload") or {}
             ont_ids = pay.get("ontology", [])
-            # Extract the list from the filter.
-            for cond in (points_selector.must or []):
-                if hasattr(cond, "match") and hasattr(cond.match, "any"):
-                    if any(v in ont_ids for v in cond.match.any):
-                        to_remove.append(pid)
+            include = True
+            if scroll_filter is not None:
+                include = False
+                for cond in (scroll_filter.must or []):
+                    if hasattr(cond, "match") and hasattr(cond.match, "any"):
+                        if any(v in ont_ids for v in cond.match.any):
+                            include = True
+            if include:
+
+                class _Record:
+                    pass
+
+                rec = _Record()
+                rec.id = pid
+                rec.payload = pay if with_payload else None
+                rec.vector = entry["vector"] if with_vectors else None
+                records.append(rec)
+        # Single page — no continuation offset.
+        return records[:limit], None
+
+    async def overwrite_payload(self, collection_name: str, payload, points) -> None:
+        """Replace the payload of the listed point ids."""
+        col = self._store.get(collection_name, {})
+        for pid in points:
+            if str(pid) in col:
+                col[str(pid)]["payload"] = dict(payload)
+
+    async def delete(self, collection_name: str, points_selector) -> None:
+        """Delete points: supports PointIdsList (.points) or MatchAny filter."""
+        col = self._store.get(collection_name, {})
+        to_remove = []
+        # PointIdsList path (the new un-tag delete uses this).
+        if hasattr(points_selector, "points"):
+            to_remove = [str(pid) for pid in points_selector.points]
+        else:
+            # Legacy filter path (MatchAny on 'ontology').
+            for pid, entry in col.items():
+                pay = entry.get("payload") or {}
+                ont_ids = pay.get("ontology", [])
+                for cond in (points_selector.must or []):
+                    if hasattr(cond, "match") and hasattr(cond.match, "any"):
+                        if any(v in ont_ids for v in cond.match.any):
+                            to_remove.append(pid)
         for pid in to_remove:
-            col.pop(pid, None)
+            col.pop(str(pid), None)
 
     async def close(self) -> None:
         pass
@@ -257,21 +303,95 @@ class TestQdrantDeleteByOntology:
         assert vec_b is not None, "other point should survive"
 
     @pytest.mark.asyncio
-    async def test_delete_leaves_shared_node_for_other_ontology(self):
-        """Deleting pkmn removes shared-URI node, but it will be re-upserted on next build."""
+    async def test_delete_untags_shared_node_keeps_other_ontology(self):
+        """delete_by_ontology('pkmn') un-tags shared nodes — 'other' tag survives.
+
+        A node tagged ["pkmn", "other"] must NOT be deleted outright; instead
+        'pkmn' is removed from its ontology list while 'other' is kept and the
+        point stays queryable under 'other'.
+        """
         wrapper = _wrapper_with_fake()
         await wrapper.ensure_collection("test", dim=4)
         # Shared node belongs to pkmn AND other.
         await wrapper.upsert("test", [("http://ex.org/SHARED", [1.0, 0.0, 0.0, 0.0])], ontology="pkmn")
         await wrapper.upsert("test", [("http://ex.org/SHARED", [1.0, 0.1, 0.0, 0.0])], ontology="other")
 
-        # Delete pkmn — shared node is included because it has 'pkmn' in its list.
+        # Delete pkmn — shared node is matched but only un-tagged.
         await wrapper.delete_by_ontology("test", "pkmn")
 
-        # Shared node deleted (will be re-added on next scoped build for 'other').
+        # The point must still exist (vector intact).
         vec = await wrapper.retrieve_vector("test", "http://ex.org/SHARED")
-        # It was tagged with both; delete_by_ontology removes the whole point.
-        assert vec is None, "Shared node deleted — will be re-upserted on next 'other' build"
+        assert vec is not None, "Shared node must survive — only un-tagged, not deleted"
+
+        # Its ontology list must be ["other"] (pkmn removed, other kept).
+        pt_id = _point_id("http://ex.org/SHARED")
+        recs = await wrapper._client.retrieve("test", [pt_id], with_payload=True)
+        ont_list = recs[0].payload["ontology"]
+        assert "pkmn" not in ont_list, "pkmn tag must be removed"
+        assert "other" in ont_list, "other tag must be preserved"
+
+        # Still queryable under 'other'.
+        hits_other = await wrapper.query("test", [1.0, 0.0, 0.0, 0.0], top_k=5, ontology_filter="other")
+        assert any(h[0] == "http://ex.org/SHARED" for h in hits_other), "Shared node visible from other"
+        # No longer queryable under 'pkmn'.
+        hits_pkmn = await wrapper.query("test", [1.0, 0.0, 0.0, 0.0], top_k=5, ontology_filter="pkmn")
+        assert not any(h[0] == "http://ex.org/SHARED" for h in hits_pkmn), "Shared node not in pkmn"
+
+    @pytest.mark.asyncio
+    async def test_rebuild_pkmn_does_not_lose_other_tag_on_shared_node(self):
+        """Round-trip regression (HIGH): rebuild pkmn must not drop 'other' tag.
+
+        Scenario that broke whole-point delete:
+          1. build pkmn  → SHARED tagged ["pkmn"]
+          2. build other → SHARED tagged ["pkmn", "other"] (merge)
+          3. build pkmn AGAIN → delete_by_ontology("pkmn") then re-upsert pkmn.
+
+        With whole-point delete, step 3 removed the shared point entirely; the
+        re-upsert's pre-read found nothing, so the payload became ["pkmn"] only
+        and the 'other' tag was silently lost.  find_similar(ontology="other")
+        would then miss SHARED until 'other' was rebuilt.
+
+        With un-tag semantics, the 'other' tag survives the pkmn rebuild and the
+        shared node stays queryable under 'other' the whole time.
+        """
+        wrapper = _wrapper_with_fake()
+        await wrapper.ensure_collection("test", dim=4)
+        SHARED = "http://ex.org/SHARED"
+
+        # Step 1: build pkmn — SHARED appears in pkmn's instance set.
+        await wrapper.delete_by_ontology("test", "pkmn")
+        await wrapper.upsert("test", [(SHARED, [1.0, 0.0, 0.0, 0.0])], ontology="pkmn")
+
+        # Step 2: build other — SHARED also appears in other's instance set.
+        await wrapper.delete_by_ontology("test", "other")
+        await wrapper.upsert("test", [(SHARED, [1.0, 0.1, 0.0, 0.0])], ontology="other")
+
+        # After step 2 the payload must carry both ids.
+        pt_id = _point_id(SHARED)
+        recs = await wrapper._client.retrieve("test", [pt_id], with_payload=True)
+        assert set(recs[0].payload["ontology"]) == {"pkmn", "other"}
+
+        # Step 3: build pkmn AGAIN — un-tag pkmn, then re-upsert (pre-read merges).
+        await wrapper.delete_by_ontology("test", "pkmn")
+        # Mid-rebuild: 'other' tag must already survive the delete.
+        recs_mid = await wrapper._client.retrieve("test", [pt_id], with_payload=True)
+        assert recs_mid, "Shared point must NOT be deleted during pkmn rebuild"
+        assert recs_mid[0].payload["ontology"] == ["other"], (
+            "After un-tagging pkmn, only 'other' should remain (the bug dropped this)"
+        )
+        # Re-upsert pkmn — merge restores both ids.
+        await wrapper.upsert("test", [(SHARED, [1.0, 0.0, 0.0, 0.0])], ontology="pkmn")
+
+        # Final assertion: BOTH tags present, queryable under each scope.
+        recs_final = await wrapper._client.retrieve("test", [pt_id], with_payload=True)
+        final_ont = set(recs_final[0].payload["ontology"])
+        assert final_ont == {"pkmn", "other"}, (
+            f"Shared node must retain both tags after pkmn rebuild; got {final_ont}"
+        )
+        hits_other = await wrapper.query("test", [1.0, 0.0, 0.0, 0.0], top_k=5, ontology_filter="other")
+        assert any(h[0] == SHARED for h in hits_other), (
+            "Shared node must remain queryable under 'other' after a pkmn rebuild"
+        )
 
     @pytest.mark.asyncio
     async def test_delete_missing_collection_does_not_raise(self):

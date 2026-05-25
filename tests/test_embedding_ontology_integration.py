@@ -9,8 +9,12 @@ Requires ALL three services:
   - Neo4j at bolt://localhost:7687 (neo4j/ontorag123, GDS installed)
   - Qdrant at http://localhost:6333
 
-Module-level pytestmark skips EVERY test in this module when any service is
-unreachable — tests are SKIPPED (not errored) when containers are down.
+Skip behaviour (tests are SKIPPED, never errored, when containers are down):
+  - Each backend's test class carries its own ``@requires_*`` skipif, so a
+    partially-available environment runs the tests it can (e.g. only Neo4j up
+    → Neo4j class runs, Fuseki+Qdrant class skips).
+  - A module-level ``pytestmark`` skipif additionally skips EVERY test (incl.
+    any future top-level test) when NO backend this module needs is reachable.
 
 Two ontologies are loaded:
   - "pkmn": Pokémon schema + data (src/ontorag/_templates/examples/pokemon/)
@@ -137,9 +141,27 @@ _FUSEKI_UP = _is_fuseki_up()
 _QDRANT_UP = _is_qdrant_up()
 _NEO4J_UP = _is_neo4j_up()
 
-# Module-level pytestmark: all tests in this file are integration tests and
-# are skipped when any required service is unreachable.
-pytestmark = pytest.mark.integration
+# This module exercises TWO independent backends:
+#   - Fuseki + Qdrant  (TestFusekiOntologyScopeIntegration)
+#   - Neo4j + GDS       (TestNeo4jOntologyScopeIntegration)
+# Each backend's test class carries its own ``@requires_*`` skipif so a
+# partially-available environment (e.g. only Neo4j up) still runs the tests it
+# can.  The module-level skipif below guards EVERY test (incl. any future
+# top-level test) when NOTHING this module needs is reachable — so a fully-down
+# environment SKIPS the whole module rather than erroring.
+_ANY_BACKEND_UP = (_FUSEKI_UP and _QDRANT_UP) or _NEO4J_UP
+
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        not _ANY_BACKEND_UP,
+        reason=(
+            "No embedding backend reachable: needs Fuseki+Qdrant "
+            "(http://localhost:3030 + http://localhost:6333) or "
+            "Neo4j (bolt://localhost:7687)"
+        ),
+    ),
+]
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -314,6 +336,68 @@ class TestFusekiOntologyScopeIntegration:
         assert len(hits) > 0, (
             "pkmn textual embeddings must survive after building 'other' ontology textual embeddings"
         )
+
+    @pytest.mark.asyncio
+    async def test_live_rebuild_keeps_shared_uri_other_tag(self):
+        """HIGH regression on REAL Qdrant: rebuilding pkmn keeps a shared URI's 'other' tag.
+
+        Exercises the un-tag delete path end-to-end against a live Qdrant
+        server (not the fake client).  A single URI is tagged into both
+        ontologies, then the pkmn ontology is rebuilt (delete_by_ontology +
+        re-upsert).  The shared point must retain its 'other' tag throughout and
+        stay queryable under 'other'.
+        """
+        from ontorag.stores._qdrant import _point_id
+
+        COLLECTION = STRUCT_COLLECTION
+        SHARED = "http://example.org/shared#Node"
+        qdrant = QdrantWrapper(url=QDRANT_URL)
+        try:
+            await qdrant.delete_collection(COLLECTION)
+            await qdrant.ensure_collection(COLLECTION, dim=4)
+
+            # Step 1: build pkmn — SHARED tagged ["pkmn"].
+            await qdrant.delete_by_ontology(COLLECTION, "pkmn")
+            await qdrant.upsert(COLLECTION, [(SHARED, [1.0, 0.0, 0.0, 0.0])], ontology="pkmn")
+
+            # Step 2: build other — SHARED merges to ["pkmn", "other"].
+            await qdrant.delete_by_ontology(COLLECTION, "other")
+            await qdrant.upsert(COLLECTION, [(SHARED, [1.0, 0.1, 0.0, 0.0])], ontology="other")
+
+            # Step 3: rebuild pkmn — delete (un-tag) then re-upsert.
+            await qdrant.delete_by_ontology(COLLECTION, "pkmn")
+
+            # Mid-rebuild: the point must survive and 'other' must remain.
+            mid = await qdrant._client.retrieve(
+                collection_name=COLLECTION,
+                ids=[_point_id(SHARED)],
+                with_payload=True,
+            )
+            assert mid, "Shared point must NOT be deleted during pkmn rebuild (live)"
+            assert mid[0].payload["ontology"] == ["other"], (
+                "After un-tagging pkmn, only 'other' should remain (live)"
+            )
+
+            await qdrant.upsert(COLLECTION, [(SHARED, [1.0, 0.0, 0.0, 0.0])], ontology="pkmn")
+
+            # Final: both tags present; queryable under each scope.
+            final = await qdrant._client.retrieve(
+                collection_name=COLLECTION,
+                ids=[_point_id(SHARED)],
+                with_payload=True,
+            )
+            assert set(final[0].payload["ontology"]) == {"pkmn", "other"}, (
+                f"Shared node must retain both tags; got {final[0].payload['ontology']}"
+            )
+            hits_other = await qdrant.query(
+                COLLECTION, [1.0, 0.0, 0.0, 0.0], top_k=5, ontology_filter="other"
+            )
+            assert any(h[0] == SHARED for h in hits_other), (
+                "Shared node must stay queryable under 'other' after a pkmn rebuild (live)"
+            )
+        finally:
+            await qdrant.delete_collection(COLLECTION)
+            await qdrant.aclose()
 
 
 # ── Neo4j + GDS integration ───────────────────────────────────────────────────
