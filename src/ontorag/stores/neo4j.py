@@ -32,9 +32,10 @@ import logging
 import os
 from typing import Any, Literal
 
-from rdflib import Graph
+from rdflib import Graph, URIRef
 
 from ontorag.core.loader import detect_mode, parse_rdf
+from ontorag.core.ontology import validate_ontology_id
 from ontorag.core.sparql import STANDARD_PREFIXES
 from ontorag.stores._neo4j_embedding_mixin import _Neo4jEmbeddingMixin
 from ontorag.stores._neo4j_entity_mixin import _Neo4jEntityMixin
@@ -359,21 +360,36 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
         path: str,
         mode: Literal["schema", "data", "auto"] = "auto",
         replace: bool = False,
+        ontology: str | None = None,
     ) -> LoadResult:
         """Parse an RDF file and import it into Neo4j via n10s.
 
         TBox (schema) import always replaces existing TBox nodes.
         ABox (data) import appends unless replace=True.
 
+        When ``ontology`` is not None, all :Resource nodes whose URI appears in
+        the parsed graph are tagged with the id in the ``_ontology`` list
+        property after the n10s import.  A shared URI (e.g. owl:Class) gets
+        both ontology ids in its list.  ``ontology=None`` skips tagging,
+        preserving the current (unscoped) behavior.
+
         Args:
             path: Local file path (TTL, JSON-LD, RDF/XML, N3).
             mode: "schema", "data", or "auto" (auto-detects from content).
             replace: If True and mode resolves to "data", clears existing ABox
                      before importing.
+            ontology: Optional ontology id slug (``^[a-zA-Z0-9_-]+$``).
+                When supplied, imported nodes are tagged with this id.
 
         Returns:
             LoadResult with triple count and resolved mode.
+
+        Raises:
+            ValueError: If ``ontology`` contains illegal characters.
         """
+        # Validate the id early so illegal slugs are rejected before any DB work.
+        ontology = validate_ontology_id(ontology)
+
         graph = parse_rdf(path)
         triple_count = len(graph)
 
@@ -385,11 +401,18 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
         )
 
         if resolved_mode == "schema":
-            # Replace TBox: delete existing TBox nodes first
-            await self._delete_tbox_nodes()
+            # Replace TBox: when scoped, delete only TBox nodes exclusive to
+            # this ontology; when unscoped (legacy), delete all TBox nodes.
+            if ontology is not None:
+                await self._clear_ontology_nodes(ontology, "schema")
+            else:
+                await self._delete_tbox_nodes()
         elif replace:
-            # Replace ABox
-            await self._delete_abox_nodes()
+            # Replace ABox: when scoped, remove only this ontology's ABox nodes.
+            if ontology is not None:
+                await self._clear_ontology_nodes(ontology, "data")
+            else:
+                await self._delete_abox_nodes()
 
         # Import via n10s inline (TTL serialization for universal support)
         ttl = graph.serialize(format="turtle")
@@ -407,6 +430,13 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
             path,
         )
 
+        # Tag imported resources with the ontology id when one is given.
+        # Collect every subject and object IRI from the parsed graph — the
+        # union covers both TBox declarations and ABox instances.  n10s infra
+        # nodes (_NsPrefDef / _GraphConfig) are excluded by the WHERE guard.
+        if ontology is not None:
+            await self._tag_ontology_nodes(graph, ontology)
+
         # B2: keep the BM25 full-text index in sync after every load.
         await self._ensure_fulltext_index()
 
@@ -415,6 +445,53 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
             source=path,
             mode=resolved_mode,
         )
+
+    async def _tag_ontology_nodes(self, graph: Graph, ontology: str) -> int:
+        """Tag :Resource nodes whose URI appears in *graph* with the ontology id.
+
+        Appends ``ontology`` to the ``_ontology`` list on each matched node
+        (idempotent — the id is only appended when not already present).
+        n10s infrastructure nodes (_NsPrefDef, _GraphConfig) are excluded.
+
+        Uses the precise approach: extract subject+object IRIs from the parsed
+        graph and filter by URI IN $uris, so only nodes actually imported by
+        this file are touched — even if the graph store already contains nodes
+        from a different ontology with the same URI.
+
+        Args:
+            graph: The rdflib Graph that was just imported.
+            ontology: Validated ontology id slug.
+
+        Returns:
+            Number of nodes that were tagged (or already carried the id).
+        """
+        # Collect every IRI that appears as a subject or object in this graph.
+        uris: list[str] = list(
+            {
+                str(term)
+                for triple in graph
+                for term in triple
+                if isinstance(term, URIRef)
+            }
+        )
+        if not uris:
+            return 0
+
+        records = await self._run_write(
+            "MATCH (n:Resource) "
+            "WHERE n.uri IN $uris "
+            "  AND NOT n:_NsPrefDef AND NOT n:_GraphConfig "
+            "SET n._ontology = CASE "
+            "  WHEN $oid IN coalesce(n._ontology, []) THEN n._ontology "
+            "  ELSE coalesce(n._ontology, []) + $oid "
+            "END "
+            "RETURN count(n) AS tagged",
+            uris=uris,
+            oid=ontology,
+        )
+        count = records[0]["tagged"] if records else 0
+        logger.debug("Tagged %d nodes with ontology id %r", count, ontology)
+        return count
 
     async def _delete_tbox_nodes(self) -> int:
         """Delete all TBox nodes (and their relationships) from the graph.
@@ -581,25 +658,38 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
         Uses n10s.rdf.export.cypher to serialise nodes as RDF triples.
         TBox and ABox are distinguished by vocabulary-type membership.
 
+        When ``ontology`` is not None, only nodes tagged with that id are
+        exported; ``ontology=None`` exports all nodes (union, default behavior).
+
         Args:
             target: "schema" (TBox), "data" (ABox), or "all".
             fmt: Serialisation format (ttl, json, jsonl, xlsx).
-            ontology: Accepted for protocol conformance; ignored in Neo4j.
-                # TODO(E4): scope by _ontology node property.
+            ontology: Optional ontology id to scope the export.
 
         Returns:
             Serialised bytes.
         """
+        ontology = validate_ontology_id(ontology)
         import json as _json  # noqa: PLC0415
 
         await self._ensure_prefix_map()
+
+        # Build the optional ontology scope clause for the export sub-query.
+        # n10s.rdf.export.cypher takes the sub-Cypher as a string parameter;
+        # bound params are NOT available inside that inner Cypher string, so
+        # the ontology id is rendered as a string literal here.
+        # Safety: ontology has been validated by validate_ontology_id above —
+        # it satisfies ^[a-zA-Z0-9_-]+$ so no Cypher injection is possible.
+        scope_and = (
+            f" AND '{ontology}' IN n._ontology" if ontology is not None else ""
+        )
 
         # Use "export_cypher" as the Cypher parameter name to avoid shadowing
         # the first positional arg "cypher" of self._run().
         if target == "schema":
             export_cypher = (
                 "MATCH (n:Resource)-[:rdf__type]->(t:Resource) "
-                "WHERE t.uri IN $tbox_uris RETURN DISTINCT n"
+                f"WHERE t.uri IN $tbox_uris{scope_and} RETURN DISTINCT n"
             )
             export_q = (
                 "CALL n10s.rdf.export.cypher($export_cypher, {tbox_uris: $tbox_uris}) "
@@ -614,7 +704,7 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
         elif target == "data":
             export_cypher = (
                 "MATCH (n:Resource) "
-                "WHERE NOT n:_NsPrefDef AND NOT n:_GraphConfig "
+                f"WHERE NOT n:_NsPrefDef AND NOT n:_GraphConfig{scope_and} "
                 "AND NOT EXISTS { "
                 "  MATCH (n)-[:rdf__type]->(t:Resource) WHERE t.uri IN $tbox_uris "
                 "} RETURN n"
@@ -633,7 +723,7 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
             # All nodes
             export_cypher = (
                 "MATCH (n:Resource) "
-                "WHERE NOT n:_NsPrefDef AND NOT n:_GraphConfig "
+                f"WHERE NOT n:_NsPrefDef AND NOT n:_GraphConfig{scope_and} "
                 "RETURN n"
             )
             export_q = (
@@ -687,23 +777,109 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
 
         The n10s graphconfig, constraint, and _NsPrefDef nodes are preserved.
 
+        When ``ontology`` is not None, only nodes exclusively tagged with that
+        id are DETACH DELETEd; nodes shared by multiple ontologies have the id
+        removed from their ``_ontology`` list instead.  ``ontology=None``
+        preserves the current all/legacy behavior (deletes all matching nodes).
+
         Args:
             target: "schema" clears TBox, "data" clears ABox, "all" clears both.
-            ontology: Accepted for protocol conformance; ignored in Neo4j.
-                # TODO(E4): scope by _ontology node property.
+            ontology: Optional ontology id to scope the clear operation.
 
         Returns:
-            Mapping of graph name → nodes deleted.
+            Mapping of graph name → nodes deleted (exclusive) or untagged (shared).
         """
+        ontology = validate_ontology_id(ontology)
         removed: dict[str, int] = {}
 
-        if target in ("schema", "all"):
-            removed["schema"] = await self._delete_tbox_nodes()
-
-        if target in ("data", "all"):
-            removed["data"] = await self._delete_abox_nodes()
+        if ontology is None:
+            # Legacy behavior: delete all matching nodes without scope.
+            if target in ("schema", "all"):
+                removed["schema"] = await self._delete_tbox_nodes()
+            if target in ("data", "all"):
+                removed["data"] = await self._delete_abox_nodes()
+        else:
+            # Scoped clear: only affect nodes tagged with this ontology id.
+            if target in ("schema", "all"):
+                removed["schema"] = await self._clear_ontology_nodes(
+                    ontology, "schema"
+                )
+            if target in ("data", "all"):
+                removed["data"] = await self._clear_ontology_nodes(
+                    ontology, "data"
+                )
 
         return removed
+
+    async def _clear_ontology_nodes(
+        self, ontology: str, kind: Literal["schema", "data"]
+    ) -> int:
+        """Remove nodes exclusively owned by *ontology*, untag shared ones.
+
+        A node is "exclusively owned" when its ``_ontology`` list contains
+        only the given id.  Such nodes are DETACH DELETEd.  Nodes shared by
+        multiple ontologies only have the id removed from the list.
+
+        Args:
+            ontology: Validated ontology id.
+            kind: ``"schema"`` to clear TBox nodes, ``"data"`` to clear ABox.
+
+        Returns:
+            Number of nodes either deleted or untagged.
+        """
+        if kind == "schema":
+            type_filter = (
+                "MATCH (n:Resource)-[:rdf__type]->(t:Resource) "
+                "WHERE t.uri IN $tbox_uris "
+                "  AND $oid IN coalesce(n._ontology, [])"
+            )
+            params: dict[str, Any] = {
+                "tbox_uris": self._tbox_type_list,
+                "oid": ontology,
+            }
+        else:
+            # ABox: nodes that are NOT exclusively TBox types
+            type_filter = (
+                "MATCH (n:Resource) "
+                "WHERE $oid IN coalesce(n._ontology, []) "
+                "  AND NOT n:_NsPrefDef AND NOT n:_GraphConfig "
+                "  AND NOT EXISTS { "
+                "    MATCH (n)-[:rdf__type]->(t:Resource) "
+                "    WHERE t.uri IN $tbox_uris "
+                "  }"
+            )
+            params = {"tbox_uris": self._tbox_type_list, "oid": ontology}
+
+        # Nodes exclusively owned by this ontology → delete
+        del_query = (
+            f"{type_filter} "
+            "  AND size(coalesce(n._ontology, [])) = 1 "
+            "WITH collect(n) AS owned "
+            "UNWIND owned AS n "
+            "DETACH DELETE n "
+            "RETURN count(n) AS cnt"
+        )
+        # Shared nodes (owned by ≥2 ontologies) → untag only
+        untag_query = (
+            f"{type_filter} "
+            "  AND size(coalesce(n._ontology, [])) > 1 "
+            "SET n._ontology = [x IN n._ontology WHERE x <> $oid] "
+            "RETURN count(n) AS cnt"
+        )
+
+        del_rows = await self._run_write(del_query, **params)
+        untag_rows = await self._run_write(untag_query, **params)
+
+        deleted = del_rows[0]["cnt"] if del_rows else 0
+        untagged = untag_rows[0]["cnt"] if untag_rows else 0
+        logger.debug(
+            "clear_graph(%s, %s): deleted=%d untagged=%d",
+            ontology,
+            kind,
+            deleted,
+            untagged,
+        )
+        return deleted + untagged
 
     # ── Close ─────────────────────────────────────────────────────────────────
 
