@@ -8,7 +8,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Install curl for healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml .
+# README.md + LICENSE are referenced by pyproject (readme / license fields);
+# hatchling reads them during the wheel build, so they must be present.
+COPY pyproject.toml README.md LICENSE ./
 COPY src/ src/
 
 # Install with the neo4j + vector extras so the api container can serve any

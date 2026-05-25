@@ -13,3 +13,6 @@ dist/
 *.egg-info/
 tests/
 *.md
+# README.md is referenced by pyproject (readme = "README.md"); the hatchling
+# build reads it for package metadata, so it must stay in the build context.
+!README.md
