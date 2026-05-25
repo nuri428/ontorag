@@ -52,8 +52,15 @@ class _Neo4jSchemaMixin:
     _ensure_prefix_map: Any
     _prefix_to_ns: dict[str, str]
 
-    async def get_schema(self: "Neo4jStore") -> SchemaResult:
+    async def get_schema(  # type: ignore[override]
+        self: "Neo4jStore",
+        ontology: str | None = None,
+    ) -> SchemaResult:
         """Return compact schema overview: class hierarchy + property counts.
+
+        Args:
+            ontology: Accepted for protocol conformance; ignored in Neo4j.
+                # TODO(E4): scope by _ontology node property.
 
         Returns:
             SchemaResult with classes, properties, and namespace mapping.
@@ -195,11 +202,17 @@ class _Neo4jSchemaMixin:
             properties=all_properties,
         )
 
-    async def get_class_detail(self: "Neo4jStore", class_uri: str) -> ClassDetail:
+    async def get_class_detail(  # type: ignore[override]
+        self: "Neo4jStore",
+        class_uri: str,
+        ontology: str | None = None,
+    ) -> ClassDetail:
         """Return full TBox detail for a single ontology class.
 
         Args:
             class_uri: Full URI of the class.
+            ontology: Accepted for protocol conformance; ignored in Neo4j.
+                # TODO(E4): scope by _ontology node property.
 
         Returns:
             ClassDetail with properties, hierarchy, and sample instances.

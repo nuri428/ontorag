@@ -48,11 +48,12 @@ class _Neo4jEntityMixin:
     _tbox_type_list: Any
     _ensure_prefix_map: Any
 
-    async def find_entities(
+    async def find_entities(  # type: ignore[override]
         self: "Neo4jStore",
         class_uri: str,
         filters: list[EntityFilter] | None = None,
         limit: int = 100,
+        ontology: str | None = None,
     ) -> list[EntityResult]:
         """Find instances of a class with subclass inference.
 
@@ -63,6 +64,8 @@ class _Neo4jEntityMixin:
             class_uri: Full URI of the target class.
             filters: Optional property-value conditions.
             limit: Maximum number of results.
+            ontology: Accepted for protocol conformance; ignored in Neo4j.
+                # TODO(E4): scope by _ontology node property.
 
         Returns:
             List of EntityResult matching the class (and its subclasses).
@@ -110,10 +113,11 @@ class _Neo4jEntityMixin:
             )
         return results
 
-    async def describe_entity(
+    async def describe_entity(  # type: ignore[override]
         self: "Neo4jStore",
         uri: str,
         predicates: list[str] | None = None,
+        ontology: str | None = None,
     ) -> EntityResult:
         """Return all (or selected) properties and relationships of an entity.
 
@@ -123,6 +127,8 @@ class _Neo4jEntityMixin:
         Args:
             uri: Full URI of the entity.
             predicates: Optional list of predicate URIs to restrict output.
+            ontology: Accepted for protocol conformance; ignored in Neo4j.
+                # TODO(E4): scope by _ontology node property.
 
         Returns:
             EntityResult with all properties and relationships.
@@ -193,16 +199,19 @@ class _Neo4jEntityMixin:
 
         return EntityResult(uri=uri, label=label, class_uri=class_uri, properties=props)
 
-    async def count_entities(
+    async def count_entities(  # type: ignore[override]
         self: "Neo4jStore",
         class_uri: str,
         filters: list[EntityFilter] | None = None,
+        ontology: str | None = None,
     ) -> int:
         """Count instances of a class with subclass inference.
 
         Args:
             class_uri: Full URI of the target class.
             filters: Optional filter conditions.
+            ontology: Accepted for protocol conformance; ignored in Neo4j.
+                # TODO(E4): scope by _ontology node property.
 
         Returns:
             Number of matching instances.
@@ -226,11 +235,12 @@ class _Neo4jEntityMixin:
         )
         return rows[0]["cnt"] if rows else 0
 
-    async def aggregate(
+    async def aggregate(  # type: ignore[override]
         self: "Neo4jStore",
         class_uri: str,
         group_by: str,
         agg: AggFunc = AggFunc.count,
+        ontology: str | None = None,
     ) -> list[AggregateResult]:
         """Group class instances by a property and aggregate.
 
@@ -241,6 +251,8 @@ class _Neo4jEntityMixin:
             class_uri: Class to aggregate over.
             group_by: Property URI to group by.
             agg: Aggregation function.
+            ontology: Accepted for protocol conformance; ignored in Neo4j.
+                # TODO(E4): scope by _ontology node property.
 
         Returns:
             List of group_value → result pairs sorted by result descending.

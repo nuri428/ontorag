@@ -215,11 +215,12 @@ class _Neo4jSearchMixin:
 
     # ── B3 — search ───────────────────────────────────────────────────────────
 
-    async def search_text(
+    async def search_text(  # type: ignore[override]
         self: "Neo4jStore",
         query: str,
         class_uri: str | None = None,
         limit: int = 20,
+        ontology: str | None = None,
     ) -> list[SearchHit]:
         """Search for entities using BM25 full-text (Lucene) index.
 
@@ -236,6 +237,8 @@ class _Neo4jSearchMixin:
             query: Lucene query string (e.g. "Pikachu" or "pika*").
             class_uri: Optional full URI of a class to restrict results to.
             limit: Maximum number of hits to return (default 20, max 200).
+            ontology: Accepted for protocol conformance; ignored in Neo4j.
+                # TODO(E4): scope by _ontology node property.
 
         Returns:
             List of SearchHit ordered by BM25 score descending.

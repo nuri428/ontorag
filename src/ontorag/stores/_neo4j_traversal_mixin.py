@@ -32,12 +32,13 @@ class _Neo4jTraversalMixin:
     _expand: Any
     _ensure_prefix_map: Any
 
-    async def traverse(
+    async def traverse(  # type: ignore[override]
         self: "Neo4jStore",
         start_uri: str,
         predicate: str | None = None,
         max_depth: int = 2,
         direction: TraversalDirection = TraversalDirection.outgoing,
+        ontology: str | None = None,
     ) -> TraversalResult:
         """Traverse the graph from a starting node using Cypher variable-length paths.
 
@@ -46,6 +47,8 @@ class _Neo4jTraversalMixin:
             predicate: Predicate URI to follow; None = all predicates.
             max_depth: Maximum depth (hard limit: 6).
             direction: outgoing, incoming, or both.
+            ontology: Accepted for protocol conformance; ignored in Neo4j.
+                # TODO(E4): scope by _ontology node property.
 
         Returns:
             TraversalResult with nodes and edges reachable from start_uri.
@@ -121,11 +124,12 @@ class _Neo4jTraversalMixin:
             depth_reached=min(max_depth, 1) if edges else 0,
         )
 
-    async def find_path(
+    async def find_path(  # type: ignore[override]
         self: "Neo4jStore",
         uri_a: str,
         uri_b: str,
         max_depth: int = 4,
+        ontology: str | None = None,
     ) -> TraversalResult:
         """Find the shortest path between two entities using Cypher shortestPath.
 
@@ -133,6 +137,8 @@ class _Neo4jTraversalMixin:
             uri_a: Starting entity URI.
             uri_b: Target entity URI.
             max_depth: Maximum path length (hard limit: 6).
+            ontology: Accepted for protocol conformance; ignored in Neo4j.
+                # TODO(E4): scope by _ontology node property.
 
         Returns:
             TraversalResult with path nodes and edges, or empty if no path found.
@@ -188,13 +194,14 @@ class _Neo4jTraversalMixin:
             depth_reached=len(edges),
         )
 
-    async def property_path_closure(
+    async def property_path_closure(  # type: ignore[override]
         self: "Neo4jStore",
         predicate_uri: str,
         start_uri: str | None = None,
         start_label: str | None = None,
         start_class_uri: str | None = None,
         limit: int = 100,
+        ontology: str | None = None,
     ) -> list[dict[str, Any]]:
         """Return all entities reachable via a transitive predicate.
 
@@ -209,6 +216,8 @@ class _Neo4jTraversalMixin:
             start_label: Mode 2 — match instance by rdfs:label.
             start_class_uri: Disambiguates Mode 2 or triggers Mode 3 alone.
             limit: Max results.
+            ontology: Accepted for protocol conformance; ignored in Neo4j.
+                # TODO(E4): scope by _ontology node property.
 
         Returns:
             List of ``{"uri": str, "label": str | None}`` sorted by URI.
@@ -308,7 +317,7 @@ class _Neo4jTraversalMixin:
             if row.get("uri")
         ]
 
-    async def find_related(
+    async def find_related(  # type: ignore[override]
         self: "Neo4jStore",
         class_uri_a: str,
         predicate: str,
@@ -316,6 +325,7 @@ class _Neo4jTraversalMixin:
         filters_a: list[EntityFilter] | None = None,
         filters_b: list[EntityFilter] | None = None,
         limit: int = 100,
+        ontology: str | None = None,
     ) -> list[dict[str, Any]]:
         """Find pairs of entities from two classes connected by a predicate.
 
@@ -326,6 +336,8 @@ class _Neo4jTraversalMixin:
             filters_a: Optional filters for subject entities.
             filters_b: Optional filters for object entities.
             limit: Maximum result pairs.
+            ontology: Accepted for protocol conformance; ignored in Neo4j.
+                # TODO(E4): scope by _ontology node property.
 
         Returns:
             List of {entity_a: dict, entity_b: dict} pairs.
