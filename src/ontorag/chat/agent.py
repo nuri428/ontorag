@@ -348,6 +348,67 @@ _TOOLS: list[dict[str, Any]] = [
             "required": ["select", "where"],
         },
     },
+    {
+        "name": "search_text",
+        "description": (
+            "Full-text BM25 search over instance labels/comments "
+            "(rdfs:label, rdfs:comment, skos:prefLabel, skos:definition). "
+            "Use for FUZZY / KEYWORD / PARTIAL-name lookups when the exact "
+            "entity URI or label is unknown — e.g. 'find things whose name "
+            "contains 이상해', free-text description search. Supports Lucene "
+            "wildcards: '이상해*' matches 이상해씨/이상해풀/이상해꽃, '리자*' "
+            "matches 리자몽/리자드. Prefer find_entities for exact, "
+            "class-scoped enumeration; use this for a free-text fragment. "
+            "Optional class_uri restricts hits (rdfs:subClassOf-aware). "
+            "Result shape: {hits: list[{uri, label, class_uri, score, "
+            "matched_property}], returned: int}."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Lucene query text; supports the * wildcard (e.g. '리자*').",
+                },
+                "class_uri": {
+                    "type": "string",
+                    "description": "Optional class URI to restrict hits (subClassOf-aware).",
+                },
+                "limit": {"type": "integer", "default": 10},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "find_similar",
+        "description": (
+            "Vector similarity search — returns entities most similar to a "
+            "SEED entity by graph structure and/or text embedding. Use for "
+            "'find things similar/comparable to X' / 'what resembles X' "
+            "questions where similarity is NOT a defined ontology relation "
+            "(for a known relation use find_related/traverse_graph). The seed "
+            "must be a known instance URI — if you only have a name, resolve "
+            "it first with search_text or find_entities. Requires embeddings "
+            "pre-built (ontorag embed); returns no hits if absent. "
+            "mode: structural (graph topology) | textual (label/comment "
+            "semantics) | hybrid (RRF fusion). "
+            "Result shape: {hits: list[{uri, label, class_uri, score, mode}], "
+            "returned: int}."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "uri": {"type": "string", "description": "Seed instance URI."},
+                "top_k": {"type": "integer", "default": 5},
+                "mode": {
+                    "type": "string",
+                    "enum": ["structural", "textual", "hybrid"],
+                    "default": "hybrid",
+                },
+            },
+            "required": ["uri"],
+        },
+    },
 ]
 
 
@@ -697,5 +758,37 @@ class AgentLoop:
                 limit=args.get("limit", 100),
             )
             return (await store.query_pattern(query)).model_dump()
+
+        if name == "search_text":
+            # Capability tool — both v0.5 backends implement it, but guard
+            # defensively so a backend lacking it degrades instead of crashing.
+            search_fn = getattr(store, "search_text", None)
+            if search_fn is None:
+                return {
+                    "error": "search_text is not supported by this backend.",
+                    "hits": [],
+                    "returned": 0,
+                }
+            hits = await search_fn(
+                args["query"],
+                class_uri=args.get("class_uri"),
+                limit=args.get("limit", 10),
+            )
+            return {"hits": [h.model_dump() for h in hits], "returned": len(hits)}
+
+        if name == "find_similar":
+            similar_fn = getattr(store, "find_similar", None)
+            if similar_fn is None:
+                return {
+                    "error": "find_similar is not supported by this backend.",
+                    "hits": [],
+                    "returned": 0,
+                }
+            sim = await similar_fn(
+                args["uri"],
+                top_k=args.get("top_k", 5),
+                mode=args.get("mode", "hybrid"),
+            )
+            return {"hits": [h.model_dump() for h in sim], "returned": len(sim)}
 
         raise ValueError(f"Unknown tool: {name}")
