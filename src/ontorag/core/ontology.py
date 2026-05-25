@@ -52,3 +52,47 @@ def data_graph_uri(ontology: str | None) -> str:
     if ontology is None:
         return DEFAULT_DATA_GRAPH
     return f"urn:ontorag:{ontology}:data"
+
+
+def scoped_graph(ontology: str | None, kind: str) -> str | None:
+    """Return the named-graph URI for a scope + graph kind, or None for union.
+
+    Single source of truth for the scoping decision used across the Fuseki
+    store and its mixins.
+
+    Args:
+        ontology: Validated ontology id or None (union/default).
+        kind: ``"schema"`` or ``"data"``.
+
+    Returns:
+        The named-graph URI string, or None when ontology is None — None
+        signals that queries should use the union default graph (no ``GRAPH``
+        wrapper), which ``tdb2:unionDefaultGraph true`` makes the union of all
+        named graphs (backward-compatible with the legacy default graphs).
+
+    Raises:
+        ValueError: If ``kind`` is not ``"schema"`` or ``"data"``.
+    """
+    if kind not in ("schema", "data"):
+        raise ValueError(f"kind must be 'schema' or 'data', got {kind!r}")
+    if ontology is None:
+        return None
+    return schema_graph_uri(ontology) if kind == "schema" else data_graph_uri(ontology)
+
+
+def graph_clause(graph_uri: str | None, body: str) -> str:
+    """Wrap a SPARQL graph-pattern body in a GRAPH clause, or bare braces.
+
+    Single source of truth for emitting scoped vs. union SPARQL fragments.
+
+    Args:
+        graph_uri: Named-graph URI, or None for the union default graph.
+        body: SPARQL graph pattern body (the part inside ``{ }``).
+
+    Returns:
+        ``GRAPH <uri> { body }`` when a URI is given, else ``{ body }`` (the
+        union default graph — no GRAPH keyword).
+    """
+    if graph_uri is None:
+        return f"{{ {body} }}"
+    return f"GRAPH <{graph_uri}> {{ {body} }}"
