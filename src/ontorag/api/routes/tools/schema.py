@@ -1,11 +1,17 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ontorag.api.deps import get_store
 from ontorag.stores.base import ClassDetail, GraphStore, SchemaResult
 
 router = APIRouter(prefix="/tools", tags=["tools"])
+
+_OntologyQuery = Annotated[
+    str | None, Query(description="스코프할 온톨로지 id. 미지정 시 전체(union).")
+]
 
 
 @router.get(
@@ -14,7 +20,10 @@ router = APIRouter(prefix="/tools", tags=["tools"])
     summary="온톨로지 클래스·속성·계층 구조 반환 (LLM 컨텍스트용)",
     response_model=SchemaResult,
 )
-async def get_schema(store: GraphStore = Depends(get_store)) -> SchemaResult:
+async def get_schema(
+    ontology: _OntologyQuery = None,
+    store: GraphStore = Depends(get_store),
+) -> SchemaResult:
     """Return a compact view of ontology classes, properties, and hierarchy.
 
     Token-efficient: ~30 tokens per class. For full property detail on a
@@ -23,7 +32,7 @@ async def get_schema(store: GraphStore = Depends(get_store)) -> SchemaResult:
     Returns:
         SchemaResult with class list, property counts, and namespace prefixes.
     """
-    return await store.get_schema()
+    return await store.get_schema(ontology=ontology)
 
 
 @router.get(
@@ -34,6 +43,7 @@ async def get_schema(store: GraphStore = Depends(get_store)) -> SchemaResult:
 )
 async def get_class_detail(
     class_uri: str,
+    ontology: _OntologyQuery = None,
     store: GraphStore = Depends(get_store),
 ) -> ClassDetail:
     """Return full TBox detail for one ontology class.
@@ -51,6 +61,6 @@ async def get_class_detail(
         404: If the class URI is not found in the schema graph.
     """
     try:
-        return await store.get_class_detail(class_uri)
+        return await store.get_class_detail(class_uri, ontology=ontology)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"클래스 없음: {class_uri}")

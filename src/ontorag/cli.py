@@ -53,6 +53,7 @@ def _run_load(
     file: Path,
     mode: Literal["schema", "data", "auto"],
     replace: bool = False,
+    ontology: str | None = None,
 ) -> None:
     """Parse + upload RDF file with a Rich spinner and result summary."""
     from ontorag.stores.factory import create_store
@@ -72,7 +73,9 @@ def _run_load(
     ) as progress:
         progress.add_task(f"{file.name} 로딩 중...", total=None)
         try:
-            result = asyncio.run(store.load_rdf(str(file), mode, replace=replace))
+            result = asyncio.run(
+                store.load_rdf(str(file), mode, replace=replace, ontology=ontology)
+            )
         except FileNotFoundError as exc:
             console.print(f"[red]Error:[/] {exc}")
             raise typer.Exit(1)
@@ -97,25 +100,33 @@ def _run_load(
     invoke_without_command=True,
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
 )
-def load_auto(ctx: typer.Context) -> None:
+def load_auto(
+    ctx: typer.Context,
+    ontology: Optional[str] = typer.Option(
+        None, "--ontology", help="로드할 온톨로지 id (미지정 시 기본 그래프)."
+    ),
+) -> None:
     """RDF 파일을 자동 감지 모드로 로드합니다 (TBox/ABox 자동 판별)."""
     if ctx.invoked_subcommand is not None:
         return
     if not ctx.args:
         console.print("[red]Error:[/] 파일 경로를 지정하세요.")
-        console.print("  사용법: ontorag load <FILE>")
+        console.print("  사용법: ontorag load <FILE> [--ontology <id>]")
         console.print("         ontorag load schema <FILE>")
         console.print("         ontorag load data <FILE>")
         raise typer.Exit(1)
-    _run_load(Path(ctx.args[0]), "auto")
+    _run_load(Path(ctx.args[0]), "auto", ontology=ontology)
 
 
 @load_app.command("schema")
 def load_schema(
     file: Path = typer.Argument(..., help="스키마(TBox) RDF 파일 (클래스/속성 정의)."),
+    ontology: Optional[str] = typer.Option(
+        None, "--ontology", help="로드할 온톨로지 id (미지정 시 기본 그래프)."
+    ),
 ) -> None:
     """스키마(TBox) RDF 파일을 로드합니다. 기존 스키마를 교체합니다."""
-    _run_load(file, "schema")
+    _run_load(file, "schema", ontology=ontology)
 
 
 @load_app.command("data")
@@ -126,13 +137,16 @@ def load_data(
         "--replace",
         help="기존 데이터 그래프를 완전히 교체합니다 (기본값: 추가).",
     ),
+    ontology: Optional[str] = typer.Option(
+        None, "--ontology", help="로드할 온톨로지 id (미지정 시 기본 그래프)."
+    ),
 ) -> None:
     """인스턴스 데이터(ABox) RDF 파일을 로드합니다.
 
     기본값은 기존 데이터에 추가(append)입니다.
     --replace 플래그를 사용하면 기존 ABox를 완전히 교체합니다.
     """
-    _run_load(file, "data", replace=replace)
+    _run_load(file, "data", replace=replace, ontology=ontology)
 
 
 # ── clear subcommands ────────────────────────────────────────────────────────

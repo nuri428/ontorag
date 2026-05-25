@@ -446,7 +446,9 @@ class TestSearchTextRouteDispatch:
         )
 
         assert resp.status_code == 200
-        store.search_text.assert_awaited_once_with("피카츄", class_uri, 10)
+        store.search_text.assert_awaited_once_with(
+            "피카츄", class_uri, 10, ontology=None
+        )
 
     def test_route_returns_empty_list_on_no_match(self, client_factory):
         """No matches → 200 with empty JSON array."""

@@ -110,6 +110,7 @@ def test_search_text_route_passes_class_uri_and_limit(client_factory):
         "fire",
         "http://example.org/pokemon#Pokemon",
         10,
+        ontology=None,
     )
 
 

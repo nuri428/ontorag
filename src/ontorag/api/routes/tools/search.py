@@ -31,6 +31,10 @@ class SearchTextRequest(BaseModel):
         le=200,
         description="Maximum number of results to return (1–200, default 20).",
     )
+    ontology: str | None = Field(
+        default=None,
+        description="Optional ontology id to scope results to; None = all (union).",
+    )
 
 
 @router.post(
@@ -78,4 +82,4 @@ async def search_text(
             ),
         )
 
-    return await fn(body.query, body.class_uri, body.limit)
+    return await fn(body.query, body.class_uri, body.limit, ontology=body.ontology)

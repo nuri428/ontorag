@@ -23,6 +23,7 @@ class FindEntitiesRequest(BaseModel):
     class_uri: str
     filters: list[EntityFilter] | None = None
     limit: int = 100
+    ontology: str | None = None
 
 
 class CountEntitiesRequest(BaseModel):
@@ -30,6 +31,7 @@ class CountEntitiesRequest(BaseModel):
 
     class_uri: str
     filters: list[EntityFilter] | None = None
+    ontology: str | None = None
 
 
 class AggregateRequest(BaseModel):
@@ -38,6 +40,7 @@ class AggregateRequest(BaseModel):
     class_uri: str
     group_by: str
     agg: AggFunc = AggFunc.count
+    ontology: str | None = None
 
 
 @router.post(
@@ -63,7 +66,9 @@ async def find_entities(
         List of matching entities with their properties.
     """
     try:
-        return await store.find_entities(body.class_uri, body.filters, body.limit)
+        return await store.find_entities(
+            body.class_uri, body.filters, body.limit, ontology=body.ontology
+        )
     except NotImplementedError:
         raise HTTPException(status_code=501, detail="find_entities: Day 5에 구현 예정")
 
@@ -80,6 +85,10 @@ async def describe_entity(
         list[str] | None,
         Query(description="반환할 predicate URI 목록. 미지정 시 전체 반환."),
     ] = None,
+    ontology: Annotated[
+        str | None,
+        Query(description="스코프할 온톨로지 id. 미지정 시 전체(union)."),
+    ] = None,
     store: GraphStore = Depends(get_store),
 ) -> EntityResult:
     """Return all properties and relationships of an entity.
@@ -94,7 +103,7 @@ async def describe_entity(
         Entity with all known (and inferred) properties.
     """
     try:
-        return await store.describe_entity(uri, predicates)
+        return await store.describe_entity(uri, predicates, ontology=ontology)
     except NotImplementedError:
         raise HTTPException(
             status_code=501, detail="describe_entity: Day 5에 구현 예정"
@@ -123,7 +132,9 @@ async def count_entities(
         Number of matching instances.
     """
     try:
-        return await store.count_entities(body.class_uri, body.filters)
+        return await store.count_entities(
+            body.class_uri, body.filters, ontology=body.ontology
+        )
     except NotImplementedError:
         raise HTTPException(status_code=501, detail="count_entities: Day 5에 구현 예정")
 
@@ -149,6 +160,8 @@ async def aggregate(
         List of group_value → aggregated_result pairs.
     """
     try:
-        return await store.aggregate(body.class_uri, body.group_by, body.agg)
+        return await store.aggregate(
+            body.class_uri, body.group_by, body.agg, ontology=body.ontology
+        )
     except NotImplementedError:
         raise HTTPException(status_code=501, detail="aggregate: Day 5에 구현 예정")
