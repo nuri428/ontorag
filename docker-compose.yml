@@ -47,7 +47,9 @@ services:
       - "6333:6333"   # REST + gRPC-HTTP
       - "6334:6334"   # gRPC
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:6333/healthz || exit 1"]
+      # The qdrant image has no curl/wget; it does ship bash, so probe the
+      # REST port via a bash /dev/tcp connect (open = serving).
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 6
