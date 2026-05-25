@@ -45,7 +45,8 @@ Vector RAG handles flat lookups well — the structural advantage of ontorag app
 | Feature | Detail |
 |---|---|
 | **Ontology-first** | RDF/OWL schema (TBox) + instance data (ABox) as primary structure |
-| **Agentic MCP loop** | LLM calls 9 typed tools; tool calls visible in SSE stream |
+| **Agentic MCP loop** | LLM calls 13 typed tools (L1 intent + L2 DSL + BM25 `search_text` + vector `find_similar` + `aggregate`); tool calls visible in SSE stream |
+| **Full-text + vector retrieval** | BM25 `search_text` (jena-text / Neo4j fulltext) and graph-embedding `find_similar` (structural / textual / hybrid, with subClassOf-aware `class_uri` filter) — both backends |
 | **Web UI** | Built-in browser interface — Schema graph, Data browser, Playground chat at `/ui` |
 | **Multi-LLM** | Anthropic Claude · OpenAI · Ollama (local) |
 | **Pluggable backend** | `GRAPH_STORE=fuseki` (default) or `neo4j` (Neo4j + n10s) — same tools, no code change. Neo4j adds native `rdfs:subClassOf` inference. |
@@ -324,10 +325,17 @@ MCP (Model Context Protocol) endpoint. Any MCP-compatible client can connect and
 | `find_entities` | L1 | Filter instances by class + optional predicates |
 | `describe_entity` | L1 | All properties and relationships of one entity |
 | `count_entities` | L1 | Instance count for a class |
+| `aggregate` | L1 | Group instances by a property → count / sum / avg / min / max |
 | `traverse_graph` | L1 | BFS from a node (outgoing / incoming / both) |
 | `find_path` | L1 | Shortest path between two entities |
+| `property_path_query` | L1 | `owl:TransitiveProperty` closure (`predicate+`) — instance / label / class-wide |
 | `find_related` | L1 | Cross-class join via a predicate |
 | `query_pattern` | L2 | JSON triple-pattern DSL → safe SPARQL translation |
+| `search_text` | Cap | BM25 full-text (jena-text / Neo4j fulltext) — both backends |
+| `find_similar` | Cap | Graph-embedding kNN (structural / textual / hybrid) + subClassOf-aware `class_uri` filter — both backends |
+
+"Cap" = backend capability tool, available once the data is loaded
+(`search_text`) or embeddings are built (`find_similar` via `ontorag embed`).
 
 ---
 
@@ -910,6 +918,34 @@ Full per-question breakdown and the v2→v9 iteration history are in
 [`BENCHMARK_RESULTS.md`](BENCHMARK_RESULTS.md). Per-domain analyses
 live in each `examples/<domain>/README.md`.
 
+### v0.5.x re-run — the expanded 13-tool agent (2026-05)
+
+The benchmark above was produced with the **9-tool** agent. v0.5.x wired
+three more tools into the agent loop — BM25 `search_text`, vector
+`find_similar` (with a subClassOf-aware `class_uri` filter), and
+`aggregate` — and added the Neo4j backend. A re-run on four domains
+(`ontorag_native` only, `gpt-4o` agent **and** judge, English questions on
+Fuseki) confirms the pattern holds with the richer toolset:
+
+| Domain | Q | Correctness | Faithfulness | Relevancy | Citation% | Hallucination |
+|---|--:|--:|--:|--:|--:|--:|
+| Commerce | 20 | 0.525 | 0.556 | 0.729 | 75% | **0.000** |
+| ODS | 20 | 0.556 | 0.577 | 0.768 | 65% | **0.000** |
+| Techstack | 20 | 0.480 | 0.545 | 0.761 | 55% | **0.000** |
+| Pure Land | 50 | 0.493 | 0.355 | 0.775 | 74% | **0.000** |
+
+**Hallucination is exactly 0.000 in all four domains** — the structural
+moat from Finding 3 holds with the larger toolset. Numbers run a touch
+higher than the canonical table for the shared domains because this re-run
+uses **English questions aligned to the English/Sanskrit labels** (the
+canonical table uses each domain's native question language), plus the
+extra retrieval tools. Trap questions score low on Correctness *by design*:
+the agent correctly refuses ("X is not in the data"), and the judge scores
+refusal phrasing poorly against the gold refusal — so **0% hallucination,
+not Correctness, is the trap-handling signal**. Backend parity was
+separately confirmed on Pokémon (Fuseki 0.735 vs Neo4j 0.699 Correctness
+with the `class_uri` filter active).
+
 ### Reproducing
 
 ```bash
@@ -980,7 +1016,9 @@ FUSEKI_DATASET=ontorag uv run python scripts/bench_query_speed_4domain.py --n 20
 - **v0.3.1** — Structured ABox population: `populate-structured` reads CSV/JSON/JSONL → maps columns to TBox via LLM → RDF triples → Fuseki; mapping cache, uuid5 idempotent URIs, batch checkpointing ✅
 - **v0.3.2** — TBox/ABox dump: `ontorag dump schema|data|all` · `GET /dump` REST endpoint · Web UI download buttons · TTL / JSON / JSONL / XLSX formats ✅
 - **v0.4** — Evaluation harness: 4 benchmark domains (Pure Land 50q · Commerce 20q · ODS 20q · Pokemon 20q · Techstack 20q) · Goldset JSONL + Pydantic loader · 4 deterministic metrics + RAGAS wrapper · LangChain + ontorag_native baselines · `ontorag eval` CLI (validate/run/bench/compare/report) · GitHub Actions matrix CI · `BenchRunner` orchestrator · 4-domain `gpt-4o` agent + `gpt-4o` judge results · 2×2 OWL-richness × contamination decision grid · standardized `## Disclaimer` policy across all example READMEs ✅
-- **v0.5** — Neo4j + n10s adapter · `GRAPH_STORE` env var · Vector similarity tool (`find_similar`) · Multi-ontology support
+- **v0.5** — Neo4j + n10s adapter · `GRAPH_STORE=fuseki|neo4j` · **full backend parity** (OWL `rdfs:subClassOf` reasoning · BM25 `search_text` · graph-embedding `find_similar`, each backend's native tech) · L2 `query_pattern` → Cypher · multi-ontology per instance (`ontology` scope, named-graphs / node tags) · per-ontology embedding scoping ✅
+- **v0.5.x** — agent now wields the full **13-tool set** (BM25 `search_text`, vector `find_similar`, `aggregate` wired into the agent loop, previously MCP-route-only) · `find_similar` subClassOf-aware `class_uri` filter (both backends) · fixes: Neo4j predicate-`traverse` Cypher, `[bench]` extra dependency pins ✅
+- **v0.6** (planned) — per-ontology access control · cross-ontology entity alignment (`owl:sameAs`)
 
 ---
 
