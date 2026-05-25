@@ -16,6 +16,11 @@ class LoadResult(BaseModel):
     triples_loaded: int
     source: str
     mode: Literal["schema", "data"]
+    ontology: str | None = Field(
+        default=None,
+        description="Ontology id the triples were loaded under. None = the "
+        "default (legacy single-ontology) graph pair.",
+    )
 
 
 class ClassSummary(BaseModel):
@@ -329,6 +334,7 @@ class GraphStore(Protocol):
         path: str,
         mode: Literal["schema", "data", "auto"] = "auto",
         replace: bool = False,
+        ontology: str | None = None,
     ) -> LoadResult:
         """Load an RDF file (TBox or ABox) into the store.
 
@@ -338,9 +344,12 @@ class GraphStore(Protocol):
             replace: If True and mode resolves to "data", replace the entire
                 data graph instead of appending. Ignored for schema, which is
                 always replaced (one canonical TBox per store).
+            ontology: Ontology id to load under (slug ``^[a-zA-Z0-9_-]+$``).
+                None loads into the default (legacy single-ontology) graphs;
+                a named id isolates the triples in a per-ontology graph pair.
 
         Returns:
-            Triple count and resolved mode.
+            Triple count, resolved mode, and ontology id.
         """
         ...
 
