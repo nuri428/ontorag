@@ -84,8 +84,8 @@ class OntoragNativeBaseline:
     """Real ontorag chat agent wrapped as a :class:`RAGBaseline`.
 
     Args:
-        store: GraphStore the agent will query (typically a
-            :class:`~ontorag.stores.fuseki.FusekiStore`).
+        store: GraphStore the agent will query (any backend satisfying the
+            protocol — e.g. FusekiStore or the Neo4j adapter).
         llm: LLM provider used for each agent turn.
         graph: Local rdflib graph mirroring what the store sees. Used to
             recover cited triples from tool result URIs.
@@ -110,8 +110,8 @@ class OntoragNativeBaseline:
         """Synchronous constructor — does NOT await on the store.
 
         Schema context is fetched lazily on the first :meth:`answer` call,
-        so the FusekiStore's httpx client gets created inside the same
-        asyncio loop that BenchRunner uses. Pre-fetching from a separate
+        so the store's connection (e.g. Fuseki's httpx client) gets created
+        inside the same asyncio loop that BenchRunner uses. Pre-fetching from a separate
         ``asyncio.run`` would bind the client to a dead loop and every
         subsequent tool call would fail with "Event loop is closed".
         """

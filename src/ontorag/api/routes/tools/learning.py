@@ -10,7 +10,7 @@ from ontorag.learn.base import ExtractedTriple, TermTypingResult
 from ontorag.learn import term_typing as _term_typing_mod
 from ontorag.learn import relation as _relation_mod
 from ontorag.llm.factory import get_llm_provider
-from ontorag.stores.fuseki import FusekiStore
+from ontorag.stores.base import GraphStore
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class ExtractTriplesRequest(BaseModel):
 )
 async def type_term(
     body: TypeTermRequest,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> list[TermTypingResult]:
     """Map a text mention to ranked TBox classes (LLMs4OL Task A).
 
@@ -98,7 +98,7 @@ async def type_term(
 )
 async def extract_triples(
     body: ExtractTriplesRequest,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> list[ExtractedTriple]:
     """Extract RDF triples from text using TBox-validated predicates (LLMs4OL Task C).
 

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from ontorag.api.deps import get_store
-from ontorag.stores.base import QueryResult
-from ontorag.stores.fuseki import FusekiStore
+from ontorag.stores.base import GraphStore, QueryResult
 
 router = APIRouter(prefix="/tools", tags=["debug"])
 
@@ -25,21 +24,38 @@ class RawSparqlRequest(BaseModel):
 )
 async def query_sparql_raw(
     body: RawSparqlRequest,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> QueryResult:
     """Execute a raw SPARQL SELECT query directly against the store.
 
-    This endpoint is intentionally excluded from MCP tool exposure.
-    Use only for debugging, development, or admin purposes.
-    Do NOT expose this endpoint to untrusted callers.
+    Raw SPARQL is a SPARQL-store capability, not part of the GraphStore
+    protocol — backends that do not speak SPARQL (e.g. Neo4j) return 501.
+    This endpoint is intentionally excluded from MCP tool exposure: use it
+    only for debugging, development, or admin purposes, never for untrusted
+    callers.
 
     Args:
         body.sparql: Raw SPARQL SELECT query string.
 
     Returns:
         Query results as column names and rows.
+
+    Raises:
+        HTTPException: 501 if the active backend does not support raw SPARQL.
     """
-    result = await store._sparql_select(body.sparql)
+    # Capability check: only SPARQL-backed stores (FusekiStore) expose this.
+    sparql_select = getattr(store, "_sparql_select", None)
+    if sparql_select is None:
+        raise HTTPException(
+            status_code=501,
+            detail=(
+                "Raw SPARQL is not supported by the active graph store "
+                f"({type(store).__name__}). This debug endpoint requires a "
+                "SPARQL backend (GRAPH_STORE=fuseki)."
+            ),
+        )
+
+    result = await sparql_select(body.sparql)
     bindings = result.get("results", {}).get("bindings", [])
     if not bindings:
         return QueryResult(columns=[], rows=[], total=0)

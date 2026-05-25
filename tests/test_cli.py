@@ -121,3 +121,31 @@ def test_status_disconnected(monkeypatch):
 
     assert result.exit_code != 0
     assert "Error" in result.output or "실패" in result.output
+
+
+# ── embed command (graph embeddings, Neo4j-only) ──────────────────────────────
+
+
+def test_embed_on_non_neo4j_backend_exits_and_closes_store():
+    """`ontorag embed` on a store without build_embeddings exits 1 AND still
+    closes the store (regression: early-exit guard must not leak the store)."""
+
+    class _FakeFusekiStore:
+        def __init__(self) -> None:
+            self.closed = False
+
+        # No build_embeddings attribute → capability guard trips.
+        async def aclose(self) -> None:
+            self.closed = True
+
+    fake = _FakeFusekiStore()
+    with patch("ontorag.stores.factory.create_store", return_value=fake):
+        result = runner.invoke(app, ["embed", "--mode", "structural"])
+
+    assert result.exit_code == 1
+    assert fake.closed is True  # aclose ran despite the early exit
+
+
+def test_embed_rejects_invalid_mode():
+    result = runner.invoke(app, ["embed", "--mode", "bogus"])
+    assert result.exit_code == 1

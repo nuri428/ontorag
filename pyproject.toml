@@ -1,6 +1,6 @@
 [project]
 name = "ontorag"
-version = "0.4.2"
+version = "0.5.0"
 description = "Ontology-aware RAG framework. Ontology as the source of truth."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -45,6 +45,7 @@ dependencies = [
     "jinja2>=3.1.0",
     "pyshacl>=0.25.0",
     "openpyxl>=3.1.0",
+    "neo4j>=5.14.0",
 ]
 
 [project.optional-dependencies]
@@ -65,6 +66,18 @@ bench = [
     "chromadb>=0.5.0",
     "ragas>=0.2.0",
     "datasets>=2.0.0",
+]
+neo4j = [
+    # Neo4j + neosemantics (n10s) backend — install only when running with
+    # GRAPH_STORE=neo4j. The fuseki default needs none of this. The async
+    # driver lives in neo4j>=5 (neo4j.AsyncGraphDatabase).
+    "neo4j>=5.14.0",
+]
+vector = [
+    # Qdrant vector store — used by the Fuseki backend for find_similar /
+    # build_embeddings. Install when GRAPH_STORE=fuseki and you want
+    # structural / textual / hybrid similarity search.
+    "qdrant-client>=1.9.0,<1.10.0",
 ]
 
 [project.urls]
@@ -90,9 +103,14 @@ artifacts = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: tests that require a live backend (e.g. Neo4j on bolt://localhost:7687); deselect with -m 'not integration'",
+]
 
 [dependency-groups]
 dev = [
     "pillow>=12.2.0",
     "pytest>=9.0.3",
+    "pytest-asyncio>=0.23.0",
+    "qdrant-client>=1.9.0,<1.10.0",
 ]

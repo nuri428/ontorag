@@ -17,8 +17,7 @@ from rdflib import Graph
 
 from ontorag.api.deps import get_store
 from ontorag.chat import store as chat_store
-from ontorag.stores.base import TraversalDirection
-from ontorag.stores.fuseki import FusekiStore
+from ontorag.stores.base import GraphStore, TraversalDirection
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ui", tags=["ui"])
@@ -72,7 +71,7 @@ async def ui_schema(request: Request) -> HTMLResponse:
 
 
 @router.get("/schema/graph-data")
-async def schema_graph_data(store: FusekiStore = Depends(get_store)) -> JSONResponse:
+async def schema_graph_data(store: GraphStore = Depends(get_store)) -> JSONResponse:
     """Return Cytoscape.js node/edge data for the TBox class hierarchy."""
     try:
         schema = await store.get_schema()
@@ -172,7 +171,7 @@ async def schema_check(
 
 @router.get("/data", response_class=HTMLResponse)
 async def ui_data(
-    request: Request, store: FusekiStore = Depends(get_store)
+    request: Request, store: GraphStore = Depends(get_store)
 ) -> HTMLResponse:
     try:
         schema = await store.get_schema()
@@ -189,7 +188,7 @@ async def data_instances(
     request: Request,
     class_uri: str = "",
     limit: int = 50,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> HTMLResponse:
     """Instance grid HTML — target for HTMX swap on class selection."""
     if not class_uri:
@@ -211,7 +210,7 @@ async def data_instances(
 
 @router.get("/data/entity-detail")
 async def entity_detail(
-    uri: str, store: FusekiStore = Depends(get_store)
+    uri: str, store: GraphStore = Depends(get_store)
 ) -> JSONResponse:
     """Entity properties (describe_entity) + depth-2 graph (traverse) in one response."""
     try:
@@ -241,7 +240,7 @@ def _web_suffix(filename: str | None) -> str:
 async def schema_upload(
     request: Request,
     file: Annotated[UploadFile, File()],
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> HTMLResponse:
     """Upload a TBox (schema) RDF file — always replaces the existing schema."""
     content = await file.read()
@@ -279,7 +278,7 @@ async def data_upload(
     request: Request,
     file: Annotated[UploadFile, File()],
     replace: Annotated[str, Form()] = "false",
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> HTMLResponse:
     """Upload an ABox (data) RDF file — append by default, replace when replace=true."""
     should_replace = replace.lower() == "true"

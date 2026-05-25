@@ -15,6 +15,8 @@ from ontorag.api.routes.tools import (
     learning,
     pattern,
     schema,
+    search,
+    similar,
     traversal,
 )
 from ontorag.web.router import router as web_router
@@ -66,6 +68,12 @@ app.include_router(pattern.router)
 
 # v0.3 LLMs4OL learning tools (exposed via MCP)
 app.include_router(learning.router)
+
+# v0.5 BM25 full-text search (Neo4j capability; 501 on Fuseki)
+app.include_router(search.router)
+
+# v0.5 graph-embedding similarity search (Neo4j capability; 501 on Fuseki)
+app.include_router(similar.router)
 
 # Debug route — Layer 3 (NOT exposed via MCP)
 app.include_router(_sparql.router)

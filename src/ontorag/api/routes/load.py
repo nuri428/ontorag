@@ -8,8 +8,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from ontorag.api.deps import get_store
-from ontorag.stores.base import LoadResult
-from ontorag.stores.fuseki import FusekiStore
+from ontorag.stores.base import GraphStore, LoadResult
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["ontology"])
@@ -30,16 +29,21 @@ async def load_rdf(
         Literal["schema", "data", "auto"],
         Form(description="schema=TBox, data=ABox, auto=내용으로 자동 감지"),
     ] = "auto",
-    store: FusekiStore = Depends(get_store),
+    ontology: Annotated[
+        str | None,
+        Form(description="로드할 온톨로지 id (미지정 시 기본/레거시 그래프)."),
+    ] = None,
+    store: GraphStore = Depends(get_store),
 ) -> LoadResult:
     """Upload an RDF file and load it into the graph store.
 
     Args:
         file: RDF file to upload.
         mode: Load mode — auto-detects TBox vs ABox when set to "auto".
+        ontology: Optional ontology id to load under (None = default graphs).
 
     Returns:
-        Number of triples loaded and the resolved load mode.
+        Number of triples loaded, the resolved load mode, and ontology id.
     """
     content = await file.read()
     suffix = _file_suffix(file.filename)
@@ -49,7 +53,7 @@ async def load_rdf(
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp.write(content)
             tmp_path = tmp.name
-        return await store.load_rdf(tmp_path, mode)
+        return await store.load_rdf(tmp_path, mode, ontology=ontology)
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)

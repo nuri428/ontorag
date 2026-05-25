@@ -12,7 +12,7 @@ from ontorag.api.deps import get_store
 from ontorag.chat import store as chat_store
 from ontorag.chat.agent import AgentLoop, _format_schema_for_prompt
 from ontorag.llm.factory import get_llm_provider
-from ontorag.stores.fuseki import FusekiStore
+from ontorag.stores.base import GraphStore
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["chat"])
@@ -35,7 +35,7 @@ def _get_llm():
 @router.post("/chat", include_in_schema=True)
 async def chat(
     body: ChatRequest,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> StreamingResponse:
     """Run an agentic ontology Q&A turn and stream SSE events.
 

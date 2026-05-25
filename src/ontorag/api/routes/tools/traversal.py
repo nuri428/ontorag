@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from ontorag.api.deps import get_store
 from ontorag.stores.base import (
     EntityFilter,
+    GraphStore,
     TraversalDirection,
     TraversalResult,
 )
-from ontorag.stores.fuseki import FusekiStore
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/tools", tags=["tools"])
@@ -23,6 +23,7 @@ class TraverseRequest(BaseModel):
     predicate: str | None = None
     max_depth: int = Field(default=2, ge=1, le=_MAX_DEPTH)
     direction: TraversalDirection = TraversalDirection.outgoing
+    ontology: str | None = None
 
 
 class FindPathRequest(BaseModel):
@@ -31,6 +32,7 @@ class FindPathRequest(BaseModel):
     uri_a: str
     uri_b: str
     max_depth: int = Field(default=4, ge=1, le=_MAX_DEPTH)
+    ontology: str | None = None
 
 
 class FindRelatedRequest(BaseModel):
@@ -42,6 +44,7 @@ class FindRelatedRequest(BaseModel):
     filters_a: list[EntityFilter] | None = None
     filters_b: list[EntityFilter] | None = None
     limit: int = Field(default=100, ge=1, le=1000)
+    ontology: str | None = None
 
 
 @router.post(
@@ -52,7 +55,7 @@ class FindRelatedRequest(BaseModel):
 )
 async def traverse_graph(
     body: TraverseRequest,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> TraversalResult:
     """Traverse the graph from a starting node.
 
@@ -69,7 +72,11 @@ async def traverse_graph(
     """
     try:
         return await store.traverse(
-            body.start_uri, body.predicate, body.max_depth, body.direction
+            body.start_uri,
+            body.predicate,
+            body.max_depth,
+            body.direction,
+            ontology=body.ontology,
         )
     except NotImplementedError:
         raise HTTPException(status_code=501, detail="traverse_graph: Day 6에 구현 예정")
@@ -83,7 +90,7 @@ async def traverse_graph(
 )
 async def find_path(
     body: FindPathRequest,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> TraversalResult:
     """Find the shortest path between two entities.
 
@@ -96,7 +103,9 @@ async def find_path(
         Path nodes and edges, or empty result if no path found within max_depth.
     """
     try:
-        return await store.find_path(body.uri_a, body.uri_b, body.max_depth)
+        return await store.find_path(
+            body.uri_a, body.uri_b, body.max_depth, ontology=body.ontology
+        )
     except NotImplementedError:
         raise HTTPException(status_code=501, detail="find_path: Day 6에 구현 예정")
 
@@ -109,7 +118,7 @@ async def find_path(
 )
 async def find_related(
     body: FindRelatedRequest,
-    store: FusekiStore = Depends(get_store),
+    store: GraphStore = Depends(get_store),
 ) -> list[dict]:
     """Find pairs of entities from two classes connected by a predicate.
 
@@ -135,6 +144,7 @@ async def find_related(
             body.filters_a,
             body.filters_b,
             body.limit,
+            ontology=body.ontology,
         )
     except NotImplementedError:
         raise HTTPException(status_code=501, detail="find_related: Day 6에 구현 예정")

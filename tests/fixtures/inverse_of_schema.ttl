@@ -1,0 +1,37 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex:   <http://example.org/inv#> .
+
+# Ontology declaration
+<http://example.org/inv>
+    a owl:Ontology ;
+    rdfs:label "inverseOf test ontology" .
+
+# Classes
+ex:Person
+    a owl:Class ;
+    rdfs:label "Person" .
+
+# Object properties with owl:inverseOf
+ex:parentOf
+    a owl:ObjectProperty ;
+    rdfs:label "parent of" ;
+    rdfs:domain ex:Person ;
+    rdfs:range  ex:Person ;
+    owl:inverseOf ex:childOf .
+
+ex:childOf
+    a owl:ObjectProperty ;
+    rdfs:label "child of" ;
+    rdfs:domain ex:Person ;
+    rdfs:range  ex:Person ;
+    owl:inverseOf ex:parentOf .
+
+# A property with NO declared inverse (should NOT surface in inverse pass)
+ex:knows
+    a owl:ObjectProperty ;
+    rdfs:label "knows" ;
+    rdfs:domain ex:Person ;
+    rdfs:range  ex:Person .

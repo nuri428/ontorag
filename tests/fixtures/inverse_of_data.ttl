@@ -1,0 +1,24 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex:   <http://example.org/inv#> .
+@prefix data: <http://example.org/inv/data#> .
+
+# Alice is a parent of Bob (outgoing edge from Alice's perspective)
+data:Alice
+    a ex:Person ;
+    rdfs:label "Alice" ;
+    ex:parentOf data:Bob .
+
+data:Bob
+    a ex:Person ;
+    rdfs:label "Bob" .
+
+# Carol knows Dave — no inverseOf declared → must NOT appear in Bob's or Dave's inverse pass
+data:Carol
+    a ex:Person ;
+    rdfs:label "Carol" ;
+    ex:knows data:Dave .
+
+data:Dave
+    a ex:Person ;
+    rdfs:label "Dave" .

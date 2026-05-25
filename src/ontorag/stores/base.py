@@ -16,6 +16,11 @@ class LoadResult(BaseModel):
     triples_loaded: int
     source: str
     mode: Literal["schema", "data"]
+    ontology: str | None = Field(
+        default=None,
+        description="Ontology id the triples were loaded under. None = the "
+        "default (legacy single-ontology) graph pair.",
+    )
 
 
 class ClassSummary(BaseModel):
@@ -124,6 +129,41 @@ class AggregateResult(BaseModel):
 
     group_value: str
     result: int | float
+
+
+class SearchHit(BaseModel):
+    """A single full-text (BM25) search hit.
+
+    Returned by the optional `search_text` capability. `score` is the
+    backend's relevance score (Lucene BM25 for Neo4j) — higher is more
+    relevant; absolute values are only meaningful relative to other hits in
+    the same response.
+    """
+
+    uri: str
+    label: str | None = None
+    class_uri: str | None = None
+    score: float
+    matched_property: str | None = Field(
+        default=None,
+        description="Property URI whose value matched, when the backend reports it.",
+    )
+
+
+class SimilarHit(BaseModel):
+    """A single nearest-neighbour result from `find_similar`.
+
+    `mode` records which embedding produced the hit: "structural" (graph
+    topology, e.g. FastRP), "textual" (semantic content embedding), or
+    "hybrid" (rank-fused). `score` is cosine similarity for single-mode hits
+    (0–1, higher = closer) or the fused rank score for hybrid.
+    """
+
+    uri: str
+    label: str | None = None
+    class_uri: str | None = None
+    score: float
+    mode: Literal["structural", "textual", "hybrid"]
 
 
 class StoreStatus(BaseModel):
@@ -293,32 +333,47 @@ class GraphStore(Protocol):
         self,
         path: str,
         mode: Literal["schema", "data", "auto"] = "auto",
+        replace: bool = False,
+        ontology: str | None = None,
     ) -> LoadResult:
         """Load an RDF file (TBox or ABox) into the store.
 
         Args:
             path: Local file path (TTL, JSON-LD, RDF/XML).
             mode: "schema" replaces the TBox graph; "data" appends to ABox.
+            replace: If True and mode resolves to "data", replace the entire
+                data graph instead of appending. Ignored for schema, which is
+                always replaced (one canonical TBox per store).
+            ontology: Ontology id to load under (slug ``^[a-zA-Z0-9_-]+$``).
+                None loads into the default (legacy single-ontology) graphs;
+                a named id isolates the triples in a per-ontology graph pair.
 
         Returns:
-            Triple count and resolved mode.
+            Triple count, resolved mode, and ontology id.
         """
         ...
 
     # ── Layer 1 tools ────────────────────────────────────────────────────────
 
-    async def get_schema(self) -> SchemaResult:
+    async def get_schema(self, ontology: str | None = None) -> SchemaResult:
         """Return a compact schema overview for LLM context.
 
         Returns class hierarchy and property counts only.
         For full property detail of a specific class, use get_class_detail(uri).
+
+        Args:
+            ontology: Ontology id for scoped query, or None for union (all
+                ontologies). None preserves backward-compatible single-ontology
+                behavior.
 
         Returns:
             Compact SchemaResult (~30 tokens per class).
         """
         ...
 
-    async def get_class_detail(self, class_uri: str) -> ClassDetail:
+    async def get_class_detail(
+        self, class_uri: str, ontology: str | None = None
+    ) -> ClassDetail:
         """Return full TBox detail for a single ontology class.
 
         Designed for progressive disclosure: call get_schema() first to identify
@@ -326,6 +381,7 @@ class GraphStore(Protocol):
 
         Args:
             class_uri: Full URI or prefixed name of the class.
+            ontology: Ontology id for scoped query, or None for union.
 
         Returns:
             ClassDetail with all properties, parent/child classes, and sample instances.
@@ -340,6 +396,7 @@ class GraphStore(Protocol):
         class_uri: str,
         filters: list[EntityFilter] | None = None,
         limit: int = 100,
+        ontology: str | None = None,
     ) -> list[EntityResult]:
         """Find instances of a class matching optional filter conditions.
 
@@ -350,6 +407,7 @@ class GraphStore(Protocol):
             class_uri: Full URI or prefixed name of the ontology class.
             filters: Optional list of property-value conditions.
             limit: Maximum number of results.
+            ontology: Ontology id for scoped query, or None for union.
 
         Returns:
             Matching entity list with properties.
@@ -360,12 +418,14 @@ class GraphStore(Protocol):
         self,
         uri: str,
         predicates: list[str] | None = None,
+        ontology: str | None = None,
     ) -> EntityResult:
         """Return all (or selected) properties and relationships of an entity.
 
         Args:
             uri: Full URI of the entity.
             predicates: Optional list of predicate URIs to restrict output.
+            ontology: Ontology id for scoped query, or None for union.
 
         Returns:
             Entity with properties, including owl:inverseOf relationships.
@@ -381,6 +441,7 @@ class GraphStore(Protocol):
         predicate: str | None = None,
         max_depth: int = 2,
         direction: TraversalDirection = TraversalDirection.outgoing,
+        ontology: str | None = None,
     ) -> TraversalResult:
         """Traverse the graph from a starting node.
 
@@ -391,6 +452,7 @@ class GraphStore(Protocol):
             predicate: Predicate URI to follow. None means all predicates.
             max_depth: Maximum traversal depth (hard limit: 6).
             direction: outgoing, incoming, or both.
+            ontology: Ontology id for scoped query, or None for union.
 
         Returns:
             Nodes and edges reachable from start_uri.
@@ -402,6 +464,7 @@ class GraphStore(Protocol):
         uri_a: str,
         uri_b: str,
         max_depth: int = 4,
+        ontology: str | None = None,
     ) -> TraversalResult:
         """Find the shortest path between two entities.
 
@@ -409,6 +472,7 @@ class GraphStore(Protocol):
             uri_a: Starting entity URI.
             uri_b: Target entity URI.
             max_depth: Maximum path length (hard limit: 6).
+            ontology: Ontology id for scoped query, or None for union.
 
         Returns:
             Path nodes and edges, or empty result if no path found.
@@ -422,6 +486,7 @@ class GraphStore(Protocol):
         start_label: str | None = None,
         start_class_uri: str | None = None,
         limit: int = 100,
+        ontology: str | None = None,
     ) -> list[dict[str, Any]]:
         """Return all entities reachable via a transitive predicate.
 
@@ -445,6 +510,7 @@ class GraphStore(Protocol):
             start_class_uri: Class URI — disambiguates Mode 2, or
                 triggers Mode 3 on its own.
             limit: Max entities to return (default 100).
+            ontology: Ontology id for scoped query, or None for union.
 
         Returns:
             List of ``{"uri": str, "label": str | None}`` ordered by URI.
@@ -456,12 +522,14 @@ class GraphStore(Protocol):
         self,
         class_uri: str,
         filters: list[EntityFilter] | None = None,
+        ontology: str | None = None,
     ) -> int:
         """Count instances of a class matching optional filters.
 
         Args:
             class_uri: Full URI or prefixed name of the ontology class.
             filters: Optional filter conditions.
+            ontology: Ontology id for scoped query, or None for union.
 
         Returns:
             Number of matching instances.
@@ -473,6 +541,7 @@ class GraphStore(Protocol):
         class_uri: str,
         group_by: str,
         agg: AggFunc = AggFunc.count,
+        ontology: str | None = None,
     ) -> list[AggregateResult]:
         """Group instances by a property and apply an aggregation function.
 
@@ -480,6 +549,7 @@ class GraphStore(Protocol):
             class_uri: Class to aggregate over.
             group_by: Property URI or prefixed name to group by.
             agg: Aggregation function (count, sum, avg, min, max).
+            ontology: Ontology id for scoped query, or None for union.
 
         Returns:
             List of group_value → aggregated_result pairs.
@@ -494,6 +564,7 @@ class GraphStore(Protocol):
         filters_a: list[EntityFilter] | None = None,
         filters_b: list[EntityFilter] | None = None,
         limit: int = 100,
+        ontology: str | None = None,
     ) -> list[dict[str, Any]]:
         """Find pairs of entities connected by a predicate (multi-hop join).
 
@@ -504,6 +575,7 @@ class GraphStore(Protocol):
             filters_a: Optional filters for subject entities.
             filters_b: Optional filters for object entities.
             limit: Maximum result pairs.
+            ontology: Ontology id for scoped query, or None for union.
 
         Returns:
             List of {entity_a: EntityResult, entity_b: EntityResult} dicts.
@@ -532,6 +604,7 @@ class GraphStore(Protocol):
         self,
         target: Literal["schema", "data", "all"],
         fmt: Literal["ttl", "json", "jsonl", "xlsx"] = "ttl",
+        ontology: str | None = None,
     ) -> bytes:
         """Export one or both named graphs as bytes in the requested format.
 
@@ -539,9 +612,29 @@ class GraphStore(Protocol):
             target: "schema" (TBox only), "data" (ABox only), or "all" (both).
             fmt: Serialisation format — "ttl" (Turtle), "json" (triple array),
                  "jsonl" (one triple per line), "xlsx" (spreadsheet).
+            ontology: Ontology id to export, or None for the default/legacy
+                graph pair.
 
         Returns:
             Serialised bytes ready to write to a file or HTTP response.
+        """
+        ...
+
+    async def clear_graph(
+        self,
+        target: Literal["schema", "data", "all"],
+        ontology: str | None = None,
+    ) -> dict[str, int]:
+        """Drop one or both graphs and report how many triples were removed.
+
+        Args:
+            target: "schema" clears the TBox, "data" clears the ABox,
+                "all" clears both.
+            ontology: Ontology id to clear, or None for the default/legacy
+                graph pair.
+
+        Returns:
+            Mapping of graph name → triple count removed before deletion.
         """
         ...
 
@@ -552,5 +645,13 @@ class GraphStore(Protocol):
 
         Returns:
             Connected flag, total triple count, schema/data load state.
+        """
+        ...
+
+    async def aclose(self) -> None:
+        """Release backend resources (HTTP clients, driver sessions, sockets).
+
+        Idempotent: safe to call when the store is already closed. Callers
+        (CLI commands, request lifecycle) invoke this for clean shutdown.
         """
         ...

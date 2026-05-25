@@ -48,7 +48,7 @@ Vector RAG handles flat lookups well — the structural advantage of ontorag app
 | **Agentic MCP loop** | LLM calls 9 typed tools; tool calls visible in SSE stream |
 | **Web UI** | Built-in browser interface — Schema graph, Data browser, Playground chat at `/ui` |
 | **Multi-LLM** | Anthropic Claude · OpenAI · Ollama (local) |
-| **GraphStore Protocol** | Abstract interface — swap Fuseki → Neo4j without changing tool code |
+| **Pluggable backend** | `GRAPH_STORE=fuseki` (default) or `neo4j` (Neo4j + n10s) — same tools, no code change. Neo4j adds native `rdfs:subClassOf` inference. |
 | **SSE streaming** | `thinking / tool_call / tool_result / text / done / rate_limit` events |
 | **Progressive disclosure** | `get_schema` (compact) + `get_class_detail` (drill-down) |
 | **Injection-safe L2 DSL** | `query_pattern` translates JSON triple patterns to SPARQL internally |
@@ -77,6 +77,54 @@ uv run ontorag chat
 Example session:
 
 ![Pokemon chat demo](assets/pokemon_chat_en.png)
+
+### Choosing a backend (Fuseki ⇄ Neo4j — full parity)
+
+`GRAPH_STORE` selects the backend. **Both expose the same CLI and MCP tools**,
+including reasoning, full-text search, and vector similarity — each backend just
+uses its own native tech:
+
+| Capability | `GRAPH_STORE=fuseki` (default) | `GRAPH_STORE=neo4j` |
+|---|---|---|
+| subClassOf reasoning | query-level SPARQL `subClassOf*` | Cypher `[:rdfs__subClassOf*]` |
+| `search_text` (BM25) | jena-text (Lucene) | native full-text index |
+| `find_similar` + `ontorag embed` | FastRP + embeddings → Qdrant | GDS FastRP + native vector index |
+
+Run on Neo4j:
+
+```bash
+docker compose --profile neo4j up -d neo4j   # neo4j 5.26 + apoc + n10s + GDS
+export GRAPH_STORE=neo4j                       # NEO4J_* in .env
+```
+
+Vector search on **either** backend (Fuseki needs Qdrant + the `[vector]` extra):
+
+```bash
+docker compose --profile qdrant up -d qdrant   # only for GRAPH_STORE=fuseki
+ontorag embed --mode both       # structural (FastRP) + textual (EMBEDDING_PROVIDER)
+```
+
+`find_similar(uri, top_k, mode)` modes: `structural` (graph topology), `textual`
+(node text via OpenAI/Ollama), `hybrid` (reciprocal-rank fusion). `search_text`
+and `find_similar` return ranked hits with scores; an optional `class_uri`
+restricts to a class and its subclasses.
+
+### Multiple ontologies in one instance
+
+Load ontologies under an id and scope queries to one — or query the union:
+
+```bash
+ontorag load schema foaf.ttl   --ontology foaf
+ontorag load data   people.ttl --ontology foaf
+ontorag load schema gist.ttl   --ontology gist
+```
+
+Every read tool (`get_schema`, `find_entities`, `search_text`, `find_similar`, …)
+plus `ontorag embed --ontology <id>` takes an optional `ontology` argument: pass
+an id to isolate, omit it for the union of all ontologies (the default,
+backward-compatible). Fuseki isolates with per-ontology named graphs; Neo4j tags
+nodes with an `_ontology` property. A scoped `embed` only rebuilds that
+ontology's vectors and leaves the others intact.
 
 ---
 
@@ -129,8 +177,8 @@ User  (CLI / browser)
 └──────────────────┼─────────────────────┘
                    │ SPARQL (HTTP)
                    ▼
-        Apache Jena Fuseki   ← v0.1–v0.3.2
-        Neo4j + n10s         ← v0.5
+   Apache Jena Fuseki  (SPARQL)  ← default, GRAPH_STORE=fuseki
+   Neo4j + n10s        (Cypher)  ← v0.5, GRAPH_STORE=neo4j
 ```
 
 ### SSE event types

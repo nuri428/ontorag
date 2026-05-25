@@ -42,6 +42,9 @@ app.add_typer(dump_app, name="dump")
 
 app.add_typer(eval_app, name="eval")
 
+embed_app = typer.Typer(help="그래프 임베딩을 생성합니다 (Fuseki+Qdrant 또는 Neo4j).")
+app.add_typer(embed_app, name="embed")
+
 
 # ── load subcommands ─────────────────────────────────────────────────────────
 
@@ -50,15 +53,16 @@ def _run_load(
     file: Path,
     mode: Literal["schema", "data", "auto"],
     replace: bool = False,
+    ontology: str | None = None,
 ) -> None:
     """Parse + upload RDF file with a Rich spinner and result summary."""
-    from ontorag.stores.fuseki import FusekiStore
+    from ontorag.stores.factory import create_store
 
     if not file.exists():
         console.print(f"[red]Error:[/] 파일을 찾을 수 없습니다: {file}")
         raise typer.Exit(1)
 
-    store = FusekiStore.from_env()
+    store = create_store()
 
     with Progress(
         SpinnerColumn(),
@@ -69,7 +73,9 @@ def _run_load(
     ) as progress:
         progress.add_task(f"{file.name} 로딩 중...", total=None)
         try:
-            result = asyncio.run(store.load_rdf(str(file), mode, replace=replace))
+            result = asyncio.run(
+                store.load_rdf(str(file), mode, replace=replace, ontology=ontology)
+            )
         except FileNotFoundError as exc:
             console.print(f"[red]Error:[/] {exc}")
             raise typer.Exit(1)
@@ -94,25 +100,33 @@ def _run_load(
     invoke_without_command=True,
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
 )
-def load_auto(ctx: typer.Context) -> None:
+def load_auto(
+    ctx: typer.Context,
+    ontology: Optional[str] = typer.Option(
+        None, "--ontology", help="로드할 온톨로지 id (미지정 시 기본 그래프)."
+    ),
+) -> None:
     """RDF 파일을 자동 감지 모드로 로드합니다 (TBox/ABox 자동 판별)."""
     if ctx.invoked_subcommand is not None:
         return
     if not ctx.args:
         console.print("[red]Error:[/] 파일 경로를 지정하세요.")
-        console.print("  사용법: ontorag load <FILE>")
+        console.print("  사용법: ontorag load <FILE> [--ontology <id>]")
         console.print("         ontorag load schema <FILE>")
         console.print("         ontorag load data <FILE>")
         raise typer.Exit(1)
-    _run_load(Path(ctx.args[0]), "auto")
+    _run_load(Path(ctx.args[0]), "auto", ontology=ontology)
 
 
 @load_app.command("schema")
 def load_schema(
     file: Path = typer.Argument(..., help="스키마(TBox) RDF 파일 (클래스/속성 정의)."),
+    ontology: Optional[str] = typer.Option(
+        None, "--ontology", help="로드할 온톨로지 id (미지정 시 기본 그래프)."
+    ),
 ) -> None:
     """스키마(TBox) RDF 파일을 로드합니다. 기존 스키마를 교체합니다."""
-    _run_load(file, "schema")
+    _run_load(file, "schema", ontology=ontology)
 
 
 @load_app.command("data")
@@ -123,13 +137,16 @@ def load_data(
         "--replace",
         help="기존 데이터 그래프를 완전히 교체합니다 (기본값: 추가).",
     ),
+    ontology: Optional[str] = typer.Option(
+        None, "--ontology", help="로드할 온톨로지 id (미지정 시 기본 그래프)."
+    ),
 ) -> None:
     """인스턴스 데이터(ABox) RDF 파일을 로드합니다.
 
     기본값은 기존 데이터에 추가(append)입니다.
     --replace 플래그를 사용하면 기존 ABox를 완전히 교체합니다.
     """
-    _run_load(file, "data", replace=replace)
+    _run_load(file, "data", replace=replace, ontology=ontology)
 
 
 # ── clear subcommands ────────────────────────────────────────────────────────
@@ -137,7 +154,7 @@ def load_data(
 
 def _run_clear(target: str) -> None:
     """Drop named graph(s) from the store with confirmation prompt."""
-    from ontorag.stores.fuseki import FusekiStore
+    from ontorag.stores.factory import create_store
 
     label = {
         "schema": "스키마(TBox)",
@@ -149,7 +166,7 @@ def _run_clear(target: str) -> None:
         console.print("[dim]취소했습니다.[/]")
         raise typer.Exit(0)
 
-    store = FusekiStore.from_env()
+    store = create_store()
     try:
         removed = asyncio.run(store.clear_graph(target))  # type: ignore[arg-type]
     except Exception as exc:
@@ -187,7 +204,7 @@ _DUMP_EXT = {"ttl": "ttl", "json": "json", "jsonl": "jsonl", "xlsx": "xlsx"}
 
 def _run_dump(target: str, fmt: str, output: Path | None) -> None:
     """Export a named graph to a local file with a Rich spinner."""
-    from ontorag.stores.fuseki import FusekiStore
+    from ontorag.stores.factory import create_store
 
     if fmt not in _DUMP_FORMATS:
         console.print(
@@ -196,7 +213,7 @@ def _run_dump(target: str, fmt: str, output: Path | None) -> None:
         )
         raise typer.Exit(1)
 
-    store = FusekiStore.from_env()
+    store = create_store()
 
     with Progress(
         SpinnerColumn(),
@@ -265,15 +282,121 @@ def dump_all(
     _run_dump("all", fmt, output)
 
 
+# ── embed subcommand ─────────────────────────────────────────────────────────
+
+
+@embed_app.callback(invoke_without_command=True)
+def embed_run(
+    ctx: typer.Context,
+    mode: str = typer.Option(
+        "both",
+        "--mode",
+        help="임베딩 모드: structural | textual | both (기본값: both)",
+    ),
+    ontology: Optional[str] = typer.Option(
+        None,
+        "--ontology",
+        help="임베딩할 온톨로지 id (미지정 시 전체). 스코프 빌드는 다른 온톨로지 임베딩을 보존합니다.",
+    ),
+) -> None:
+    """그래프 임베딩을 생성합니다.
+
+    Fuseki 백엔드: FastRP(pure-Python) + Qdrant 벡터 스토어 사용.
+    Neo4j 백엔드: GDS FastRP + 네이티브 벡터 인덱스 사용.
+
+    --mode structural : 구조적 임베딩만 생성
+    --mode textual    : EmbeddingProvider 의미적 임베딩만 생성
+    --mode both       : 구조적 + 의미적 모두 생성 (기본값)
+
+    실행 후 find_similar MCP 툴로 유사 엔티티를 검색할 수 있습니다.
+    """
+    if ctx.invoked_subcommand is not None:
+        return
+
+    from ontorag.stores.factory import create_store
+
+    valid_modes = {"structural", "textual", "both"}
+    if mode not in valid_modes:
+        console.print(
+            f"[red]Error:[/] --mode는 {valid_modes} 중 하나여야 합니다. "
+            f"입력값: {mode!r}"
+        )
+        raise typer.Exit(1)
+
+    store = create_store()
+    # Wrap the whole store lifetime so every exit path (including the early
+    # capability/provider guards below) releases the store's connection — a
+    # bare guard `raise` would otherwise leak the Fuseki httpx client.
+    try:
+        # Verify the store supports embeddings.
+        build_fn = getattr(store, "build_embeddings", None)
+        if build_fn is None:
+            console.print(
+                "[red]Error:[/] 이 그래프 스토어는 임베딩을 지원하지 않습니다."
+            )
+            raise typer.Exit(1)
+
+        # For textual mode, resolve the embedding provider eagerly so cred errors
+        # surface before the long GDS structural step (when mode == "both").
+        embedding_provider = None
+        if mode in ("textual", "both"):
+            try:
+                from ontorag.llm.embedding import get_embedding_provider  # noqa: PLC0415
+
+                embedding_provider = get_embedding_provider()
+            except (ValueError, KeyError) as exc:
+                console.print(
+                    f"[red]Error:[/] 의미적 임베딩 제공자 초기화 실패 — {exc}"
+                )
+                console.print(
+                    "[dim]EMBEDDING_PROVIDER 및 관련 API 키가 설정됐는지 확인하세요.[/]"
+                )
+                raise typer.Exit(1)
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.description}"),
+            TimeElapsedColumn(),
+            console=console,
+            transient=True,
+        ) as progress:
+            progress.add_task(f"임베딩 생성 중 (mode={mode})...", total=None)
+            try:
+                result = asyncio.run(
+                    store.build_embeddings(  # type: ignore[union-attr]
+                        mode, embedding_provider, ontology=ontology
+                    )
+                )
+            except Exception as exc:
+                console.print(f"[red]Error:[/] 임베딩 생성 실패 — {exc}")
+                raise typer.Exit(1)
+    finally:
+        try:
+            asyncio.run(store.aclose())
+        except Exception:
+            pass
+
+    table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
+    table.add_column("모드", style="cyan")
+    table.add_column("작성된 노드 수", style="green")
+    for embed_mode, count in result.items():
+        label = "구조적 (FastRP)" if embed_mode == "structural" else "의미적 (텍스트)"
+        table.add_row(label, f"{count:,}")
+    console.print(table)
+    console.print(
+        "\n[dim]ontorag serve 후 POST /tools/similar 로 유사 엔티티를 검색하세요.[/]"
+    )
+
+
 # ── status command ───────────────────────────────────────────────────────────
 
 
 @app.command()
 def status() -> None:
     """그래프 스토어 연결 및 데이터 로드 상태를 표시합니다."""
-    from ontorag.stores.fuseki import FusekiStore
+    from ontorag.stores.factory import create_store
 
-    store = FusekiStore.from_env()
+    store = create_store()
     try:
         s = asyncio.run(store.status())
     except Exception as exc:
@@ -462,7 +585,7 @@ def chat(
 
     from ontorag.chat import store as chat_store
     from ontorag.llm.factory import get_llm_provider
-    from ontorag.stores.fuseki import FusekiStore
+    from ontorag.stores.factory import create_store
 
     try:
         llm = get_llm_provider()
@@ -481,7 +604,7 @@ def chat(
 
     async def _repl(initial: Optional[str]) -> None:
         # store는 async 컨텍스트 안에서 생성 — httpx 클라이언트가 현재 루프에 바인딩됨
-        store = FusekiStore.from_env()
+        store = create_store()
 
         from ontorag.chat.agent import AgentLoop, _format_schema_for_prompt
 
