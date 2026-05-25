@@ -201,6 +201,45 @@ _TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "aggregate",
+        "description": (
+            "Group instances of a class by a property value, then apply an "
+            "aggregation (count | sum | avg | min | max). rdfs:subClassOf-aware. "
+            "count → number of instances per distinct group_by value (e.g. "
+            "'how many Pokémon per type' → class_uri=Pokémon, group_by=hasType, "
+            "agg=count). sum/avg/min/max → numeric aggregate of the group_by "
+            "property's values (cast to decimal; e.g. average HP). For a plain "
+            "total count of one class use count_entities instead. "
+            "Result shape: {groups: list[{group_value, result}], returned: int}."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "class_uri": {
+                    "type": "string",
+                    "description": "Class URI to aggregate over.",
+                },
+                "group_by": {
+                    "type": "string",
+                    "description": (
+                        "Property URI or prefixed name whose value defines each "
+                        "group/bucket (e.g. pk:hasType)."
+                    ),
+                },
+                "agg": {
+                    "type": "string",
+                    "enum": ["count", "sum", "avg", "min", "max"],
+                    "default": "count",
+                    "description": (
+                        "count = instances per group; sum/avg/min/max = numeric "
+                        "aggregate of the group_by values."
+                    ),
+                },
+            },
+            "required": ["class_uri", "group_by"],
+        },
+    },
+    {
         "name": "traverse_graph",
         "description": (
             "Generic BFS up to max_depth hops from a start entity. "
@@ -724,6 +763,19 @@ class AgentLoop:
 
         if name == "count_entities":
             return await store.count_entities(args["class_uri"])
+
+        if name == "aggregate":
+            from ontorag.stores.base import AggFunc
+
+            results = await store.aggregate(
+                class_uri=args["class_uri"],
+                group_by=args["group_by"],
+                agg=AggFunc(args.get("agg", "count")),
+            )
+            return {
+                "groups": [r.model_dump() for r in results],
+                "returned": len(results),
+            }
 
         if name == "traverse_graph":
             from ontorag.stores.base import TraversalDirection
