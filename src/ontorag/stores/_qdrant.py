@@ -7,6 +7,14 @@ repeated calls are idempotent (upsert = create-or-replace).  The entity URI
 is stored in the point payload so it can be retrieved without a secondary
 SPARQL lookup.
 
+Payload schema (per point)::
+
+    {
+        "uri": "<entity-uri>",          # always present (legacy + new)
+        "ontology": ["id1", "id2", ...]  # NEW: list of ontology ids this URI belongs to.
+                                          # Empty list means "unscoped / built without ontology param".
+    }
+
 All parameters passed to the Qdrant client (collection name, vectors, IDs)
 are bound values — never raw-interpolated into strings.  Collection names
 are module-level constants so they cannot be user-supplied.
@@ -155,15 +163,31 @@ class QdrantWrapper:
         self,
         collection: str,
         points: list[tuple[str, list[float]]],
+        ontology: str | None = None,
     ) -> int:
         """Upsert a batch of (uri, vector) pairs into a Qdrant collection.
 
         Point IDs are deterministic UUID5 values derived from the URI.
-        The URI is also stored in the payload for later retrieval.
+        The URI is stored in the payload; when ``ontology`` is provided the
+        payload also carries an ``ontology`` list so points can be filtered or
+        deleted by ontology id without touching other ontologies' points.
+
+        Shared-URI semantics: if a point already exists (same UUID5 id), its
+        ``ontology`` list in the payload is read back and the new id is merged
+        in before writing, so a URI that belongs to multiple ontologies always
+        carries all their ids.  In practice this merging is best-effort via
+        ``set_payload`` after upsert, since qdrant upsert replaces the payload.
+        The pattern: upsert with the new ontology id in the list, then for
+        points that already exist, PATCH the ontology list (add without
+        duplicate).  We do a lightweight pre-read of existing ontology payloads
+        for the batch to achieve correct merge behaviour.
 
         Args:
             collection: Target collection name.
             points: List of (uri, vector) tuples to upsert.
+            ontology: Optional ontology id to tag the points with.  When None
+                the ``ontology`` payload key is an empty list (legacy behaviour,
+                no filtering applied).
 
         Returns:
             Number of points successfully upserted.
@@ -173,14 +197,58 @@ class QdrantWrapper:
 
         from qdrant_client.models import PointStruct  # noqa: PLC0415
 
-        batch = [
-            PointStruct(
-                id=_point_id(uri),
-                vector=vector,
-                payload={"uri": uri},
+        if ontology is None:
+            # Legacy path: no ontology tagging — write empty list to stay
+            # backward-compatible (upsert replaces entire payload).
+            batch = [
+                PointStruct(
+                    id=_point_id(uri),
+                    vector=vector,
+                    payload={"uri": uri, "ontology": []},
+                )
+                for uri, vector in points
+            ]
+            try:
+                await self._client.upsert(collection_name=collection, points=batch)
+                return len(batch)
+            except Exception as exc:
+                logger.error("Qdrant upsert to '%s' failed: %s", collection, exc)
+                return 0
+
+        # Ontology-scoped path: merge the new ontology id into the existing
+        # ontology list for shared-URI nodes.
+        point_ids = [_point_id(uri) for uri, _ in points]
+        existing_ontologies: dict[str, list[str]] = {}
+        try:
+            existing = await self._client.retrieve(
+                collection_name=collection,
+                ids=point_ids,
+                with_vectors=False,
+                with_payload=True,
             )
-            for uri, vector in points
-        ]
+            for rec in existing:
+                if rec.payload:
+                    uri_val = rec.payload.get("uri")
+                    ont_val = rec.payload.get("ontology")
+                    if uri_val and isinstance(ont_val, list):
+                        existing_ontologies[str(rec.id)] = ont_val
+        except Exception:
+            # Collection may not exist yet — first build; ignore gracefully.
+            pass
+
+        batch = []
+        for uri, vector in points:
+            pt_id = _point_id(uri)
+            # Merge: start from any existing ontology list, then add new id.
+            prev = existing_ontologies.get(pt_id, [])
+            merged = list({*prev, ontology})  # set dedup, convert back to list
+            batch.append(
+                PointStruct(
+                    id=pt_id,
+                    vector=vector,
+                    payload={"uri": uri, "ontology": merged},
+                )
+            )
 
         try:
             await self._client.upsert(collection_name=collection, points=batch)
@@ -194,23 +262,47 @@ class QdrantWrapper:
         collection: str,
         vector: list[float],
         top_k: int,
+        ontology_filter: str | None = None,
     ) -> list[tuple[str, float]]:
         """Return the top-k nearest neighbours for a query vector.
+
+        When ``ontology_filter`` is provided an exact pre-filter is applied on
+        the ``ontology`` payload field (Qdrant ``MatchAny`` — the stored list
+        must contain the given id).  This is a Qdrant payload pre-filter, so
+        only points belonging to that ontology are searched — no over-fetch or
+        post-filter needed (unlike Neo4j post-filter).
 
         Args:
             collection: Collection to search.
             vector: Query vector (must match collection dimension).
             top_k: Maximum results to return.
+            ontology_filter: Optional ontology id to restrict results.  None
+                means no filter (search across all ontologies — current default
+                behaviour).
 
         Returns:
             List of (uri, score) tuples ordered by descending cosine score.
             Returns ``[]`` if the collection is absent or any error occurs.
         """
+        query_filter = None
+        if ontology_filter is not None:
+            from qdrant_client.models import FieldCondition, Filter, MatchAny  # noqa: PLC0415
+
+            query_filter = Filter(
+                must=[
+                    FieldCondition(
+                        key="ontology",
+                        match=MatchAny(any=[ontology_filter]),
+                    )
+                ]
+            )
+
         try:
             hits = await self._client.search(
                 collection_name=collection,
                 query_vector=vector,
                 limit=top_k,
+                query_filter=query_filter,
                 with_payload=True,
             )
             return [
@@ -221,6 +313,54 @@ class QdrantWrapper:
         except Exception as exc:
             logger.debug("Qdrant search on '%s' failed: %s", collection, exc)
             return []
+
+    async def delete_by_ontology(
+        self,
+        collection: str,
+        ontology: str,
+    ) -> None:
+        """Delete points whose ``ontology`` payload list contains the given id.
+
+        Used by scoped ``build_embeddings(ontology=id)`` to wipe only the
+        target ontology's stale points before rebuilding — other ontologies'
+        points are untouched.
+
+        Points shared across multiple ontologies (payload ontology contains
+        both the target id and other ids) are ALSO deleted here because the
+        full point will be re-upserted with the merged ontology list during the
+        scoped build.  The next build for the other ontology will re-upsert
+        those shared points — no data is permanently lost.
+
+        Args:
+            collection: Collection to delete from.
+            ontology: Ontology id; points whose ``ontology`` list contains
+                this id will be removed.
+        """
+        from qdrant_client.models import FieldCondition, Filter, MatchAny  # noqa: PLC0415
+
+        delete_filter = Filter(
+            must=[
+                FieldCondition(
+                    key="ontology",
+                    match=MatchAny(any=[ontology]),
+                )
+            ]
+        )
+        try:
+            await self._client.delete(
+                collection_name=collection,
+                points_selector=delete_filter,
+            )
+            logger.debug(
+                "Deleted Qdrant points in '%s' with ontology=%r.", collection, ontology
+            )
+        except Exception as exc:
+            logger.debug(
+                "Qdrant delete_by_ontology in '%s' for ontology=%r (ignored): %s",
+                collection,
+                ontology,
+                exc,
+            )
 
     async def retrieve_vector(
         self,
