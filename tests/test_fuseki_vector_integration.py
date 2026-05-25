@@ -15,7 +15,6 @@ collections are deleted and recreated per run to ensure isolation.
 
 from __future__ import annotations
 
-import asyncio
 
 import pytest
 

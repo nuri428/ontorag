@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Thin async Qdrant wrapper for the Fuseki vector embedding backend.
 
 Point IDs are deterministic UUID5 values derived from the entity URI so that
@@ -32,13 +30,11 @@ Staleness note:
     change always produces a consistent, zombie-free index.
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import uuid
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass  # type: only imports live here
 
 logger = logging.getLogger(__name__)
 

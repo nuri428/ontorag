@@ -247,7 +247,6 @@ async def test_load_rdf_no_ontology_no_tag(single_store) -> None:
 @pytest.mark.asyncio
 async def test_tagging_is_idempotent(dual_store) -> None:
     """Re-loading the same ontology id must not duplicate the tag."""
-    from ontorag.stores.neo4j import Neo4jStore  # noqa: PLC0415
 
     # Load pkmn data again with the same id.
     await dual_store.load_rdf(POKEMON_DATA, mode="data", ontology="pkmn")

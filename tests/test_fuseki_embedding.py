@@ -23,9 +23,7 @@ from fastapi.testclient import TestClient
 from ontorag.api.deps import get_store
 from ontorag.api.main import app
 from ontorag.stores._fuseki_embedding_mixin import (
-    _RRF_K0,
     _STRUCT_DIM,
-    _TBOX_TYPE_URIS,
     _FusekiEmbeddingMixin,
 )
 from ontorag.stores._qdrant import STRUCT_COLLECTION, TEXT_COLLECTION

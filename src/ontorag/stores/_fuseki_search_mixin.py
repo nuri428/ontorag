@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """jena-text (Lucene) full-text search mixin for FusekiStore.
 
 Implements ``search_text()`` using Apache Jena's ``text:query`` SPARQL
@@ -22,6 +20,8 @@ Asymmetry vs Neo4j:
   - Scores are Lucene TF-IDF/BM25 floats — not normalised to 0-1.
     This is the same as Neo4j (both use Lucene under the hood).
 """
+
+from __future__ import annotations
 
 import logging
 import re
@@ -292,7 +292,7 @@ PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 SELECT ?inst ?score ?label ?type WHERE {{
   (?inst ?score) text:query ("{safe_query}" {lucene_fetch}) .
-  {_g(data_g, f"?inst rdf:type ?itype .")}
+  {_g(data_g, "?inst rdf:type ?itype .")}
   {{ {_g(schema_g, f"?itype rdfs:subClassOf* {safe_cls} .")} }}
   UNION
   {{ FILTER(?itype = {safe_cls}) }}

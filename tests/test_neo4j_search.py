@@ -13,10 +13,9 @@ No live Neo4j required for these tests.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-import pytest_asyncio
 from fastapi.testclient import TestClient
 
 from ontorag.api.deps import get_store

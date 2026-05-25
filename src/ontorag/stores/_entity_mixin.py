@@ -118,9 +118,9 @@ LIMIT {limit}"""
         # Batch-fetch all properties for found entities (including obj labels for URI values)
         values_block = " ".join(f"<{u}>" for u, _ in uris)
         prop_body = (
-            f"?inst ?pred ?obj .\n"
-            f"    FILTER(?pred != rdf:type)\n"
-            f"    OPTIONAL {{ ?obj rdfs:label ?objLabel . }}"
+            "?inst ?pred ?obj .\n"
+            "    FILTER(?pred != rdf:type)\n"
+            "    OPTIONAL { ?obj rdfs:label ?objLabel . }"
         )
         prop_query = f"""{pfx}
 SELECT ?inst ?pred ?obj ?objLabel
@@ -271,8 +271,8 @@ WHERE {{
         # inverse_union: p owl:inverseOf q in either direction, in the schema
         # graph. Also guard ?invPred against rdf:type for the reverse-declaration
         # direction (`?invPred owl:inverseOf rdf:type`).
-        inv_forward = f"?p owl:inverseOf ?invPred . FILTER(?invPred != rdf:type)"
-        inv_backward = f"?invPred owl:inverseOf ?p . FILTER(?invPred != rdf:type)"
+        inv_forward = "?p owl:inverseOf ?invPred . FILTER(?invPred != rdf:type)"
+        inv_backward = "?invPred owl:inverseOf ?p . FILTER(?invPred != rdf:type)"
         label_body = f"OPTIONAL {{ {_data_clause(data_g, '?other rdfs:label ?otherLabel .')} }}"
 
         inv_query = f"""{pfx}

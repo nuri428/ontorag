@@ -16,7 +16,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import pytest_asyncio
 from fastapi.testclient import TestClient
 
 from ontorag.api.deps import get_store
@@ -26,9 +25,7 @@ from ontorag.stores.base import SimilarHit
 from ontorag.stores._neo4j_embedding_mixin import (
     _RRF_K0,
     _STRUCT_DIM,
-    _STRUCT_INDEX,
     _STRUCT_PROP,
-    _TEXT_INDEX,
     _TEXT_PROP,
     _Neo4jEmbeddingMixin,
 )
@@ -334,8 +331,6 @@ class TestFindSimilarUnit:
 
     def test_rrf_fusion_order(self):
         """RRF fused scores must rank nodes that appear in both lists higher."""
-        mixin = _Neo4jEmbeddingMixin()
-
         # A appears #1 in structural, #3 in textual.
         # B appears #2 in structural only.
         # C appears #1 in textual, #4 in structural.

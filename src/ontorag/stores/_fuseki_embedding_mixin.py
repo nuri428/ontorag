@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Graph-embedding capability mixin for FusekiStore (structural + textual).
 
 Implements:
@@ -35,11 +33,12 @@ Per-ontology scoping:
     over-fetch needed.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING, Any, Literal
 
 from ontorag.core.ontology import (
-    data_graph_uri,
     graph_clause,
     scoped_graph,
     validate_ontology_id,

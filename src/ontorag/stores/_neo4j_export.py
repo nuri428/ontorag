@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """RDF serialisation helpers for Neo4jStore.dump_graph.
 
 Split out of neo4j.py to keep the adapter module under the 800-line cap.
@@ -7,6 +5,8 @@ Each helper takes the SPO rows produced by ``n10s.rdf.export.cypher`` and
 serialises them to a target format. Behaviour is identical to the in-module
 versions these replaced.
 """
+
+from __future__ import annotations
 
 import io
 import logging

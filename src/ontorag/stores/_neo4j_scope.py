@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Neo4j multi-ontology scoping helpers.
 
 Single source of truth for the ``_ontology`` list-property filter used by
@@ -13,6 +11,8 @@ Design (docs/design/multi-ontology.md — Neo4j wrinkle):
   - ``ontology="<id>"`` → ``$ontology_id IN n._ontology`` filter appended to
     the relevant MATCH clause's WHERE block (bound param, never interpolated).
 """
+
+from __future__ import annotations
 
 from ontorag.core.ontology import validate_ontology_id
 

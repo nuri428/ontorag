@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Schema (TBox) L1 tool implementations for Neo4jStore.
 
 Implements: get_schema, get_class_detail.
@@ -7,6 +5,8 @@ Implements: get_schema, get_class_detail.
 Split out of neo4j.py to keep each module under the repo's 800-line cap.
 Behaviour is identical to the in-class versions it replaced.
 """
+
+from __future__ import annotations
 
 import asyncio
 import logging

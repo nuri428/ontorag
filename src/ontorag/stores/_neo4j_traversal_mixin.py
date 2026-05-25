@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Traversal L1 tool implementations for Neo4jStore.
 
 Implements: traverse, find_path, property_path_closure, find_related.
@@ -7,6 +5,8 @@ Implements: traverse, find_path, property_path_closure, find_related.
 Cypher variable-length paths replace the BFS loop used by FusekiStore —
 Neo4j natively handles multi-hop traversal efficiently.
 """
+
+from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, Any

@@ -103,7 +103,7 @@ def test_missing_shapes_file_raises(tmp_path):
 
 # ── derive_from_owl ────────────────────────────────────────────────────────
 
-from ontorag.learn.shacl import derive_from_owl
+from ontorag.learn.shacl import derive_from_owl  # noqa: E402
 
 
 def _derive(tmp_path: Path, ttl_body: str) -> Graph:

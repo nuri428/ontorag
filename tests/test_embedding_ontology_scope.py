@@ -20,19 +20,15 @@ No live Fuseki / Qdrant / Neo4j required — all backends are mocked.
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from ontorag.stores._fuseki_embedding_mixin import _FusekiEmbeddingMixin
 from ontorag.stores._neo4j_embedding_mixin import (
-    _STRUCT_PROP,
-    _TEXT_PROP,
     _Neo4jEmbeddingMixin,
 )
 from ontorag.stores._qdrant import QdrantWrapper, _point_id
-from ontorag.stores.base import SimilarHit
 
 
 # ── QdrantWrapper unit tests ──────────────────────────────────────────────────

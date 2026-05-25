@@ -33,7 +33,6 @@ Textual embeddings use a deterministic FAKE EmbeddingProvider — no real API.
 
 from __future__ import annotations
 
-import asyncio
 import socket
 import tempfile
 import textwrap

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """BM25 full-text search mixin for Neo4jStore (B2 + B3).
 
 Implements:
@@ -13,6 +11,8 @@ Implements:
 This is a *capability*, not part of the GraphStore protocol — backends that
 do not expose search_text receive a 501 via the route's getattr guard.
 """
+
+from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, Any

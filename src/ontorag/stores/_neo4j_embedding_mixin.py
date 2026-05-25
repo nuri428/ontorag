@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Graph embedding mixin for Neo4jStore (C3 + C4).
 
 Implements:
@@ -30,6 +28,8 @@ Per-ontology scoping:
     (top_k * ``_SCOPE_OVERFETCH``) so the post-filtered result still reaches
     top_k in typical cases.  See the trade-off note in ``_find_similar_single``.
 """
+
+from __future__ import annotations
 
 import asyncio
 import logging

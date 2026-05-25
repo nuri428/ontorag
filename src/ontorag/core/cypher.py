@@ -1,12 +1,13 @@
-from __future__ import annotations
-
 """Translate PatternQuery DSL to Cypher (symmetric to pattern_to_sparql).
 
 Used by Neo4jStore.query_pattern — same PatternQuery validation prevents
 Cypher injection (variables, URI, prefixed name, or literal only).
 """
 
+from __future__ import annotations
+
 import re
+from collections.abc import Callable
 
 from ontorag.stores.base import PatternFilter, PatternQuery, PatternTriple
 
@@ -58,8 +59,8 @@ def _safe_rel(short: str) -> str:
 
 def pattern_to_cypher(
     query: PatternQuery,
-    shorten_fn: "None | (str) -> str" = None,  # type: ignore[valid-type]
-    expand_fn: "None | (str) -> str" = None,  # type: ignore[valid-type]
+    shorten_fn: Callable[[str], str] | None = None,
+    expand_fn: Callable[[str], str] | None = None,
 ) -> tuple[str, dict]:
     """Translate a validated PatternQuery DSL into a Cypher query string + params.
 
@@ -139,8 +140,8 @@ def pattern_to_cypher(
 
 def _build_triple_cypher(
     triple: PatternTriple,
-    shorten_fn: "callable[[str], str]",  # type: ignore[valid-type]
-    alloc_param: "callable[[object], str]",  # type: ignore[valid-type]
+    shorten_fn: Callable[[str], str],
+    alloc_param: Callable[[object], str],
     declared: set[str],
 ) -> tuple[str, str]:
     """Convert one PatternTriple to ``(match_fragment, where_fragment)``.
@@ -228,7 +229,7 @@ def _build_triple_cypher(
 
 
 def _resolve_object_uri(
-    o_uri: str, shorten_fn: "callable[[str], str]"  # type: ignore[valid-type]
+    o_uri: str, shorten_fn: Callable[[str], str]
 ) -> str:
     """Best-effort resolution of a concrete object term to a full URI.
 
@@ -263,7 +264,7 @@ def _term_to_full_uri(term: str) -> str | None:
     return None
 
 
-def _term_to_rel_type(term: str, shorten_fn: "callable") -> str:  # type: ignore[valid-type]
+def _term_to_rel_type(term: str, shorten_fn: Callable[[str], str]) -> str:
     """Convert a predicate term to a Neo4j relationship type (shortened form)."""
     if _is_var(term):
         return ""
@@ -296,7 +297,7 @@ def _parse_literal_value(term: str) -> object:
     return inner
 
 
-def _filter_value(f: PatternFilter, alloc_param: "callable") -> str:  # type: ignore[valid-type]
+def _filter_value(f: PatternFilter, alloc_param: Callable[[object], str]) -> str:
     """Format a PatternFilter value for Cypher WHERE."""
     v = f.value
     if isinstance(v, bool):

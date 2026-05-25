@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Shared n10s ARRAY-value unwrapping helpers for the Neo4j adapter.
 
 n10s with ``handleMultival=ARRAY`` stores EVERY RDF property as a Cypher list.
@@ -12,6 +10,8 @@ previously duplicated across the entity/schema mixins.
 - ``first_scalar``: always the first element (or the value itself / None).
   Used for fields that are single-valued by construction (labels, comments).
 """
+
+from __future__ import annotations
 
 from typing import Any
 

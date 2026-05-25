@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Entity-level L1 tool implementations for Neo4jStore.
 
 Implements: find_entities, describe_entity, count_entities, aggregate.
@@ -11,6 +9,8 @@ Intentional divergence from FusekiStore (documented):
   - Property values may be lists (handleMultival=ARRAY); unpack_value() maps
     single-element lists → scalar to match Fuseki's output shape.
 """
+
+from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, Any

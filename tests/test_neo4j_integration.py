@@ -15,8 +15,6 @@ import pytest_asyncio
 
 from ontorag.stores.base import (
     AggFunc,
-    EntityFilter,
-    FilterOp,
     PatternQuery,
     PatternTriple,
     TraversalDirection,

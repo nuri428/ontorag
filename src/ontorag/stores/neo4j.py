@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Neo4j + neosemantics (n10s) graph store adapter.
 
 Design decisions (from docs/design/neo4j-n10s.md):
@@ -26,6 +24,8 @@ Multi-valued props (ARRAY config):
   unwrap to scalar; otherwise keep list — preserving Fuseki parity where
   repeated triples produce a list only when there are multiple values.
 """
+
+from __future__ import annotations
 
 import asyncio
 import logging

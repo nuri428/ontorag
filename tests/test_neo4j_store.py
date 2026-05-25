@@ -7,7 +7,7 @@ No live Neo4j required for these tests.
 from __future__ import annotations
 
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -39,7 +39,7 @@ class TestPatternToCypher:
                 return f"{prefix}__{uri[len(ns):]}"
         # Already prefixed name like rdf:type
         if ":" in uri and "://" not in uri and not uri.startswith("?") and not uri.startswith("<"):
-            p, l = uri.split(":", 1)
+            p, local = uri.split(":", 1)
             ns_map = {
                 "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
                 "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
@@ -47,7 +47,7 @@ class TestPatternToCypher:
                 "pk": "http://example.org/pokemon#",
             }
             if p in ns_map:
-                return f"{p}__{l}"
+                return f"{p}__{local}"
         # Angle-bracketed URI
         if uri.startswith("<") and uri.endswith(">"):
             inner = uri[1:-1]
@@ -275,7 +275,7 @@ class TestSafeRel:
 class TestNeo4jStoreMapping:
     """Unit tests for the shorten/expand URI mapping in Neo4jStore."""
 
-    def _make_store(self) -> "Neo4jStore":
+    def _make_store(self):
         """Create a Neo4jStore with a mocked driver and a pre-seeded prefix map."""
         import neo4j  # noqa: PLC0415
         from ontorag.stores.neo4j import Neo4jStore  # noqa: PLC0415
