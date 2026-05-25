@@ -85,6 +85,11 @@ _TEXT_PAGE_SIZE: int = 2000
 # env var if needed.  Trade-off: higher recall, more latency.
 _SCOPE_OVERFETCH: int = 5
 
+#: kNN over-fetch multiplier when a class filter is active — many neighbours
+#: belong to other classes (moves, types) and get dropped by the in-query
+#: subClassOf filter, so fetch more candidates to still reach top_k.
+_CLASS_FILTER_OVERFETCH: int = 10
+
 
 class _Neo4jEmbeddingMixin:
     """Structural + textual graph-embedding capability mixed into Neo4jStore.
@@ -671,6 +676,7 @@ class _Neo4jEmbeddingMixin:
         uri: str,
         top_k: int = 10,
         mode: Literal["structural", "textual", "hybrid"] = "structural",
+        class_uri: str | None = None,
         ontology: str | None = None,
     ) -> list[SimilarHit]:
         """Find the most structurally / textually similar entities.
@@ -680,6 +686,10 @@ class _Neo4jEmbeddingMixin:
                 interpolated).
             top_k: Maximum results to return (1–100).
             mode: "structural", "textual", or "hybrid" (RRF fusion).
+            class_uri: Optional class URI to restrict hits to instances of
+                that class (rdfs:subClassOf-aware, via a native Cypher
+                `[:rdfs__subClassOf*0..]` filter on the kNN result).  None
+                (default) returns similar entities of any class.
             ontology: Optional ontology id to scope results.  When provided
                 the kNN result is post-filtered to nodes whose ``_ontology``
                 list contains the id (Neo4j vector indexes are global — no
@@ -701,16 +711,23 @@ class _Neo4jEmbeddingMixin:
         ontology = validate_ontology_id(ontology)
 
         if mode == "hybrid":
-            return await self._find_similar_hybrid(uri, top_k, ontology=ontology)
+            return await self._find_similar_hybrid(
+                uri, top_k, class_uri=class_uri, ontology=ontology
+            )
         if mode == "textual":
-            return await self._find_similar_single(uri, top_k, "textual", ontology=ontology)
-        return await self._find_similar_single(uri, top_k, "structural", ontology=ontology)
+            return await self._find_similar_single(
+                uri, top_k, "textual", class_uri=class_uri, ontology=ontology
+            )
+        return await self._find_similar_single(
+            uri, top_k, "structural", class_uri=class_uri, ontology=ontology
+        )
 
     async def _find_similar_single(
         self: "Neo4jStore",
         uri: str,
         top_k: int,
         mode: Literal["structural", "textual"],
+        class_uri: str | None = None,
         ontology: str | None = None,
     ) -> list[SimilarHit]:
         """Execute a single-mode kNN query.
@@ -769,27 +786,40 @@ class _Neo4jEmbeddingMixin:
         # Lazy import to avoid circular imports.
         from ontorag.stores.neo4j import _TBOX_TYPE_URIS  # noqa: PLC0415
 
-        # Over-fetch: when scoped, request more candidates so that post-filter
-        # attrition leaves at least top_k results in the typical case.
+        # Over-fetch: when scoped (ontology) or class-filtered, request more
+        # candidates so that post-filter / in-query-filter attrition leaves at
+        # least top_k results in the typical case.
+        overfetch = 1
         if ontology is not None:
-            k_fetch = top_k * _SCOPE_OVERFETCH + 1  # +1 for self-exclusion
-        else:
-            k_fetch = top_k + 1  # +1 for self-exclusion (original behaviour)
+            overfetch = max(overfetch, _SCOPE_OVERFETCH)
+        if class_uri is not None:
+            overfetch = max(overfetch, _CLASS_FILTER_OVERFETCH)
+        k_fetch = top_k * overfetch + 1 if overfetch > 1 else top_k + 1
+
+        # subClassOf-aware class filter applied inside the kNN pipeline (native
+        # Cypher path; class_uri is a bound param → injection-safe).
+        class_clause = ""
+        params: dict[str, Any] = {"index_name": index_name, "k": k_fetch, "vec": vec}
+        if class_uri is not None:
+            class_clause = (
+                "  AND EXISTS { MATCH (node)-[:rdf__type]->(:Resource)"
+                "-[:rdfs__subClassOf*0..]->(:Resource {uri: $class_uri}) } "
+            )
+            params["class_uri"] = class_uri
 
         try:
             rows = await self._run(
                 "CALL db.index.vector.queryNodes($index_name, $k, $vec) "
                 "YIELD node, score "
                 "WHERE node.uri IS NOT NULL "
+                f"{class_clause}"
                 "OPTIONAL MATCH (node)-[:rdf__type]->(cls:Resource) "
                 "RETURN node.uri AS uri, "
                 "       node.rdfs__label AS raw_label, "
                 "       node._ontology AS node_ontology, "
                 "       cls.uri AS cls_uri, "
                 "       score",
-                index_name=index_name,
-                k=k_fetch,
-                vec=vec,
+                **params,
             )
         except Exception as exc:
             logger.warning("Vector query on '%s' failed: %s", index_name, exc)
@@ -803,6 +833,7 @@ class _Neo4jEmbeddingMixin:
         self: "Neo4jStore",
         uri: str,
         top_k: int,
+        class_uri: str | None = None,
         ontology: str | None = None,
     ) -> list[SimilarHit]:
         """Fuse structural + textual rankings via Reciprocal Rank Fusion.
@@ -813,16 +844,18 @@ class _Neo4jEmbeddingMixin:
         Args:
             uri: Query entity URI.
             top_k: Maximum results to return after fusion.
+            class_uri: Optional class URI propagated to both single-mode calls
+                (each is class-filtered before fusion).
             ontology: Optional ontology id propagated to both single-mode calls.
 
         Returns:
             List of SimilarHit with mode="hybrid" or [] on any error.
         """
         struct_hits = await self._find_similar_single(
-            uri, top_k * 2, "structural", ontology=ontology
+            uri, top_k * 2, "structural", class_uri=class_uri, ontology=ontology
         )
         text_hits = await self._find_similar_single(
-            uri, top_k * 2, "textual", ontology=ontology
+            uri, top_k * 2, "textual", class_uri=class_uri, ontology=ontology
         )
 
         if not struct_hits and not text_hits:

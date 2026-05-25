@@ -35,6 +35,13 @@ class FindSimilarRequest(BaseModel):
             "'hybrid' (RRF fusion of both)."
         ),
     )
+    class_uri: str | None = Field(
+        default=None,
+        description=(
+            "Optional class URI to restrict hits to instances of that class "
+            "(rdfs:subClassOf-aware); None = any class (moves, types, …)."
+        ),
+    )
     ontology: str | None = Field(
         default=None,
         description="Optional ontology id to scope candidates to; None = all (union).",
@@ -95,4 +102,10 @@ async def find_similar(
             ),
         )
 
-    return await fn(body.uri, body.top_k, body.mode, ontology=body.ontology)
+    return await fn(
+        body.uri,
+        body.top_k,
+        body.mode,
+        class_uri=body.class_uri,
+        ontology=body.ontology,
+    )

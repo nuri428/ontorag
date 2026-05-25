@@ -459,5 +459,5 @@ class TestFindSimilarRoute:
             json={"uri": "http://ex.org/A", "top_k": 7, "mode": "hybrid"},
         )
         store.find_similar.assert_called_once_with(
-            "http://ex.org/A", 7, "hybrid", ontology=None
+            "http://ex.org/A", 7, "hybrid", class_uri=None, ontology=None
         )
