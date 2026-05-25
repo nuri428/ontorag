@@ -293,6 +293,11 @@ def embed_run(
         "--mode",
         help="임베딩 모드: structural | textual | both (기본값: both)",
     ),
+    ontology: Optional[str] = typer.Option(
+        None,
+        "--ontology",
+        help="임베딩할 온톨로지 id (미지정 시 전체). 스코프 빌드는 다른 온톨로지 임베딩을 보존합니다.",
+    ),
 ) -> None:
     """그래프 임베딩을 생성합니다.
 
@@ -358,7 +363,9 @@ def embed_run(
             progress.add_task(f"임베딩 생성 중 (mode={mode})...", total=None)
             try:
                 result = asyncio.run(
-                    store.build_embeddings(mode, embedding_provider)  # type: ignore[union-attr]
+                    store.build_embeddings(  # type: ignore[union-attr]
+                        mode, embedding_provider, ontology=ontology
+                    )
                 )
             except Exception as exc:
                 console.print(f"[red]Error:[/] 임베딩 생성 실패 — {exc}")

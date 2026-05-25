@@ -35,6 +35,10 @@ class FindSimilarRequest(BaseModel):
             "'hybrid' (RRF fusion of both)."
         ),
     )
+    ontology: str | None = Field(
+        default=None,
+        description="Optional ontology id to scope candidates to; None = all (union).",
+    )
 
 
 @router.post(
@@ -91,4 +95,4 @@ async def find_similar(
             ),
         )
 
-    return await fn(body.uri, body.top_k, body.mode)
+    return await fn(body.uri, body.top_k, body.mode, ontology=body.ontology)
