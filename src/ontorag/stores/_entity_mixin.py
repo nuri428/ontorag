@@ -14,6 +14,7 @@ from ontorag.stores.base import AggFunc, AggregateResult, EntityFilter, EntityRe
 logger = logging.getLogger(__name__)
 
 _DATA = "urn:ontorag:data"
+_SCHEMA = "urn:ontorag:schema"
 
 _AGG_EXPR: dict[AggFunc, str] = {
     AggFunc.count: "COUNT(DISTINCT ?inst)",
@@ -44,14 +45,22 @@ class _EntityMixin:
         cls = uri_ref(class_uri)
         filter_triples, filter_line = build_filter_sparql(filters or [])
 
+        # Subclass-aware (reasoning parity with Neo4j): an instance of any
+        # subclass of <cls> matches. rdf:type lives in the data graph,
+        # rdfs:subClassOf in the schema graph, so the path is joined across
+        # the two named graphs. The UNION direct-match branch keeps results
+        # correct even when no TBox/subClassOf is loaded.
         uri_query = f"""{pfx}
 SELECT DISTINCT ?inst ?label
 WHERE {{
   GRAPH <{_DATA}> {{
-    ?inst a {cls} .
+    ?inst a ?type .
     OPTIONAL {{ ?inst rdfs:label ?label . }}
 {filter_triples}
   }}
+  {{ GRAPH <{_SCHEMA}> {{ ?type rdfs:subClassOf* {cls} . }} }}
+  UNION
+  {{ FILTER(?type = {cls}) }}
 {filter_line}
 }}
 LIMIT {limit}"""
@@ -179,13 +188,17 @@ WHERE {{
         cls = uri_ref(class_uri)
         filter_triples, filter_line = build_filter_sparql(filters or [])
 
+        # Subclass-aware count (reasoning parity) — see find_entities.
         query = f"""{pfx}
 SELECT (COUNT(DISTINCT ?inst) AS ?n)
 WHERE {{
   GRAPH <{_DATA}> {{
-    ?inst a {cls} .
+    ?inst a ?type .
 {filter_triples}
   }}
+  {{ GRAPH <{_SCHEMA}> {{ ?type rdfs:subClassOf* {cls} . }} }}
+  UNION
+  {{ FILTER(?type = {cls}) }}
 {filter_line}
 }}"""
         result = await self._sparql_select(query)
