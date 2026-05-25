@@ -3,10 +3,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import httpx
 from rdflib import Graph
+
+if TYPE_CHECKING:
+    from ontorag.stores._qdrant import QdrantWrapper
 
 from ontorag.core.loader import detect_mode, parse_rdf
 from ontorag.core.sparql import STANDARD_PREFIXES, pattern_to_sparql, uri_ref
@@ -66,6 +69,8 @@ class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _Trav
         self._auth = httpx.BasicAuth(user, password)
         self._client: httpx.AsyncClient | None = None
         self._dataset_ensured: bool = False
+        # Lazily created by the embedding mixin's _get_qdrant() on first use.
+        self._qdrant: QdrantWrapper | None = None
 
     @classmethod
     def from_env(cls) -> FusekiStore:
