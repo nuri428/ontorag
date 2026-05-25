@@ -78,39 +78,36 @@ Example session:
 
 ![Pokemon chat demo](assets/pokemon_chat_en.png)
 
-### Use Neo4j instead of Fuseki
+### Choosing a backend (Fuseki ⇄ Neo4j — full parity)
 
-The backend is selected by `GRAPH_STORE`. To run on Neo4j + neosemantics (n10s):
+`GRAPH_STORE` selects the backend. **Both expose the same CLI and MCP tools**,
+including reasoning, full-text search, and vector similarity — each backend just
+uses its own native tech:
 
-```bash
-docker compose --profile neo4j up -d neo4j   # neo4j 5.26 with apoc + n10s
-export GRAPH_STORE=neo4j                       # NEO4J_URI/USER/PASSWORD in .env
-uv run ontorag load schema examples/pokemon/schema.ttl
-uv run ontorag load data   examples/pokemon/data.ttl
-```
+| Capability | `GRAPH_STORE=fuseki` (default) | `GRAPH_STORE=neo4j` |
+|---|---|---|
+| subClassOf reasoning | query-level SPARQL `subClassOf*` | Cypher `[:rdfs__subClassOf*]` |
+| `search_text` (BM25) | jena-text (Lucene) | native full-text index |
+| `find_similar` + `ontorag embed` | FastRP + embeddings → Qdrant | GDS FastRP + native vector index |
 
-Same CLI, same MCP tools — only the backend differs. On Neo4j, `find_entities`
-follows `rdfs:subClassOf` natively, so querying a parent class returns subclass
-instances (the default `--mem` Fuseki does not infer this).
-
-The Neo4j backend also adds **BM25 full-text search** — an extra MCP tool
-`search_text(query, class_uri?, limit)` backed by a Lucene full-text index over
-all string properties (`db.index.fulltext.queryNodes`). It returns ranked
-`SearchHit`s with relevance scores; an optional `class_uri` restricts hits to a
-class and its subclasses. On Fuseki this tool returns `501 Not Implemented`.
-
-…and **graph embeddings** for semantic / structural similarity. Build them once
-with `ontorag embed`, then call the `find_similar(uri, top_k, mode)` MCP tool:
+Run on Neo4j:
 
 ```bash
-ontorag embed --mode both     # structural (GDS FastRP) + textual (EmbeddingProvider)
+docker compose --profile neo4j up -d neo4j   # neo4j 5.26 + apoc + n10s + GDS
+export GRAPH_STORE=neo4j                       # NEO4J_* in .env
 ```
 
-- `mode=structural` — graph topology (Neo4j GDS FastRP).
-- `mode=textual` — node text embedded via `EMBEDDING_PROVIDER` (OpenAI or Ollama).
-- `mode=hybrid` — reciprocal-rank fusion of both.
+Vector search on **either** backend (Fuseki needs Qdrant + the `[vector]` extra):
 
-Both vectors live in native Neo4j vector indexes; `find_similar` is `501` on Fuseki.
+```bash
+docker compose --profile qdrant up -d qdrant   # only for GRAPH_STORE=fuseki
+ontorag embed --mode both       # structural (FastRP) + textual (EMBEDDING_PROVIDER)
+```
+
+`find_similar(uri, top_k, mode)` modes: `structural` (graph topology), `textual`
+(node text via OpenAI/Ollama), `hybrid` (reciprocal-rank fusion). `search_text`
+and `find_similar` return ranked hits with scores; an optional `class_uri`
+restricts to a class and its subclasses.
 
 ---
 

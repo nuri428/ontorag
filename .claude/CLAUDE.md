@@ -72,8 +72,9 @@ Out of scope for v0.3:
 - **subClassOf inference is implemented natively on Neo4j** (Cypher `[:rdfs__subClassOf*0..N]`), so `find_entities(Animal)` includes Dog/Cat instances. ⚠️ This *diverges* from the current Fuseki deployment, which runs `--mem` with inference OFF (plain type-match). See Open questions.
 - L2 `query_pattern` translated via `core/cypher.py` (`pattern_to_cypher`), symmetric to the SPARQL translator. All Cypher rel-types/labels routed through `_safe_rel()` (injection-safe).
 - Design note: `docs/design/neo4j-n10s.md`. Verified live against `neo4j:5.26` + n10s 5.26.
-- **BM25 full-text search** (`search_text`): Neo4j Lucene full-text index over string properties; capability tool, 501 on Fuseki. `docs/design/neo4j-bm25.md`.
-- **Graph embeddings** (`find_similar` + `ontorag embed`): structural (GDS FastRP) + textual (`EmbeddingProvider`: OpenAI/Ollama via `EMBEDDING_PROVIDER`) + `hybrid` (RRF) over native vector indexes; explicit `ontorag embed` trigger. `docs/design/neo4j-embedding.md`. Verified live on GDS 2.13.10.
+- **BM25 full-text search** (`search_text`): **both backends** — Neo4j fulltext index / Fuseki jena-text (Lucene). `docs/design/neo4j-bm25.md`.
+- **Graph embeddings** (`find_similar` + `ontorag embed`): **both backends** — structural + textual (`EmbeddingProvider`: OpenAI/Ollama via `EMBEDDING_PROVIDER`) + `hybrid` (RRF), explicit `ontorag embed` trigger. Neo4j: GDS FastRP + native vector index. Fuseki: `core/fastrp.py` + EmbeddingProvider → **Qdrant**. `docs/design/neo4j-embedding.md`, `docs/design/fuseki-parity.md`.
+- **Reasoning, full-text, and vector similarity now have full backend parity** (Fuseki ⇄ Neo4j); each uses its native tech.
 
 ### v0.5+ (still planned)
 - Multi-ontology per instance
@@ -152,16 +153,16 @@ Ontology-aware tools exposed via MCP, embedded in FastAPI process. Each tool ret
 |---|---|---|
 | `query_sparql_raw` | POST /tools/query/sparql | `exclude_operations`으로 MCP에서 제외, curl 디버그용 |
 
-**Backend-capability tools (MCP 노출, 백엔드가 지원할 때만)**
+**Backend-capability tools (MCP 노출) — v0.5부터 양 백엔드 모두 지원**
 
-Protocol 공통이 아니라 특정 백엔드 능력. 라우트가 `getattr`로 지원 여부를 확인하고, 미지원 백엔드는 501. (raw SPARQL의 Fuseki 전용 격리와 같은 패턴.)
+라우트가 `getattr`로 지원 여부를 확인(미지원 백엔드는 501)하지만, v0.5에서 Fuseki·Neo4j 둘 다 구현하므로 실질적으로 공통 제공. 백엔드마다 다른 기술을 씀:
 
-| operation_id | 엔드포인트 | 백엔드 | 설명 |
-|---|---|---|---|
-| `search_text` | POST /tools/search/text | Neo4j (v0.5) | BM25 풀텍스트 검색. Neo4j fulltext 인덱스(`db.index.fulltext.queryNodes`) → ranked `SearchHit`. `class_uri` 주면 subClassOf 포함 instance로 제한. Fuseki는 501. |
-| `find_similar` | POST /tools/similar | Neo4j (v0.5) | 그래프 임베딩 kNN. `mode=structural`(GDS FastRP) \| `textual`(EmbeddingProvider) \| `hybrid`(RRF). `db.index.vector.queryNodes` → ranked `SimilarHit`. 임베딩은 `ontorag embed`로 사전 생성. Fuseki는 501. |
+| operation_id | 엔드포인트 | Fuseki | Neo4j | 설명 |
+|---|---|---|---|---|
+| `search_text` | POST /tools/search/text | jena-text (Lucene) | fulltext 인덱스 | BM25 풀텍스트 → ranked `SearchHit`. `class_uri` 주면 subClassOf 포함. |
+| `find_similar` | POST /tools/similar | FastRP(`core/fastrp.py`)+EmbeddingProvider → **Qdrant** | GDS FastRP+EmbeddingProvider → native vector index | 그래프 임베딩 kNN. `mode=structural\|textual\|hybrid`(RRF) → `SimilarHit`. `ontorag embed`로 사전 생성. |
 
-Inference 레이어: Fuseki 데이터셋을 `ja:OntModelSpec` 추론 모델로 구성하면 `find_entities(Animal)`이 rdfs:subClassOf를 통해 Dog/Cat 인스턴스를 자동 포함 — 툴 코드 변경 없음. (Neo4j 백엔드는 이 추론을 이미 Cypher로 구현 — v0.5 참고.)
+추론(subClassOf): **양 백엔드 모두 구현** — Neo4j는 Cypher `[:rdfs__subClassOf*]`, Fuseki는 쿼리 레벨 `?inst a/rdfs:subClassOf*`(SCHEMA·DATA named graph 조인, config 변경 없음). `find_entities(Animal)`이 양쪽에서 Dog/Cat 인스턴스를 포함.
 
 ## CLI design
 
@@ -350,12 +351,13 @@ ontorag/
 │   │           ├── pattern.py     # L2: POST /tools/query/pattern
 │   │           ├── _sparql.py     # L3: POST /tools/query/sparql (Fuseki-only, getattr 501)
 │   │           ├── learning.py    # v0.3 L1: type_term, extract_triples (MCP exposed)
-│   │           ├── search.py      # v0.5 POST /tools/search/text (BM25, Neo4j capability)
-│   │           └── similar.py     # v0.5 POST /tools/similar (find_similar, Neo4j capability)
+│   │           ├── search.py      # v0.5 POST /tools/search/text (BM25 — both backends)
+│   │           └── similar.py     # v0.5 POST /tools/similar (find_similar — both backends)
 │   ├── core/
 │   │   ├── loader.py          # RDF parsing & loading (with progress callback)
-│   │   ├── sparql.py          # PatternQuery DSL → SPARQL translator (Fuseki)
-│   │   └── cypher.py          # PatternQuery DSL → Cypher translator (Neo4j) + _safe_rel
+│   │   ├── sparql.py          # PatternQuery DSL → SPARQL translator (Fuseki) + uri_ref
+│   │   ├── cypher.py          # PatternQuery DSL → Cypher translator (Neo4j) + _safe_rel
+│   │   └── fastrp.py          # v0.5 pure-Python FastRP structural embeddings (Fuseki)
 │   ├── stores/
 │   │   ├── base.py            # GraphStore Protocol + result types
 │   │   ├── factory.py         # create_store() — GRAPH_STORE=fuseki|neo4j
@@ -367,7 +369,10 @@ ontorag/
 │   │   ├── _neo4j_export.py          # dump_graph TTL/XLSX serialisation
 │   │   ├── _neo4j_values.py          # n10s ARRAY-multival unpack helpers
 │   │   ├── _neo4j_search_mixin.py    # v0.5 BM25 full-text (search_text)
-│   │   └── _neo4j_embedding_mixin.py # v0.5 GDS FastRP + textual embeddings (build_embeddings, find_similar)
+│   │   ├── _neo4j_embedding_mixin.py # v0.5 GDS FastRP + textual embeddings (build_embeddings, find_similar)
+│   │   ├── _fuseki_search_mixin.py   # v0.5 jena-text full-text (search_text)
+│   │   ├── _fuseki_embedding_mixin.py# v0.5 FastRP + textual → Qdrant (build_embeddings, find_similar)
+│   │   └── _qdrant.py                # v0.5 async Qdrant wrapper (Fuseki vector store)
 │   ├── llm/
 │   │   ├── base.py            # LLMProvider abstract base
 │   │   ├── anthropic.py
@@ -477,7 +482,7 @@ Fuseki healthcheck: `GET /$/ping` → 200 OK.
 
 - ✅ L2 `query_pattern` DSL 검증: 구조적 검증(SPARQL 측 `PatternTriple` regex) + Cypher 측 `_safe_rel()` allowlist + `*` 경로 상한으로 결정.
 - ✅ Neo4j SPARQL via n10s endpoint vs. native Cypher translation: **native Cypher translation** 채택 (`core/cypher.py`).
-- ⚠️ **subClassOf 추론 백엔드 divergence**: Neo4j는 추론 ON(`[:rdfs__subClassOf*]`), 현 Fuseki는 `--mem`로 OFF → 같은 질의가 다른 결과. 후속 과제: Fuseki 데이터셋을 `ja:OntModelSpec` 추론 모델로 켜서 양 백엔드를 재수렴시킬지 결정. (켜기 전까지 `find_entities`/`count_entities`는 백엔드별로 결과가 다를 수 있음.)
+- ✅ **subClassOf 추론 백엔드 divergence 해소**: 이제 양 백엔드 모두 추론 ON. Neo4j는 Cypher `[:rdfs__subClassOf*]`, Fuseki는 쿼리 레벨 `?inst a/rdfs:subClassOf*`(SCHEMA·DATA named graph 조인 + 직접매치 UNION). `ja:OntModelSpec` reasoner 없이 쿼리 레벨로 수렴 — `find_entities`/`count_entities` 결과 일치.
 - Vector similarity tool (Phase 2): Neo4j vector index vs. Qdrant? 별도 L1 툴 `find_similar`로 추가할지, `query_pattern`에 vector filter로 통합할지 결정 필요.
 - Multi-ontology per instance: not in v0.1. Single ontology assumption.
 - Auth/multi-tenant: not in v0.1. Single-user assumption.
