@@ -16,6 +16,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from ontorag.core.cypher import _safe_rel
+from ontorag.stores._neo4j_scope import ontology_scope_filter
 from ontorag.stores._neo4j_values import first_scalar, unpack_value
 from ontorag.stores.base import AggFunc, AggregateResult, EntityFilter, EntityResult
 
@@ -64,20 +65,24 @@ class _Neo4jEntityMixin:
             class_uri: Full URI of the target class.
             filters: Optional property-value conditions.
             limit: Maximum number of results.
-            ontology: Accepted for protocol conformance; ignored in Neo4j.
-                # TODO(E4): scope by _ontology node property.
+            ontology: Ontology id to scope results, or None for all (union).
 
         Returns:
             List of EntityResult matching the class (and its subclasses).
         """
         await self._ensure_prefix_map()
 
+        # Build ontology scope filter (empty when ontology=None → union).
+        scope_frag, scope_params = ontology_scope_filter(ontology, node_alias="inst")
+
         # Build filter WHERE conditions
         filter_where, filter_params = _build_filter_cypher(
             filters or [], self._shorten_prefixed
         )
 
-        where_clause = "WHERE " + filter_where if filter_where else ""
+        # Combine scope + property filters into a single WHERE clause.
+        where_parts = [p for p in [scope_frag, filter_where] if p]
+        where_clause = "WHERE " + " AND ".join(where_parts) if where_parts else ""
 
         rows = await self._run(
             f"""
@@ -89,6 +94,7 @@ class _Neo4jEntityMixin:
             """,
             class_uri=class_uri,
             limit=limit,
+            **scope_params,
             **filter_params,
         )
 
@@ -127,21 +133,25 @@ class _Neo4jEntityMixin:
         Args:
             uri: Full URI of the entity.
             predicates: Optional list of predicate URIs to restrict output.
-            ontology: Accepted for protocol conformance; ignored in Neo4j.
-                # TODO(E4): scope by _ontology node property.
+            ontology: Ontology id to scope lookup, or None for all (union).
 
         Returns:
             EntityResult with all properties and relationships.
 
         Raises:
-            KeyError: If the entity does not exist.
+            KeyError: If the entity does not exist (or is outside the scope).
         """
         await self._ensure_prefix_map()
 
+        scope_frag, scope_params = ontology_scope_filter(ontology, node_alias="n")
+        # When scoped, verify the entity belongs to the requested ontology.
+        where_clause = f"WHERE {scope_frag}" if scope_frag else ""
+
         # Fetch node properties + outgoing relationships + rdf:type
         rows = await self._run(
-            """
-            MATCH (n:Resource {uri: $uri})
+            f"""
+            MATCH (n:Resource {{uri: $uri}})
+            {where_clause}
             OPTIONAL MATCH (n)-[rel]->(neighbor:Resource)
             RETURN
                 n AS node,
@@ -150,6 +160,7 @@ class _Neo4jEntityMixin:
                 neighbor.rdfs__label AS neighbor_label
             """,
             uri=uri,
+            **scope_params,
         )
 
         if not rows:
@@ -210,18 +221,20 @@ class _Neo4jEntityMixin:
         Args:
             class_uri: Full URI of the target class.
             filters: Optional filter conditions.
-            ontology: Accepted for protocol conformance; ignored in Neo4j.
-                # TODO(E4): scope by _ontology node property.
+            ontology: Ontology id to scope results, or None for all (union).
 
         Returns:
             Number of matching instances.
         """
         await self._ensure_prefix_map()
 
+        scope_frag, scope_params = ontology_scope_filter(ontology, node_alias="inst")
         filter_where, filter_params = _build_filter_cypher(
             filters or [], self._shorten_prefixed
         )
-        where_clause = "WHERE " + filter_where if filter_where else ""
+
+        where_parts = [p for p in [scope_frag, filter_where] if p]
+        where_clause = "WHERE " + " AND ".join(where_parts) if where_parts else ""
 
         rows = await self._run(
             f"""
@@ -231,6 +244,7 @@ class _Neo4jEntityMixin:
             RETURN count(DISTINCT inst) AS cnt
             """,
             class_uri=class_uri,
+            **scope_params,
             **filter_params,
         )
         return rows[0]["cnt"] if rows else 0
@@ -251,13 +265,16 @@ class _Neo4jEntityMixin:
             class_uri: Class to aggregate over.
             group_by: Property URI to group by.
             agg: Aggregation function.
-            ontology: Accepted for protocol conformance; ignored in Neo4j.
-                # TODO(E4): scope by _ontology node property.
+            ontology: Ontology id to scope results, or None for all (union).
 
         Returns:
             List of group_value → result pairs sorted by result descending.
         """
         await self._ensure_prefix_map()
+
+        scope_frag, scope_params = ontology_scope_filter(ontology, node_alias="inst")
+        # Append scope filter after the MATCH chains using WHERE (or AND).
+        scope_where = f"WHERE {scope_frag}" if scope_frag else ""
 
         # Validate the shortened identifier before any backtick interpolation
         # (used both as a relationship type and as a property key below).
@@ -270,24 +287,31 @@ class _Neo4jEntityMixin:
             MATCH (inst:Resource)-[:rdf__type]->(c:Resource)
                   -[:rdfs__subClassOf*0..{_MAX_SUBCLASS_DEPTH}]->(:Resource {{uri: $class_uri}})
             MATCH (inst)-[:`{short_prop}`]->(grpNode:Resource)
+            {scope_where}
             RETURN grpNode.uri AS grpVal, {agg_expr} AS result
             ORDER BY result DESC
             """,
             class_uri=class_uri,
+            **scope_params,
         )
 
         if not rows:
             # Fall back to literal property aggregation
+            lit_where_parts = [f"inst.`{short_prop}` IS NOT NULL"]
+            if scope_frag:
+                lit_where_parts.append(scope_frag)
+            lit_where = "WHERE " + " AND ".join(lit_where_parts)
             rows = await self._run(
                 f"""
                 MATCH (inst:Resource)-[:rdf__type]->(c:Resource)
                       -[:rdfs__subClassOf*0..{_MAX_SUBCLASS_DEPTH}]->(:Resource {{uri: $class_uri}})
-                WHERE inst.`{short_prop}` IS NOT NULL
+                {lit_where}
                 WITH inst, inst.`{short_prop}`[0] AS grpVal
                 RETURN grpVal, {agg_expr} AS result
                 ORDER BY result DESC
                 """,
                 class_uri=class_uri,
+                **scope_params,
             )
 
         out: list[AggregateResult] = []

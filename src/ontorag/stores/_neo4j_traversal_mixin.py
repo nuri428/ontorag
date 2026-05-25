@@ -12,6 +12,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from ontorag.core.cypher import _safe_rel
+from ontorag.stores._neo4j_scope import ontology_scope_filter
 from ontorag.stores._neo4j_values import first_scalar
 from ontorag.stores.base import EntityFilter, TraversalDirection, TraversalResult
 
@@ -47,8 +48,7 @@ class _Neo4jTraversalMixin:
             predicate: Predicate URI to follow; None = all predicates.
             max_depth: Maximum depth (hard limit: 6).
             direction: outgoing, incoming, or both.
-            ontology: Accepted for protocol conformance; ignored in Neo4j.
-                # TODO(E4): scope by _ontology node property.
+            ontology: Ontology id to scope neighbor nodes, or None for all.
 
         Returns:
             TraversalResult with nodes and edges reachable from start_uri.
@@ -56,18 +56,25 @@ class _Neo4jTraversalMixin:
         await self._ensure_prefix_map()
         max_depth = min(max_depth, _MAX_DEPTH_HARD)
 
+        scope_frag, scope_params = ontology_scope_filter(
+            ontology, node_alias="neighbor"
+        )
+        # Combine with the existing neighbor.uri <> $start_uri filter.
+        scope_and = f" AND {scope_frag}" if scope_frag else ""
+
         rel_pattern = _rel_pattern(predicate, max_depth, direction, self._shorten_prefixed)
 
         rows = await self._run(
             f"""
             MATCH (start:Resource {{uri: $start_uri}}){rel_pattern}(neighbor:Resource)
-            WHERE neighbor.uri <> $start_uri
+            WHERE neighbor.uri <> $start_uri{scope_and}
             RETURN DISTINCT
                 start.uri AS src_uri,
                 neighbor.uri AS tgt_uri
             LIMIT 500
             """,
             start_uri=start_uri,
+            **scope_params,
         )
 
         if not rows:
@@ -133,12 +140,15 @@ class _Neo4jTraversalMixin:
     ) -> TraversalResult:
         """Find the shortest path between two entities using Cypher shortestPath.
 
+        When ``ontology`` is not None, both endpoint nodes must carry that id
+        in their ``_ontology`` list; if either is absent the method returns an
+        empty result (consistent with scoped semantics).
+
         Args:
             uri_a: Starting entity URI.
             uri_b: Target entity URI.
             max_depth: Maximum path length (hard limit: 6).
-            ontology: Accepted for protocol conformance; ignored in Neo4j.
-                # TODO(E4): scope by _ontology node property.
+            ontology: Ontology id to scope endpoint nodes, or None for all.
 
         Returns:
             TraversalResult with path nodes and edges, or empty if no path found.
@@ -146,9 +156,26 @@ class _Neo4jTraversalMixin:
         await self._ensure_prefix_map()
         max_depth = min(max_depth, _MAX_DEPTH_HARD)
 
+        scope_frag_a, scope_params_a = ontology_scope_filter(
+            ontology, node_alias="a"
+        )
+        scope_frag_b, scope_params_b = ontology_scope_filter(
+            ontology, node_alias="b"
+        )
+        # Both fragments reference the same param key "ontology_id" — only
+        # pass it once (scope_params_a and scope_params_b are identical when
+        # ontology is not None, so merging is safe).
+        all_scope_params = {**scope_params_a}
+
+        scope_where_parts = [f for f in [scope_frag_a, scope_frag_b] if f]
+        scope_where = (
+            f"WHERE {' AND '.join(scope_where_parts)}" if scope_where_parts else ""
+        )
+
         rows = await self._run(
             f"""
             MATCH (a:Resource {{uri: $uri_a}}), (b:Resource {{uri: $uri_b}})
+            {scope_where}
             MATCH path = shortestPath((a)-[*1..{max_depth}]-(b))
             RETURN
                 [n IN nodes(path) | n.uri] AS node_uris,
@@ -159,6 +186,7 @@ class _Neo4jTraversalMixin:
             """,
             uri_a=uri_a,
             uri_b=uri_b,
+            **all_scope_params,
         )
 
         if not rows:
@@ -216,8 +244,7 @@ class _Neo4jTraversalMixin:
             start_label: Mode 2 — match instance by rdfs:label.
             start_class_uri: Disambiguates Mode 2 or triggers Mode 3 alone.
             limit: Max results.
-            ontology: Accepted for protocol conformance; ignored in Neo4j.
-                # TODO(E4): scope by _ontology node property.
+            ontology: Ontology id to scope start + reached nodes, or None.
 
         Returns:
             List of ``{"uri": str, "label": str | None}`` sorted by URI.
@@ -229,6 +256,21 @@ class _Neo4jTraversalMixin:
                 "property_path_closure requires at least one of "
                 "start_uri / start_label / start_class_uri"
             )
+
+        # Scope filter applied on the start node (restricts which starting
+        # instances are considered) and on reached nodes (output scope).
+        start_scope_frag, start_scope_params = ontology_scope_filter(
+            ontology, node_alias="start"
+        )
+        reached_scope_frag, _ = ontology_scope_filter(
+            ontology, node_alias="reached"
+        )
+        # Both use the same param key "ontology_id" — pass once.
+        scope_params = start_scope_params  # shared key
+
+        # Build WHERE additions for start and reached.
+        start_scope_and = f" AND {start_scope_frag}" if start_scope_frag else ""
+        reached_scope_and = f" AND {reached_scope_frag}" if reached_scope_frag else ""
 
         # Validate the shortened rel-type before any backtick interpolation.
         short_pred = _safe_rel(self._shorten_prefixed(predicate_uri))
@@ -247,6 +289,7 @@ class _Neo4jTraversalMixin:
                 MATCH (start:Resource {{uri: $start_uri}})
                 {type_filter}
                 MATCH (start)-[:`{short_pred}`*1..{_MAX_DEPTH_HARD}]->(reached:Resource)
+                WHERE reached.uri IS NOT NULL{reached_scope_and}
                 RETURN DISTINCT reached.uri AS uri, reached.rdfs__label AS label
                 ORDER BY reached.uri
                 LIMIT $limit
@@ -254,6 +297,7 @@ class _Neo4jTraversalMixin:
                 start_uri=start_uri,
                 start_class_uri=start_class_uri,
                 limit=limit,
+                **scope_params,
             )
         elif start_label:
             # Mode 2: label lookup + closure
@@ -267,7 +311,9 @@ class _Neo4jTraversalMixin:
                     WHERE start.rdfs__label IS NOT NULL
                       AND (start.rdfs__label[0] = $start_label
                            OR toLower(start.rdfs__label[0]) = $label_lower)
+                      {start_scope_and}
                     MATCH (start)-[:`{short_pred}`*1..{_MAX_DEPTH_HARD}]->(reached:Resource)
+                    WHERE reached.uri IS NOT NULL{reached_scope_and}
                     RETURN DISTINCT reached.uri AS uri, reached.rdfs__label AS label
                     ORDER BY reached.uri
                     LIMIT $limit
@@ -276,6 +322,7 @@ class _Neo4jTraversalMixin:
                     start_label=start_label,
                     label_lower=label_lower,
                     limit=limit,
+                    **scope_params,
                 )
             else:
                 rows = await self._run(
@@ -284,7 +331,9 @@ class _Neo4jTraversalMixin:
                     WHERE start.rdfs__label IS NOT NULL
                       AND (start.rdfs__label[0] = $start_label
                            OR toLower(start.rdfs__label[0]) = $label_lower)
+                      {start_scope_and}
                     MATCH (start)-[:`{short_pred}`*1..{_MAX_DEPTH_HARD}]->(reached:Resource)
+                    WHERE reached.uri IS NOT NULL{reached_scope_and}
                     RETURN DISTINCT reached.uri AS uri, reached.rdfs__label AS label
                     ORDER BY reached.uri
                     LIMIT $limit
@@ -292,6 +341,7 @@ class _Neo4jTraversalMixin:
                     start_label=start_label,
                     label_lower=label_lower,
                     limit=limit,
+                    **scope_params,
                 )
         else:
             # Mode 3: class-wide closure
@@ -299,13 +349,16 @@ class _Neo4jTraversalMixin:
                 f"""
                 MATCH (start:Resource)-[:rdf__type]->(c:Resource)
                       -[:rdfs__subClassOf*0..{_MAX_DEPTH_HARD}]->(:Resource {{uri: $start_class_uri}})
+                WHERE start.uri IS NOT NULL{start_scope_and}
                 MATCH (start)-[:`{short_pred}`*1..{_MAX_DEPTH_HARD}]->(reached:Resource)
+                WHERE reached.uri IS NOT NULL{reached_scope_and}
                 RETURN DISTINCT reached.uri AS uri, reached.rdfs__label AS label
                 ORDER BY reached.uri
                 LIMIT $limit
                 """,
                 start_class_uri=start_class_uri,
                 limit=limit,
+                **scope_params,
             )
 
         return [
@@ -336,8 +389,7 @@ class _Neo4jTraversalMixin:
             filters_a: Optional filters for subject entities.
             filters_b: Optional filters for object entities.
             limit: Maximum result pairs.
-            ontology: Accepted for protocol conformance; ignored in Neo4j.
-                # TODO(E4): scope by _ontology node property.
+            ontology: Ontology id to scope both entity sides, or None for all.
 
         Returns:
             List of {entity_a: dict, entity_b: dict} pairs.
@@ -349,6 +401,12 @@ class _Neo4jTraversalMixin:
         from ontorag.stores._neo4j_entity_mixin import (  # noqa: PLC0415
             _build_filter_cypher,
         )
+
+        scope_frag_a, scope_params = ontology_scope_filter(
+            ontology, node_alias="a"
+        )
+        scope_frag_b, _ = ontology_scope_filter(ontology, node_alias="b")
+        # Both fragments share the same "ontology_id" param key — pass once.
 
         # Build filter conditions for a and b separately
         fa_where, fa_params = _build_filter_cypher(
@@ -368,17 +426,14 @@ class _Neo4jTraversalMixin:
             if f"${old_k}" in fb_where:
                 fb_where = fb_where.replace(f"${old_k}", f"$fb_{old_k}")
 
-        where_parts = []
-        if fa_where:
-            where_parts.append(fa_where)
-        if fb_where:
-            where_parts.append(fb_where)
+        where_parts = [p for p in [scope_frag_a, scope_frag_b, fa_where, fb_where] if p]
         where_clause = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
 
         all_params: dict[str, Any] = {
             "class_uri_a": class_uri_a,
             "class_uri_b": class_uri_b,
             "limit": limit,
+            **scope_params,
             **fa_params_renamed,
             **fb_params_renamed,
         }

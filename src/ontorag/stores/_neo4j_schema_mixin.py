@@ -13,6 +13,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from ontorag.core.sparql import STANDARD_PREFIXES
+from ontorag.stores._neo4j_scope import ontology_scope_filter
 from ontorag.stores._neo4j_values import first_scalar as _first_value
 from ontorag.stores.base import (
     ClassDetail,
@@ -58,18 +59,37 @@ class _Neo4jSchemaMixin:
     ) -> SchemaResult:
         """Return compact schema overview: class hierarchy + property counts.
 
+        When ``ontology`` is not None, only TBox nodes (classes and properties)
+        tagged with that id are returned; ``ontology=None`` returns all (union).
+        Instance counts are also scoped to the given ontology.
+
         Args:
-            ontology: Accepted for protocol conformance; ignored in Neo4j.
-                # TODO(E4): scope by _ontology node property.
+            ontology: Ontology id to scope the schema view, or None for all.
 
         Returns:
             SchemaResult with classes, properties, and namespace mapping.
         """
         await self._ensure_prefix_map()
 
+        # Build scope clauses for class (c), property (p), and instance (inst)
+        # node aliases.  All filters are bound params via ontology_scope_filter.
+        cls_scope_frag, cls_scope_params = ontology_scope_filter(ontology, "c")
+        prop_scope_frag, prop_scope_params = ontology_scope_filter(ontology, "p")
+        inst_scope_frag, inst_scope_params = ontology_scope_filter(ontology, "inst")
+
+        cls_where = f"WHERE {cls_scope_frag}" if cls_scope_frag else ""
+        prop_where = (
+            f"WHERE t.uri IN $prop_types AND {prop_scope_frag}"
+            if prop_scope_frag
+            else "WHERE t.uri IN $prop_types"
+        )
+        inst_where_extra = f" AND {inst_scope_frag}" if inst_scope_frag else ""
+
         cls_rows, prop_rows, inst_rows = await asyncio.gather(
-            self._run("""
+            self._run(
+                f"""
                 MATCH (c:owl__Class)
+                {cls_where}
                 OPTIONAL MATCH (c)-[:rdfs__subClassOf]->(parent:Resource)
                 RETURN DISTINCT
                     c.uri AS uri,
@@ -77,14 +97,17 @@ class _Neo4jSchemaMixin:
                     parent.uri AS parent_uri,
                     c.rdfs__comment AS comment
                 ORDER BY c.uri
-            """),
-            self._run("""
+                """,
+                **cls_scope_params,
+            ),
+            self._run(
+                f"""
                 MATCH (p:Resource)-[:rdf__type]->(t:Resource)
-                WHERE t.uri IN $prop_types
+                {prop_where}
                 OPTIONAL MATCH (p)-[:rdfs__domain]->(d:Resource)
                 OPTIONAL MATCH (p)-[:rdfs__range]->(r:Resource)
                 OPTIONAL MATCH (p)-[:owl__inverseOf]->(inv:Resource)
-                OPTIONAL MATCH (p)-[:rdf__type]->(trans:Resource {uri: $transitive_uri})
+                OPTIONAL MATCH (p)-[:rdf__type]->(trans:Resource {{uri: $transitive_uri}})
                 RETURN DISTINCT
                     p.uri AS uri,
                     p.rdfs__label AS label,
@@ -95,16 +118,21 @@ class _Neo4jSchemaMixin:
                     p.rdfs__comment AS comment,
                     CASE WHEN trans IS NOT NULL THEN true ELSE false END AS is_transitive
                 ORDER BY p.uri
-            """,
+                """,
                 prop_types=_PROP_TYPE_URIS,
                 transitive_uri=_TRANSITIVE_URI,
+                **prop_scope_params,
             ),
-            self._run("""
+            self._run(
+                f"""
                 MATCH (inst:Resource)-[:rdf__type]->(c:owl__Class)
                 WHERE NOT (c:owl__ObjectProperty OR c:owl__DatatypeProperty
                            OR c:owl__AnnotationProperty OR c:owl__Ontology)
+                {inst_where_extra}
                 RETURN c.uri AS class_uri, count(DISTINCT inst) AS cnt
-            """),
+                """,
+                **inst_scope_params,
+            ),
         )
 
         inst_count: dict[str, int] = {
@@ -209,10 +237,14 @@ class _Neo4jSchemaMixin:
     ) -> ClassDetail:
         """Return full TBox detail for a single ontology class.
 
+        Instance counts and sample instances are scoped to the given ontology
+        when not None.  The class node itself is returned regardless of its
+        ``_ontology`` tag — the class definition is in the TBox which may be
+        shared; only ABox instance counts are scoped.
+
         Args:
             class_uri: Full URI of the class.
-            ontology: Accepted for protocol conformance; ignored in Neo4j.
-                # TODO(E4): scope by _ontology node property.
+            ontology: Ontology id to scope instance counts, or None for all.
 
         Returns:
             ClassDetail with properties, hierarchy, and sample instances.
@@ -221,6 +253,12 @@ class _Neo4jSchemaMixin:
             KeyError: If the class does not exist in the store.
         """
         await self._ensure_prefix_map()
+
+        # Build instance scope filter for count and sample queries.
+        inst_scope_frag, inst_scope_params = ontology_scope_filter(
+            ontology, node_alias="inst"
+        )
+        inst_scope_and = f" AND {inst_scope_frag}" if inst_scope_frag else ""
 
         # Explicit existence probe (review #9): a real leaf class with no
         # label/comment/parent/children/props/instances must NOT be reported
@@ -260,11 +298,16 @@ class _Neo4jSchemaMixin:
                 MATCH (child:Resource)-[:rdfs__subClassOf]->(c:Resource {uri: $uri})
                 RETURN DISTINCT child.uri AS child_uri
             """, uri=class_uri),
-            self._run("""
-                MATCH (inst:Resource)-[:rdf__type]->(c:Resource {uri: $uri})
+            self._run(
+                f"""
+                MATCH (inst:Resource)-[:rdf__type]->(c:Resource {{uri: $uri}})
+                WHERE inst.uri IS NOT NULL{inst_scope_and}
                 RETURN DISTINCT inst.uri AS uri
                 LIMIT 3
-            """, uri=class_uri),
+                """,
+                uri=class_uri,
+                **inst_scope_params,
+            ),
         )
 
         # Existence already confirmed above (review #9) — no emptiness check
@@ -307,9 +350,11 @@ class _Neo4jSchemaMixin:
             f"""
             MATCH (inst:Resource)-[:rdf__type]->(c:Resource)
                   -[:rdfs__subClassOf*0..{_MAX_SUBCLASS_DEPTH}]->(:Resource {{uri: $uri}})
+            WHERE inst.uri IS NOT NULL{inst_scope_and}
             RETURN count(DISTINCT inst) AS cnt
             """,
             uri=class_uri,
+            **inst_scope_params,
         )
         inst_count = cnt_rows[0]["cnt"] if cnt_rows else 0
 

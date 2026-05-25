@@ -18,6 +18,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from ontorag.core.cypher import _safe_rel
+from ontorag.stores._neo4j_scope import ontology_scope_filter
 from ontorag.stores._neo4j_values import first_scalar
 from ontorag.stores.base import SearchHit
 
@@ -237,8 +238,7 @@ class _Neo4jSearchMixin:
             query: Lucene query string (e.g. "Pikachu" or "pika*").
             class_uri: Optional full URI of a class to restrict results to.
             limit: Maximum number of hits to return (default 20, max 200).
-            ontology: Accepted for protocol conformance; ignored in Neo4j.
-                # TODO(E4): scope by _ontology node property.
+            ontology: Ontology id to scope results, or None for all (union).
 
         Returns:
             List of SearchHit ordered by BM25 score descending.
@@ -268,7 +268,7 @@ class _Neo4jSearchMixin:
         from ontorag.stores.neo4j import _TBOX_TYPE_URIS  # noqa: PLC0415
 
         try:
-            rows = await self._query_index(query, class_uri, internal_limit)
+            rows = await self._query_index(query, class_uri, internal_limit, ontology)
         except Exception as exc:
             # Defensive: a race (index dropped/repopulating between the guard
             # and the query) must not surface as a 500.
@@ -340,6 +340,7 @@ class _Neo4jSearchMixin:
         query: str,
         class_uri: str | None,
         internal_limit: int,
+        ontology: str | None = None,
     ) -> list[dict[str, Any]]:
         """Run the full-text query, returning raw (possibly duplicated) rows.
 
@@ -350,11 +351,15 @@ class _Neo4jSearchMixin:
             query: Lucene query string (bound, never interpolated).
             class_uri: Optional class URI for subClassOf-aware filtering.
             internal_limit: Over-fetch cap applied in Cypher before Python dedup.
+            ontology: Optional ontology id to scope hits by ``_ontology`` tag.
 
         Returns:
             Raw result rows (uri, raw_label, cls_uri, score). A node may appear
             multiple times when it has multiple rdf:type edges.
         """
+        scope_frag, scope_params = ontology_scope_filter(ontology, node_alias="node")
+        scope_and = f" AND {scope_frag}" if scope_frag else ""
+
         if class_uri is not None:
             # Subclass-aware filter: node must be an instance of class_uri or any subclass.
             cypher = f"""
@@ -362,6 +367,7 @@ class _Neo4jSearchMixin:
               YIELD node, score
             WHERE node:Resource
               AND (node)-[:rdf__type]->()-[:rdfs__subClassOf*0..{_MAX_DEPTH_HARD}]->(:Resource {{uri: $class_uri}})
+              {scope_and}
             OPTIONAL MATCH (node)-[:rdf__type]->(cls:Resource)
             RETURN
               node.uri AS uri,
@@ -377,12 +383,13 @@ class _Neo4jSearchMixin:
                 search_query=query,
                 class_uri=class_uri,
                 limit=internal_limit,
+                **scope_params,
             )
 
-        cypher = """
+        cypher = f"""
         CALL db.index.fulltext.queryNodes($index_name, $search_query)
           YIELD node, score
-        WHERE node:Resource
+        WHERE node:Resource{scope_and}
         OPTIONAL MATCH (node)-[:rdf__type]->(cls:Resource)
         RETURN
           node.uri AS uri,
@@ -397,4 +404,5 @@ class _Neo4jSearchMixin:
             index_name=_FULLTEXT_INDEX_NAME,
             search_query=query,
             limit=internal_limit,
+            **scope_params,
         )
