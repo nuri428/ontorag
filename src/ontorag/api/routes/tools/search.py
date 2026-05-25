@@ -36,7 +36,7 @@ class SearchTextRequest(BaseModel):
 @router.post(
     "/search/text",
     operation_id="search_text",
-    summary="BM25 전문 검색 — 온톨로지 인스턴스에 대한 키워드/Lucene 검색 (Neo4j 전용)",
+    summary="BM25 전문 검색 — 온톨로지 인스턴스에 대한 키워드/Lucene 검색 (Fuseki + Neo4j)",
     response_model=list[SearchHit],
 )
 async def search_text(
@@ -45,13 +45,18 @@ async def search_text(
 ) -> list[SearchHit]:
     """Search ontology instance data using BM25 full-text (Lucene) scoring.
 
-    Only available when ``GRAPH_STORE=neo4j`` — returns 501 for Fuseki.
-    Results are ordered by BM25 relevance score (higher = more relevant).
+    Available on both backends:
+      - ``GRAPH_STORE=fuseki``: jena-text (Lucene) index over indexed predicates
+        (``rdfs:label``, ``rdfs:comment``, ``skos:prefLabel``, ``skos:definition``).
+      - ``GRAPH_STORE=neo4j``: Neo4j full-text index over all string-valued properties.
+
+    Returns 501 when the active backend does not expose ``search_text``.
+    Results are ordered by Lucene relevance score (higher = more relevant).
 
     Args:
-        body.query: Lucene query string (e.g. "Pikachu", "pika*").
+        body.query: Lucene query string (e.g. "Pikachu", "pika*", "피카츄").
         body.class_uri: Optional class URI to restrict results to that class
-            and its subclasses.
+            and its subclasses (rdfs:subClassOf inference included).
         body.limit: Maximum number of results (1–200, default 20).
 
     Returns:
@@ -60,7 +65,7 @@ async def search_text(
     Raises:
         HTTPException: 501 if the active backend does not support full-text search.
     """
-    # Capability guard: only Neo4j exposes search_text.
+    # Capability guard: dispatch only when the backend exposes search_text.
     fn = getattr(store, "search_text", None)
     if fn is None:
         raise HTTPException(
@@ -69,7 +74,7 @@ async def search_text(
                 "Full-text search is not supported by the active graph store "
                 f"({type(store).__name__}). "
                 "This endpoint requires a backend with full-text search "
-                "(GRAPH_STORE=neo4j)."
+                "(GRAPH_STORE=fuseki or GRAPH_STORE=neo4j)."
             ),
         )
 
