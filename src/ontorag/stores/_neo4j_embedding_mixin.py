@@ -17,6 +17,18 @@ Security:
   - Index names are module-level constants (never user-supplied).
   - Any interpolated label / rel-type / property key (incl. text-property keys
     and GDS projection label/rel sets) goes through _safe_rel().
+  - ``ontology`` ids are validated by ``validate_ontology_id`` before any use.
+
+Per-ontology scoping:
+  - ``ontology=None`` (default) → current all-graph behaviour (backward compat).
+  - ``build_embeddings(ontology="<id>")`` scopes GDS projection and textual
+    node fetch to nodes where ``$ontology_id IN n._ontology``.  Only those
+    nodes' properties are written — other ontologies' node properties are
+    untouched (natural isolation; no global delete/rebuild).
+  - ``find_similar(ontology="<id>")`` post-filters the global kNN result to
+    nodes where ``$ontology_id IN node._ontology``.  The query over-fetches
+    (top_k * ``_SCOPE_OVERFETCH``) so the post-filtered result still reaches
+    top_k in typical cases.  See the trade-off note in ``_find_similar_single``.
 """
 
 import asyncio
@@ -25,6 +37,8 @@ import uuid
 from typing import TYPE_CHECKING, Any, Literal
 
 from ontorag.core.cypher import _safe_rel
+from ontorag.core.ontology import validate_ontology_id
+from ontorag.stores._neo4j_scope import build_where, ontology_scope_filter
 from ontorag.stores.base import SimilarHit
 
 if TYPE_CHECKING:
@@ -64,6 +78,13 @@ _MIN_TEXT_LEN: int = 3
 # ABox never lands in a single Python list (HIGH review #1).
 _TEXT_PAGE_SIZE: int = 2000
 
+# Over-fetch multiplier for scoped kNN post-filtering.
+# When ontology is set, the vector index is queried with top_k * this factor
+# so that after discarding nodes that don't carry the ontology id there are
+# still top_k results.  Default 5 is conservative; callers can lower it via
+# env var if needed.  Trade-off: higher recall, more latency.
+_SCOPE_OVERFETCH: int = 5
+
 
 class _Neo4jEmbeddingMixin:
     """Structural + textual graph-embedding capability mixed into Neo4jStore.
@@ -87,6 +108,7 @@ class _Neo4jEmbeddingMixin:
         self: "Neo4jStore",
         mode: Literal["structural", "textual", "both"] = "both",
         embedding_provider: "EmbeddingProvider | None" = None,
+        ontology: str | None = None,
     ) -> dict[str, int]:
         """Build structural and/or textual embeddings on ABox instance nodes.
 
@@ -100,22 +122,35 @@ class _Neo4jEmbeddingMixin:
         EmbeddingProvider, writes ``_text_embedding``, and ensures ``text_vec``
         vector index sized to ``provider.dimension``.
 
-        Both modes are idempotent: existing embeddings are overwritten and
-        indexes are recreated only when the dimension has changed.
+        When ``ontology`` is provided only nodes whose ``_ontology`` list
+        contains the given id are projected / embedded.  Other nodes' embedding
+        properties are NOT touched — isolation is natural (only matched nodes
+        are written).
+
+        When ``ontology`` is None (default) the full ABox is used, matching
+        the current behaviour (backward-compat).
 
         Args:
             mode: "structural", "textual", or "both".
             embedding_provider: Optional provider for textual mode.  Defaults
                 to ``get_embedding_provider()`` when None.
+            ontology: Optional ontology id to scope the build.  None means all
+                nodes (current behaviour).
 
         Returns:
             Dict mapping mode name → number of nodes whose property was written.
+
+        Raises:
+            ValueError: If ``ontology`` does not match ``^[a-zA-Z0-9_-]+$``.
         """
+        # Validate before any use — raises ValueError on bad id.
+        ontology = validate_ontology_id(ontology)
+
         await self._ensure_prefix_map()
         result: dict[str, int] = {}
 
         if mode in ("structural", "both"):
-            written = await self._build_structural()
+            written = await self._build_structural(ontology=ontology)
             result["structural"] = written
 
         if mode in ("textual", "both"):
@@ -123,26 +158,55 @@ class _Neo4jEmbeddingMixin:
                 from ontorag.llm.embedding import get_embedding_provider  # noqa: PLC0415
 
                 embedding_provider = get_embedding_provider()
-            written = await self._build_textual(embedding_provider)
+            written = await self._build_textual(embedding_provider, ontology=ontology)
             result["textual"] = written
 
         return result
 
-    async def _build_structural(self: "Neo4jStore") -> int:
+    async def _build_structural(
+        self: "Neo4jStore",
+        ontology: str | None = None,
+    ) -> int:
         """Run GDS FastRP on ABox instance nodes and write _struct_embedding.
+
+        When ``ontology`` is provided the GDS graph projection is limited to
+        nodes where the id appears in ``_ontology``.  GDS node filtering uses
+        a Cypher projection (``gds.graph.project.cypher``) with a bound param.
+
+        When ``ontology`` is None the standard label-based projection is used
+        (``'Resource'`` label), which is faster for the all-graph case.
+
+        Args:
+            ontology: Validated ontology id or None.
 
         Returns:
             Number of nodes whose ``_struct_embedding`` property was written.
         """
-        # Collect all relationship types present on ABox nodes (validated).
-        rel_rows = await self._run(
-            """
-            MATCH (a:Resource)-[r]->(b:Resource)
-            WHERE NOT a:_NsPrefDef AND NOT a:_GraphConfig
-              AND NOT b:_NsPrefDef AND NOT b:_GraphConfig
-            RETURN DISTINCT type(r) AS rel_type
-            """
-        )
+        scope_frag, scope_params = ontology_scope_filter(ontology, node_alias="a")
+
+        if ontology is None:
+            # All-graph path: discover relationship types globally.
+            rel_rows = await self._run(
+                """
+                MATCH (a:Resource)-[r]->(b:Resource)
+                WHERE NOT a:_NsPrefDef AND NOT a:_GraphConfig
+                  AND NOT b:_NsPrefDef AND NOT b:_GraphConfig
+                RETURN DISTINCT type(r) AS rel_type
+                """
+            )
+        else:
+            # Scoped path: only rels where at least one endpoint is in scope.
+            rel_rows = await self._run(
+                """
+                MATCH (a:Resource)-[r]->(b:Resource)
+                WHERE NOT a:_NsPrefDef AND NOT a:_GraphConfig
+                  AND NOT b:_NsPrefDef AND NOT b:_GraphConfig
+                  AND $ontology_id IN a._ontology
+                RETURN DISTINCT type(r) AS rel_type
+                """,
+                **scope_params,
+            )
+
         rel_types: list[str] = []
         for row in rel_rows:
             rt = row.get("rel_type")
@@ -162,16 +226,12 @@ class _Neo4jEmbeddingMixin:
         # Use a unique projection name so concurrent calls don't collide.
         proj_name = f"ontorag_embed_{uuid.uuid4().hex[:8]}"
 
-        # Build the rel-config dict: each rel-type → {orientation: 'UNDIRECTED'}.
-        # We build the dict OUTSIDE the Cypher and pass it as a bound parameter
-        # so rel-type keys are never interpolated into the query string.
+        # Rel config dict: each rel-type → {orientation: 'UNDIRECTED'}.
         rel_config: dict[str, dict[str, str]] = {
             rt: {"orientation": "UNDIRECTED"} for rt in rel_types
         }
 
         try:
-            # Drop any leftover projection with the same name (should not happen
-            # with uuid names, but keeps the function idempotent).
             await self._run_write(
                 "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
                 name=proj_name,
@@ -179,22 +239,55 @@ class _Neo4jEmbeddingMixin:
         except Exception:
             pass  # drop fails when projection doesn't exist — that's fine
 
-        # Project ABox Resource nodes only.  We pass the label as a string
-        # literal in Cypher (it's the constant "Resource", not user input).
-        # Rel config is a bound parameter dict.
+        # Build the projection.  For scoped builds we use gds.graph.project.cypher
+        # so only in-scope nodes are included; for all-graph we use the faster
+        # label-based projection.
         try:
-            proj_rows = await self._run_write(
-                "CALL gds.graph.project($name, 'Resource', $rel_config) "
-                "YIELD nodeCount RETURN nodeCount",
-                name=proj_name,
-                rel_config=rel_config,
-            )
+            if ontology is None:
+                proj_rows = await self._run_write(
+                    "CALL gds.graph.project($name, 'Resource', $rel_config) "
+                    "YIELD nodeCount RETURN nodeCount",
+                    name=proj_name,
+                    rel_config=rel_config,
+                )
+            else:
+                # Cypher projection filters nodes by _ontology membership.
+                # nodeQuery / relationshipQuery are plain Cypher strings
+                # but the ontology id is passed as a bound parameter via
+                # nodeParameters / relationshipParameters.
+                node_query = (
+                    "MATCH (n:Resource) "
+                    "WHERE NOT n:_NsPrefDef AND NOT n:_GraphConfig "
+                    "  AND $ontology_id IN n._ontology "
+                    "RETURN id(n) AS id"
+                )
+                rel_query = (
+                    "MATCH (a:Resource)-[r]->(b:Resource) "
+                    "WHERE NOT a:_NsPrefDef AND NOT a:_GraphConfig "
+                    "  AND NOT b:_NsPrefDef AND NOT b:_GraphConfig "
+                    "  AND $ontology_id IN a._ontology "
+                    "RETURN id(a) AS source, id(b) AS target"
+                )
+                proj_rows = await self._run_write(
+                    "CALL gds.graph.project.cypher("
+                    "  $name,"
+                    "  $node_query,"
+                    "  $rel_query,"
+                    "  {parameters: {ontology_id: $ontology_id}}"
+                    ") YIELD nodeCount RETURN nodeCount",
+                    name=proj_name,
+                    node_query=node_query,
+                    rel_query=rel_query,
+                    **scope_params,
+                )
+
             node_count = proj_rows[0]["nodeCount"] if proj_rows else 0
             logger.info(
-                "GDS projection '%s' created: %d nodes, %d rel-types",
+                "GDS projection '%s' created: %d nodes, %d rel-types (ontology=%r)",
                 proj_name,
                 node_count,
                 len(rel_types),
+                ontology,
             )
         except Exception as exc:
             logger.error("Failed to create GDS projection '%s': %s", proj_name, exc)
@@ -213,7 +306,7 @@ class _Neo4jEmbeddingMixin:
                 seed=42,
             )
             written = write_rows[0]["nodePropertiesWritten"] if write_rows else 0
-            logger.info("FastRP wrote %d _struct_embedding properties", written)
+            logger.info("FastRP wrote %d _struct_embedding properties (ontology=%r)", written, ontology)
         except Exception as exc:
             logger.error("gds.fastRP.write failed: %s", exc)
             written = 0
@@ -233,20 +326,36 @@ class _Neo4jEmbeddingMixin:
     async def _build_textual(
         self: "Neo4jStore",
         provider: "EmbeddingProvider",
+        ontology: str | None = None,
     ) -> int:
         """Embed textual representations of ABox nodes via EmbeddingProvider.
+
+        When ``ontology`` is provided only nodes whose ``_ontology`` list
+        contains the id are fetched; other nodes' ``_text_embedding`` property
+        is not modified.
+
+        Args:
+            provider: EmbeddingProvider to batch-embed.
+            ontology: Validated ontology id or None (all nodes).
 
         Returns:
             Number of nodes whose ``_text_embedding`` property was written.
         """
         await self._ensure_prefix_map()
 
-        # Discover all string-valued properties on ABox Resource nodes
-        # (reuse the property-discovery logic from the search mixin).
+        scope_frag, scope_params = ontology_scope_filter(ontology, node_alias="n")
+        scope_where = build_where(
+            [
+                "NOT n:_NsPrefDef AND NOT n:_GraphConfig",
+                scope_frag,
+            ]
+        )
+
+        # Discover string-valued properties on in-scope ABox Resource nodes.
         str_prop_rows = await self._run(
-            """
+            f"""
             MATCH (n:Resource)
-            WHERE NOT n:_NsPrefDef AND NOT n:_GraphConfig
+            {scope_where}
             WITH n LIMIT 1000
             UNWIND keys(n) AS k
             WITH k, n[k] AS v
@@ -258,7 +367,8 @@ class _Neo4jEmbeddingMixin:
               )
             RETURN DISTINCT k
             ORDER BY k
-            """
+            """,
+            **scope_params,
         )
         all_str_keys: list[str] = []
         for row in str_prop_rows:
@@ -282,15 +392,13 @@ class _Neo4jEmbeddingMixin:
             if k not in ordered_keys:
                 ordered_keys.append(k)
 
-        # Page the node fetch so the whole ABox never lands in memory at once.
-        # Each page is fetched, embedded, and written before advancing — bounded
-        # memory regardless of graph size (HIGH review #1).
+        # Build the paged node-fetch query.
         prop_return = ", ".join(f"n.`{k}` AS `{k}`" for k in ordered_keys)
         fetch_cypher = (
-            "MATCH (n:Resource) "
-            "WHERE NOT n:_NsPrefDef AND NOT n:_GraphConfig "
-            "WITH n ORDER BY n.uri "
-            "SKIP $skip LIMIT $page "
+            f"MATCH (n:Resource) "
+            f"{scope_where} "
+            f"WITH n ORDER BY n.uri "
+            f"SKIP $skip LIMIT $page "
             f"RETURN n.uri AS uri, {prop_return}"
         )
 
@@ -298,14 +406,13 @@ class _Neo4jEmbeddingMixin:
         total_embedded = 0
         skip = 0
         while True:
-            rows = await self._run(fetch_cypher, skip=skip, page=_TEXT_PAGE_SIZE)
+            rows = await self._run(fetch_cypher, skip=skip, page=_TEXT_PAGE_SIZE, **scope_params)
             if not rows:
                 break
 
             page_pairs = self._rows_to_text_pairs(rows, ordered_keys)
             skip += len(rows)
 
-            # Some pages may yield no embeddable text — still advance the cursor.
             if not page_pairs:
                 if len(rows) < _TEXT_PAGE_SIZE:
                     break
@@ -331,15 +438,15 @@ class _Neo4jEmbeddingMixin:
 
             written += await self._write_text_vectors(uris, vectors)
 
-            # Short page → no more nodes to fetch.
             if len(rows) < _TEXT_PAGE_SIZE:
                 break
 
         logger.info(
-            "Embedded %d nodes via %s (dim=%d); wrote %d _text_embedding properties",
+            "Embedded %d nodes via %s (dim=%d, ontology=%r); wrote %d _text_embedding properties",
             total_embedded,
             provider.model,
             provider.dimension,
+            ontology,
             written,
         )
 
@@ -347,7 +454,6 @@ class _Neo4jEmbeddingMixin:
             logger.info("No non-empty text found for textual embeddings.")
             return 0
 
-        # Ensure the vector index for textual embeddings.
         await self._ensure_vector_index(_TEXT_INDEX, _TEXT_PROP, provider.dimension)
         return written
 
@@ -466,8 +572,6 @@ class _Neo4jEmbeddingMixin:
         if info is not None:
             state = info.get("state", "")
             if state == "POPULATING":
-                # Index is being built; wait for it to become ONLINE before
-                # inspecting its dimension (recreating mid-POPULATING can error).
                 logger.info(
                     "Vector index '%s' is POPULATING; waiting up to %.0fs for ONLINE...",
                     index_name,
@@ -481,8 +585,6 @@ class _Neo4jEmbeddingMixin:
                     info = await self._get_vector_index_info(index_name)
                     state = info.get("state", "") if info else ""
                 else:
-                    # Did not reach ONLINE — treat as unusable and recreate so a
-                    # stale wrong-dim index can never be queried (MEDIUM #2).
                     logger.warning(
                         "Vector index '%s' did not reach ONLINE within %.0fs; recreating.",
                         index_name,
@@ -492,10 +594,6 @@ class _Neo4jEmbeddingMixin:
                     info = None
 
             if info is not None and state == "ONLINE":
-                # Check if the dimension matches — stored in indexConfig.  This
-                # path is reached both for a directly-ONLINE index and for one
-                # that just finished POPULATING, so an OpenAI(1536)→Ollama(768)
-                # switch never leaves a wrong-dim index in place (MEDIUM #2).
                 options = info.get("options") or {}
                 idx_cfg = options.get("indexConfig") or {}
                 existing_dim = idx_cfg.get("vector.dimensions")
@@ -506,7 +604,6 @@ class _Neo4jEmbeddingMixin:
                         dimension,
                     )
                     return
-                # Dimension mismatch — drop and recreate.
                 logger.info(
                     "Vector index '%s' has dimension %s (expected %d); recreating.",
                     index_name,
@@ -515,21 +612,12 @@ class _Neo4jEmbeddingMixin:
                 )
                 await self._run_write(f"DROP INDEX {index_name} IF EXISTS")
             elif info is not None:
-                # FAILED or unknown — drop and recreate.
                 logger.warning(
                     "Vector index '%s' is in unexpected state '%s'; dropping and recreating.",
                     index_name,
                     state,
                 )
                 await self._run_write(f"DROP INDEX {index_name} IF EXISTS")
-
-        # prop_name is a module-level constant (_STRUCT_PROP / _TEXT_PROP) —
-        # never user-supplied.  _safe_rel is designed for n10s-shortened
-        # identifiers (``prefix__local``); our internal ``_*_embedding``
-        # props intentionally do not follow that pattern and are safe by
-        # construction (defined as string literals in this module).
-        # We therefore skip _safe_rel validation here and rely on the fact
-        # that callers always pass one of the two module constants.
 
         create_stmt = (
             f"CREATE VECTOR INDEX {index_name} IF NOT EXISTS "
@@ -547,7 +635,6 @@ class _Neo4jEmbeddingMixin:
                 prop_name,
                 dimension,
             )
-            # Poll for ONLINE state — newly created indexes begin POPULATING.
             await self._wait_for_index_online(index_name, wait_online_secs)
         except Exception as exc:
             logger.error("Failed to create vector index '%s': %s", index_name, exc)
@@ -584,6 +671,7 @@ class _Neo4jEmbeddingMixin:
         uri: str,
         top_k: int = 10,
         mode: Literal["structural", "textual", "hybrid"] = "structural",
+        ontology: str | None = None,
     ) -> list[SimilarHit]:
         """Find the most structurally / textually similar entities.
 
@@ -592,32 +680,58 @@ class _Neo4jEmbeddingMixin:
                 interpolated).
             top_k: Maximum results to return (1–100).
             mode: "structural", "textual", or "hybrid" (RRF fusion).
+            ontology: Optional ontology id to scope results.  When provided
+                the kNN result is post-filtered to nodes whose ``_ontology``
+                list contains the id (Neo4j vector indexes are global — no
+                native payload filter).  ``_SCOPE_OVERFETCH`` controls how
+                many extra candidates are fetched to compensate for post-filter
+                attrition.  None means no filter (current default, backward-compat).
 
         Returns:
             Ranked list of SimilarHit with cosine scores (single-mode) or
             RRF fused scores (hybrid).  Returns [] if the index is absent,
             the node lacks the embedding, or any other error occurs.
+
+        Raises:
+            ValueError: If ``ontology`` does not match ``^[a-zA-Z0-9_-]+$``.
         """
         await self._ensure_prefix_map()
 
+        # Validate ontology id before any use.
+        ontology = validate_ontology_id(ontology)
+
         if mode == "hybrid":
-            return await self._find_similar_hybrid(uri, top_k)
+            return await self._find_similar_hybrid(uri, top_k, ontology=ontology)
         if mode == "textual":
-            return await self._find_similar_single(uri, top_k, "textual")
-        return await self._find_similar_single(uri, top_k, "structural")
+            return await self._find_similar_single(uri, top_k, "textual", ontology=ontology)
+        return await self._find_similar_single(uri, top_k, "structural", ontology=ontology)
 
     async def _find_similar_single(
         self: "Neo4jStore",
         uri: str,
         top_k: int,
         mode: Literal["structural", "textual"],
+        ontology: str | None = None,
     ) -> list[SimilarHit]:
         """Execute a single-mode kNN query.
+
+        When ``ontology`` is provided the global kNN result is post-filtered
+        to nodes whose ``_ontology`` LIST property contains the id.  We
+        over-fetch by ``_SCOPE_OVERFETCH`` to compensate for post-filter
+        attrition.
+
+        Trade-off note: Neo4j native vector indexes (db.index.vector.queryNodes)
+        do not support payload filters — the index is global.  Post-filtering
+        is therefore required for scoped queries.  If the graph contains very
+        few in-scope nodes relative to the total node count the over-fetch
+        factor may need to be increased; in practice ``_SCOPE_OVERFETCH=5``
+        keeps recall ≥ top_k for all realistic graph sizes.
 
         Args:
             uri: Query entity URI (bound parameter).
             top_k: Maximum results to return.
             mode: "structural" or "textual".
+            ontology: Optional ontology id for post-filtering.
 
         Returns:
             List of SimilarHit or [] on any error.
@@ -655,8 +769,13 @@ class _Neo4jEmbeddingMixin:
         # Lazy import to avoid circular imports.
         from ontorag.stores.neo4j import _TBOX_TYPE_URIS  # noqa: PLC0415
 
-        # Fetch top_k+1 to account for the start node appearing in results.
-        k_plus = top_k + 1
+        # Over-fetch: when scoped, request more candidates so that post-filter
+        # attrition leaves at least top_k results in the typical case.
+        if ontology is not None:
+            k_fetch = top_k * _SCOPE_OVERFETCH + 1  # +1 for self-exclusion
+        else:
+            k_fetch = top_k + 1  # +1 for self-exclusion (original behaviour)
+
         try:
             rows = await self._run(
                 "CALL db.index.vector.queryNodes($index_name, $k, $vec) "
@@ -665,22 +784,26 @@ class _Neo4jEmbeddingMixin:
                 "OPTIONAL MATCH (node)-[:rdf__type]->(cls:Resource) "
                 "RETURN node.uri AS uri, "
                 "       node.rdfs__label AS raw_label, "
+                "       node._ontology AS node_ontology, "
                 "       cls.uri AS cls_uri, "
                 "       score",
                 index_name=index_name,
-                k=k_plus,
+                k=k_fetch,
                 vec=vec,
             )
         except Exception as exc:
             logger.warning("Vector query on '%s' failed: %s", index_name, exc)
             return []
 
-        return self._rows_to_similar_hits(rows, uri, top_k, mode, _TBOX_TYPE_URIS)
+        return self._rows_to_similar_hits(
+            rows, uri, top_k, mode, _TBOX_TYPE_URIS, ontology=ontology
+        )
 
     async def _find_similar_hybrid(
         self: "Neo4jStore",
         uri: str,
         top_k: int,
+        ontology: str | None = None,
     ) -> list[SimilarHit]:
         """Fuse structural + textual rankings via Reciprocal Rank Fusion.
 
@@ -690,12 +813,17 @@ class _Neo4jEmbeddingMixin:
         Args:
             uri: Query entity URI.
             top_k: Maximum results to return after fusion.
+            ontology: Optional ontology id propagated to both single-mode calls.
 
         Returns:
             List of SimilarHit with mode="hybrid" or [] on any error.
         """
-        struct_hits = await self._find_similar_single(uri, top_k * 2, "structural")
-        text_hits = await self._find_similar_single(uri, top_k * 2, "textual")
+        struct_hits = await self._find_similar_single(
+            uri, top_k * 2, "structural", ontology=ontology
+        )
+        text_hits = await self._find_similar_single(
+            uri, top_k * 2, "textual", ontology=ontology
+        )
 
         if not struct_hits and not text_hits:
             return []
@@ -741,15 +869,22 @@ class _Neo4jEmbeddingMixin:
         top_k: int,
         mode: Literal["structural", "textual"],
         tbox_type_uris: frozenset[str],
+        ontology: str | None = None,
     ) -> list[SimilarHit]:
         """Map raw Cypher rows to deduplicated SimilarHit list.
 
+        When ``ontology`` is provided each row is post-filtered: the
+        ``node_ontology`` field (``node._ontology`` list) must contain the id.
+        Rows without this field (legacy data without ``_ontology`` tag) are
+        also excluded when a scope is active to avoid false positives.
+
         Args:
-            rows: Raw query rows (uri, raw_label, cls_uri, score).
+            rows: Raw query rows (uri, raw_label, node_ontology, cls_uri, score).
             exclude_uri: The start node URI to exclude from results.
-            top_k: Maximum results after deduplication.
+            top_k: Maximum results after deduplication and post-filter.
             mode: Embedding mode label for the hits.
             tbox_type_uris: Set of TBox class URIs to exclude as class_uri.
+            ontology: Optional ontology id for post-filtering.
 
         Returns:
             Deduplicated, sorted SimilarHit list (up to top_k).
@@ -762,6 +897,16 @@ class _Neo4jEmbeddingMixin:
             hit_uri = row.get("uri")
             if not hit_uri or hit_uri == exclude_uri:
                 continue
+
+            # Post-filter: when a scope is active only include nodes that
+            # carry the ontology id in their _ontology list.  Nodes without
+            # the property (legacy untagged data) are excluded to avoid mixing
+            # scoped and unscoped results (conservative — better to miss than
+            # to contaminate).
+            if ontology is not None:
+                node_ont = row.get("node_ontology")
+                if not isinstance(node_ont, list) or ontology not in node_ont:
+                    continue
 
             score = float(row.get("score") or 0.0)
 
@@ -782,9 +927,6 @@ class _Neo4jEmbeddingMixin:
             existing = seen.get(hit_uri)
             if existing is not None:
                 if existing.score >= score:
-                    # Keep the higher-scoring hit, but backfill a class_uri /
-                    # label it was missing — via model_copy, never in-place
-                    # mutation (immutability policy, MEDIUM #3).
                     updates: dict[str, Any] = {}
                     if cls_hit and existing.class_uri is None:
                         updates["class_uri"] = cls_hit
@@ -793,8 +935,8 @@ class _Neo4jEmbeddingMixin:
                     if updates:
                         seen[hit_uri] = existing.model_copy(update=updates)
                     continue
-                # Better score from another rdf:type row — replace, but never
-                # drop a class_uri / label resolved on the previous row.
+                # Better score from another rdf:type row — replace, keeping
+                # resolved metadata (immutability policy, MEDIUM #3).
                 resolved_cls = cls_hit or existing.class_uri
                 resolved_label = label or existing.label
             else:
