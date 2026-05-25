@@ -1,0 +1,93 @@
+# Fuseki assembler config — jena-text (Lucene) full-text index over TDB2
+# Replaces the --mem flag so the dataset persists between container restarts
+# and the text:TextDataset wrapper enables text:query in SPARQL.
+#
+# Named graphs used by ontorag:
+#   urn:ontorag:schema  → TBox (class/property declarations)
+#   urn:ontorag:data    → ABox (instance data)
+#
+# Indexed predicates (combined into one "text" field):
+#   rdfs:label, rdfs:comment, skos:prefLabel, skos:definition
+# These cover the standard annotation properties used across ontologies.
+# Domain-specific predicates (e.g. pk:name) are NOT indexed here because
+# the assembler requires a static predicate list — unlike Neo4j which
+# discovers text properties dynamically after every load_rdf.
+
+@prefix :       <#> .
+@prefix fuseki: <http://jena.apache.org/fuseki#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix tdb2:   <http://jena.apache.org/2016/tdb#> .
+@prefix ja:     <http://jena.hpl.hp.com/2005/11/Assembler#> .
+@prefix text:   <http://jena.apache.org/text#> .
+@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
+
+# Server declaration — required for --config startup
+[] rdf:type fuseki:Server ;
+   fuseki:services ( :service ) .
+
+# ── Service ───────────────────────────────────────────────────────────────────
+
+:service rdf:type fuseki:Service ;
+    fuseki:name "ontorag" ;
+
+    # Default endpoints (no path name) used by GSP and plain SPARQL clients
+    fuseki:endpoint [ fuseki:operation fuseki:query ] ;
+    fuseki:endpoint [ fuseki:operation fuseki:update ] ;
+    fuseki:endpoint [ fuseki:operation fuseki:gsp-rw ] ;
+
+    # Named endpoints for clients that use explicit paths
+    fuseki:endpoint [ fuseki:name "sparql" ;  fuseki:operation fuseki:query ] ;
+    fuseki:endpoint [ fuseki:name "query" ;   fuseki:operation fuseki:query ] ;
+    fuseki:endpoint [ fuseki:name "update" ;  fuseki:operation fuseki:update ] ;
+    fuseki:endpoint [ fuseki:name "data" ;    fuseki:operation fuseki:gsp-rw ] ;
+    fuseki:endpoint [ fuseki:name "get" ;     fuseki:operation fuseki:gsp-r ] ;
+
+    fuseki:dataset :textDataset .
+
+# ── Dataset: text:TextDataset wrapping TDB2 ──────────────────────────────────
+
+:textDataset rdf:type text:TextDataset ;
+    text:dataset :tdb ;
+    text:index   :luceneIndex .
+
+# ── TDB2 persistent store ─────────────────────────────────────────────────────
+
+:tdb rdf:type tdb2:DatasetTDB2 ;
+    tdb2:location "/fuseki/databases/ontorag" ;
+    # unionDefaultGraph makes queries without GRAPH <...> hit all named graphs.
+    # ontorag always uses explicit GRAPH <urn:ontorag:schema> / GRAPH <urn:ontorag:data>
+    # so this is safe and avoids surprises on the default graph.
+    tdb2:unionDefaultGraph true .
+
+# ── Lucene text index ─────────────────────────────────────────────────────────
+
+:luceneIndex rdf:type text:TextIndexLucene ;
+    text:directory "/fuseki/databases/ontorag-lucene" ;
+    # storeValues=true: the indexed value is stored in Lucene so text:query
+    # can return the matched literal without a second SPARQL triple fetch.
+    text:storeValues true ;
+    # graphField="graph": stored so multi-graph datasets can filter by named graph.
+    text:entityMap :entityMap .
+
+# ── Entity map: which predicates are indexed ──────────────────────────────────
+
+:entityMap rdf:type text:EntityMap ;
+    # entityField: the Lucene field that stores the subject URI.
+    text:entityField "uri" ;
+    # defaultField: the field queried by bare text:query calls (no field name).
+    text:defaultField "text" ;
+    # uidField: internal dedup field (Lucene document ID).
+    text:uidField "uid" ;
+    # graphField: enables per-graph filtering in the Lucene index.
+    text:graphField "graph" ;
+    text:map (
+        # rdfs:label — primary human-readable name (Korean + English in pokemon)
+        [ text:field "text" ; text:predicate rdfs:label ]
+        # rdfs:comment — natural-language description on classes/instances
+        [ text:field "text" ; text:predicate rdfs:comment ]
+        # skos:prefLabel — preferred label in SKOS vocabularies
+        [ text:field "text" ; text:predicate skos:prefLabel ]
+        # skos:definition — SKOS class/concept definition text
+        [ text:field "text" ; text:predicate skos:definition ]
+    ) .
