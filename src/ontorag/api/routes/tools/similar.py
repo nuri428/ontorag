@@ -17,7 +17,8 @@ class FindSimilarRequest(BaseModel):
     uri: str = Field(
         description=(
             "Full URI of the query entity.  "
-            "Passed as a bound parameter — never interpolated into Cypher."
+            "Validated via uri_ref(); injection-safe for both SPARQL (Fuseki) "
+            "and Cypher (Neo4j)."
         )
     )
     top_k: int = Field(
@@ -29,7 +30,7 @@ class FindSimilarRequest(BaseModel):
     mode: Literal["structural", "textual", "hybrid"] = Field(
         default="structural",
         description=(
-            "Embedding mode: 'structural' (GDS FastRP graph topology), "
+            "Embedding mode: 'structural' (FastRP graph topology), "
             "'textual' (EmbeddingProvider semantic), or "
             "'hybrid' (RRF fusion of both)."
         ),

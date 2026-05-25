@@ -42,7 +42,7 @@ app.add_typer(dump_app, name="dump")
 
 app.add_typer(eval_app, name="eval")
 
-embed_app = typer.Typer(help="그래프 임베딩을 생성합니다 (Neo4j 전용).")
+embed_app = typer.Typer(help="그래프 임베딩을 생성합니다 (Fuseki+Qdrant 또는 Neo4j).")
 app.add_typer(embed_app, name="embed")
 
 
