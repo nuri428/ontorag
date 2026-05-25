@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from ontorag.stores._qdrant import QdrantWrapper
 
 from ontorag.core.loader import detect_mode, parse_rdf
+from ontorag.core.ontology import data_graph_uri, schema_graph_uri, validate_ontology_id
 from ontorag.core.sparql import STANDARD_PREFIXES, pattern_to_sparql, uri_ref
 from ontorag.stores._entity_mixin import _EntityMixin
 from ontorag.stores._fuseki_embedding_mixin import _FusekiEmbeddingMixin
@@ -30,8 +31,48 @@ from ontorag.stores.base import (
 
 logger = logging.getLogger(__name__)
 
+# Legacy default graph URIs — kept as module constants for backward-compat
+# imports in tests and external code.  All internal logic uses the helpers
+# from ontorag.core.ontology instead.
 SCHEMA_GRAPH_URI = "urn:ontorag:schema"
 DATA_GRAPH_URI = "urn:ontorag:data"
+
+
+def _scoped_graph(ontology: str | None, kind: str) -> str | None:
+    """Return the named-graph URI for a given ontology scope and graph kind.
+
+    Args:
+        ontology: Validated ontology id or None (union/default).
+        kind: "schema" or "data".
+
+    Returns:
+        The named-graph URI string, or None when ontology is None (meaning
+        queries should use the union default graph — no GRAPH wrapper).
+    """
+    if ontology is None:
+        # None → union default graph (no GRAPH wrapper in SPARQL).
+        # tdb2:unionDefaultGraph true makes the default graph the union of
+        # all named graphs, preserving backward compatibility.
+        return None
+    if kind == "schema":
+        return schema_graph_uri(ontology)
+    return data_graph_uri(ontology)
+
+
+def _graph_clause(graph_uri: str | None, body: str) -> str:
+    """Wrap *body* in a GRAPH clause if graph_uri is not None, else return as-is.
+
+    Args:
+        graph_uri: Named-graph URI or None (→ default/union graph).
+        body: SPARQL graph pattern body (the part inside { }).
+
+    Returns:
+        Either ``GRAPH <uri> { <body> }`` or just ``{ <body> }`` (for
+        union-default queries).
+    """
+    if graph_uri is None:
+        return f"{{ {body} }}"
+    return f"GRAPH <{graph_uri}> {{ {body} }}"
 
 
 class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _TraversalMixin):
@@ -175,26 +216,41 @@ class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _Trav
         return g
 
     async def clear_graph(
-        self, target: Literal["schema", "data", "all"]
+        self,
+        target: Literal["schema", "data", "all"],
+        ontology: str | None = None,
     ) -> dict[str, int]:
         """Drop one or both named graphs and return how many triples were removed.
 
+        When ontology=None (default), clears the legacy default graphs only
+        (urn:ontorag:schema / urn:ontorag:data) — existing behaviour unchanged.
+        When ontology="<id>", clears only the per-ontology graph pair
+        (urn:ontorag:<id>:schema / :data) — the default graphs are not touched.
+
         Args:
             target: "schema" clears TBox, "data" clears ABox, "all" clears both.
+            ontology: Ontology id slug or None for the default graph pair.
 
         Returns:
             Dict mapping graph name → triples removed before deletion.
+
+        Raises:
+            ValueError: If ontology id fails validation.
         """
+        ontology = validate_ontology_id(ontology)
         await self._ensure_dataset()
         removed: dict[str, int] = {}
 
+        target_schema = schema_graph_uri(ontology)
+        target_data = data_graph_uri(ontology)
+
         if target in ("schema", "all"):
-            removed["schema"] = await self._count_graph(SCHEMA_GRAPH_URI)
-            await self._gsp_delete(SCHEMA_GRAPH_URI)
+            removed["schema"] = await self._count_graph(target_schema)
+            await self._gsp_delete(target_schema)
 
         if target in ("data", "all"):
-            removed["data"] = await self._count_graph(DATA_GRAPH_URI)
-            await self._gsp_delete(DATA_GRAPH_URI)
+            removed["data"] = await self._count_graph(target_data)
+            await self._gsp_delete(target_data)
 
         return removed
 
@@ -286,26 +342,36 @@ class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _Trav
         path: str,
         mode: Literal["schema", "data", "auto"] = "auto",
         replace: bool = False,
+        ontology: str | None = None,
     ) -> LoadResult:
         """Parse an RDF file and upload it to the appropriate named graph.
 
-        Schema (TBox) → PUT urn:ontorag:schema (always replaces; one canonical schema).
-        Data (ABox)   → POST urn:ontorag:data (appends by default).
-                        Pass replace=True to DROP the existing data graph first.
+        Schema (TBox) → PUT to the schema graph for the given ontology scope.
+        Data (ABox)   → POST (or PUT if replace=True) to the data graph.
+
+        When ontology=None (default), loads into the legacy default graphs
+        (urn:ontorag:schema / urn:ontorag:data), preserving backward compat.
+        When ontology="<id>", loads into urn:ontorag:<id>:schema / :data.
 
         Args:
             path: Local file path (TTL, JSON-LD, RDF/XML, N3).
             mode: "schema", "data", or "auto" (auto-detects from content).
             replace: If True and mode is "data", replaces the entire data graph
                      instead of appending. Ignored for schema (always replaced).
+            ontology: Ontology id slug (``^[a-zA-Z0-9_-]+$``) or None for the
+                default/legacy graph pair.
 
         Returns:
-            LoadResult with triple count and resolved mode.
+            LoadResult with triple count, resolved mode, and ontology id.
 
         Raises:
             FileNotFoundError: If the file does not exist.
+            ValueError: If ontology id fails validation.
             httpx.HTTPStatusError: If Fuseki returns an error.
         """
+        # Validate before any IO to fail fast on bad ids.
+        ontology = validate_ontology_id(ontology)
+
         graph = parse_rdf(path)  # raises FileNotFoundError early if missing
         triple_count = len(graph)
         await self._ensure_dataset()
@@ -320,23 +386,29 @@ class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _Trav
             detect_mode(graph) if mode == "auto" else mode  # type: ignore[assignment]
         )
 
+        # Resolve target graph URIs using the ontology helpers.
+        target_schema = schema_graph_uri(ontology)
+        target_data = data_graph_uri(ontology)
+
         if resolved_mode == "schema" or replace:
             await self._gsp_put(
-                graph, SCHEMA_GRAPH_URI if resolved_mode == "schema" else DATA_GRAPH_URI
+                graph, target_schema if resolved_mode == "schema" else target_data
             )
         else:
-            await self._gsp_post(graph, DATA_GRAPH_URI)
+            await self._gsp_post(graph, target_data)
 
         logger.info(
-            "Loaded %d triples (%s) into %s",
+            "Loaded %d triples (%s) into %s (ontology=%r)",
             triple_count,
             resolved_mode,
             self._dataset,
+            ontology,
         )
         return LoadResult(
             triples_loaded=triple_count,
             source=path,
             mode=resolved_mode,
+            ontology=ontology,
         )
 
     # ── Status ────────────────────────────────────────────────────────────────
@@ -370,8 +442,19 @@ class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _Trav
 
     # ── Layer 1 tools ────────────────────────────────────────────────────────
 
-    async def get_schema(self) -> SchemaResult:
-        """Return compact schema overview: class hierarchy + property counts only."""
+    async def get_schema(self, ontology: str | None = None) -> SchemaResult:
+        """Return compact schema overview: class hierarchy + property counts only.
+
+        Args:
+            ontology: Ontology id for scoped query, or None for union (all ontologies).
+
+        Returns:
+            Compact SchemaResult (~30 tokens per class).
+        """
+        ontology = validate_ontology_id(ontology)
+        schema_g = _scoped_graph(ontology, "schema")
+        data_g = _scoped_graph(ontology, "data")
+
         prefixes = (
             "PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
             "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
@@ -379,66 +462,67 @@ class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _Trav
         )
 
         # 1. All classes with optional label + parent (owl:Class + rdfs:Class)
+        # NOTE: single braces here — this is a plain string, not an f-string.
+        cls_body = """{ ?class a owl:Class . } UNION { ?class a rdfs:Class . }
+    OPTIONAL {
+      ?class rdfs:label ?label .
+      FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "en"))
+    }
+    OPTIONAL {
+      ?class rdfs:subClassOf ?parent .
+      FILTER(!isBlank(?parent) && ?parent != owl:Thing)
+    }
+    OPTIONAL {
+      { ?class rdfs:comment ?comment . }
+      UNION
+      { ?class skos:definition ?comment . }
+      FILTER(LANG(?comment) = "" || LANGMATCHES(LANG(?comment), "en"))
+    }"""
         cls_query = (
             prefixes
             + f"""
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 SELECT DISTINCT ?class ?label ?parent ?comment
 WHERE {{
-  GRAPH <{SCHEMA_GRAPH_URI}> {{
-    {{ ?class a owl:Class . }} UNION {{ ?class a rdfs:Class . }}
-    OPTIONAL {{
-      ?class rdfs:label ?label .
-      FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "en"))
-    }}
-    OPTIONAL {{
-      ?class rdfs:subClassOf ?parent .
-      FILTER(!isBlank(?parent) && ?parent != owl:Thing)
-    }}
-    OPTIONAL {{
-      {{ ?class rdfs:comment ?comment . }}
-      UNION
-      {{ ?class skos:definition ?comment . }}
-      FILTER(LANG(?comment) = "" || LANGMATCHES(LANG(?comment), "en"))
-    }}
-  }}
+  {_graph_clause(schema_g, cls_body)}
 }}
 ORDER BY STR(?class)
 """
         )
 
         # 2. Property count per domain class + OWL metadata (transitive / inverse)
+        # NOTE: single braces — plain string, not an f-string.
+        prop_body = """VALUES ?propType { owl:ObjectProperty owl:DatatypeProperty owl:AnnotationProperty }
+    ?prop a ?propType .
+    OPTIONAL { ?prop rdfs:domain ?domain . FILTER(!isBlank(?domain)) }
+    OPTIONAL { ?prop rdfs:label ?label .
+               FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "en")) }
+    OPTIONAL { ?prop rdfs:range ?range . FILTER(!isBlank(?range)) }
+    OPTIONAL {
+      { ?prop rdfs:comment ?comment . }
+      UNION
+      { ?prop <http://www.w3.org/2004/02/skos/core#definition> ?comment . }
+      FILTER(LANG(?comment) = "" || LANGMATCHES(LANG(?comment), "en"))
+    }
+    OPTIONAL { ?prop a owl:TransitiveProperty . BIND(true AS ?isTransitive) }
+    OPTIONAL { ?prop owl:inverseOf ?inverse . FILTER(!isBlank(?inverse)) }"""
         prop_query = (
             prefixes
             + f"""
 SELECT DISTINCT ?prop ?domain ?propType ?label ?range ?isTransitive ?inverse ?comment
 WHERE {{
-  GRAPH <{SCHEMA_GRAPH_URI}> {{
-    VALUES ?propType {{ owl:ObjectProperty owl:DatatypeProperty owl:AnnotationProperty }}
-    ?prop a ?propType .
-    OPTIONAL {{ ?prop rdfs:domain ?domain . FILTER(!isBlank(?domain)) }}
-    OPTIONAL {{ ?prop rdfs:label ?label .
-               FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "en")) }}
-    OPTIONAL {{ ?prop rdfs:range ?range . FILTER(!isBlank(?range)) }}
-    OPTIONAL {{
-      {{ ?prop rdfs:comment ?comment . }}
-      UNION
-      {{ ?prop <http://www.w3.org/2004/02/skos/core#definition> ?comment . }}
-      FILTER(LANG(?comment) = "" || LANGMATCHES(LANG(?comment), "en"))
-    }}
-    OPTIONAL {{ ?prop a owl:TransitiveProperty . BIND(true AS ?isTransitive) }}
-    OPTIONAL {{ ?prop owl:inverseOf ?inverse . FILTER(!isBlank(?inverse)) }}
-  }}
+  {_graph_clause(schema_g, prop_body)}
 }}
 ORDER BY STR(?prop)
 """
         )
 
         # 3. Instance count per class
+        inst_body = "?inst a ?class ."
         inst_query = f"""
 SELECT ?class (COUNT(DISTINCT ?inst) AS ?count)
 WHERE {{
-  GRAPH <{DATA_GRAPH_URI}> {{ ?inst a ?class . }}
+  {_graph_clause(data_g, inst_body)}
 }}
 GROUP BY ?class
 """
@@ -571,15 +655,23 @@ GROUP BY ?class
             properties=all_properties,
         )
 
-    async def get_class_detail(self, class_uri: str) -> ClassDetail:
+    async def get_class_detail(
+        self, class_uri: str, ontology: str | None = None
+    ) -> ClassDetail:
         """Return full TBox detail for one class (properties, hierarchy, instances).
 
         Args:
             class_uri: Full URI of the class (e.g. http://xmlns.com/foaf/0.1/Person).
+            ontology: Ontology id for scoped query, or None for union (all ontologies).
 
         Raises:
-            ValueError: If class_uri contains characters that would enable SPARQL injection.
+            ValueError: If class_uri contains injection characters, or ontology id
+                is invalid.
         """
+        ontology = validate_ontology_id(ontology)
+        schema_g = _scoped_graph(ontology, "schema")
+        data_g = _scoped_graph(ontology, "data")
+
         # Reject angle brackets before SPARQL interpolation — breaks out of <URI> quoting.
         if ">" in class_uri or "<" in class_uri:
             raise ValueError(
@@ -594,51 +686,54 @@ GROUP BY ?class
         )
 
         # Class label and description
+        meta_body = (
+            f"OPTIONAL {{ {safe_uri} rdfs:label ?label .\n"
+            f'               FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "en")) }}\n'
+            f"    OPTIONAL {{ {safe_uri} rdfs:comment ?description .\n"
+            f'               FILTER(LANG(?description) = "" || LANGMATCHES(LANG(?description), "en")) }}\n'
+            f"    OPTIONAL {{ {safe_uri} rdfs:subClassOf ?parent .\n"
+            f"               FILTER(!isBlank(?parent) && ?parent != owl:Thing) }}"
+        )
         meta_query = (
             prefixes
             + f"""
 SELECT ?label ?description ?parent
 WHERE {{
-  GRAPH <{SCHEMA_GRAPH_URI}> {{
-    OPTIONAL {{ {safe_uri} rdfs:label ?label .
-               FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "en")) }}
-    OPTIONAL {{ {safe_uri} rdfs:comment ?description .
-               FILTER(LANG(?description) = "" || LANGMATCHES(LANG(?description), "en")) }}
-    OPTIONAL {{ {safe_uri} rdfs:subClassOf ?parent .
-               FILTER(!isBlank(?parent) && ?parent != owl:Thing) }}
-  }}
+  {_graph_clause(schema_g, meta_body)}
 }}
 """
         )
 
         # Properties with this class as domain
+        prop_body = (
+            f"VALUES ?propType {{ owl:ObjectProperty owl:DatatypeProperty owl:AnnotationProperty }}\n"
+            f"    ?prop a ?propType ; rdfs:domain {safe_uri} .\n"
+            f"    OPTIONAL {{ ?prop rdfs:label ?label .\n"
+            f'               FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "en")) }}\n'
+            f"    OPTIONAL {{ ?prop rdfs:range ?range . FILTER(!isBlank(?range)) }}"
+        )
         prop_query = (
             prefixes
             + f"""
 SELECT DISTINCT ?prop ?propType ?label ?range
 WHERE {{
-  GRAPH <{SCHEMA_GRAPH_URI}> {{
-    VALUES ?propType {{ owl:ObjectProperty owl:DatatypeProperty owl:AnnotationProperty }}
-    ?prop a ?propType ; rdfs:domain {safe_uri} .
-    OPTIONAL {{ ?prop rdfs:label ?label .
-               FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "en")) }}
-    OPTIONAL {{ ?prop rdfs:range ?range . FILTER(!isBlank(?range)) }}
-  }}
+  {_graph_clause(schema_g, prop_body)}
 }}
 ORDER BY STR(?prop)
 """
         )
 
         # Child classes
+        children_body = (
+            f"?child rdfs:subClassOf {safe_uri} .\n"
+            f"    FILTER(?child != {safe_uri})"
+        )
         children_query = (
             prefixes
             + f"""
 SELECT DISTINCT ?child
 WHERE {{
-  GRAPH <{SCHEMA_GRAPH_URI}> {{
-    ?child rdfs:subClassOf {safe_uri} .
-    FILTER(?child != {safe_uri})
-  }}
+  {_graph_clause(schema_g, children_body)}
 }}
 """
         )
@@ -647,14 +742,14 @@ WHERE {{
         inst_query = f"""
 SELECT DISTINCT ?inst
 WHERE {{
-  GRAPH <{DATA_GRAPH_URI}> {{ ?inst a {safe_uri} . }}
+  {_graph_clause(data_g, f"?inst a {safe_uri} .")}
 }}
 LIMIT 3
 """
         inst_count_query = f"""
 SELECT (COUNT(DISTINCT ?inst) AS ?n)
 WHERE {{
-  GRAPH <{DATA_GRAPH_URI}> {{ ?inst a {safe_uri} . }}
+  {_graph_clause(data_g, f"?inst a {safe_uri} .")}
 }}
 """
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from ontorag.core.ontology import data_graph_uri, schema_graph_uri, validate_ontology_id
 from ontorag.core.sparql import (
     STANDARD_PREFIXES,
     build_filter_sparql,
@@ -13,8 +14,40 @@ from ontorag.stores.base import AggFunc, AggregateResult, EntityFilter, EntityRe
 
 logger = logging.getLogger(__name__)
 
+# Legacy defaults used when ontology=None (union default graph via
+# tdb2:unionDefaultGraph true — no GRAPH wrapper in the query).
 _DATA = "urn:ontorag:data"
 _SCHEMA = "urn:ontorag:schema"
+
+
+def _data_clause(data_g: str | None, body: str) -> str:
+    """Wrap body in GRAPH <data_g> { } or just { } for union default.
+
+    Args:
+        data_g: Named-graph URI or None for the union default graph.
+        body: SPARQL graph pattern body.
+
+    Returns:
+        SPARQL graph pattern string.
+    """
+    if data_g is None:
+        return f"{{ {body} }}"
+    return f"GRAPH <{data_g}> {{ {body} }}"
+
+
+def _schema_clause(schema_g: str | None, body: str) -> str:
+    """Wrap body in GRAPH <schema_g> { } or just { } for union default.
+
+    Args:
+        schema_g: Named-graph URI or None for the union default graph.
+        body: SPARQL graph pattern body.
+
+    Returns:
+        SPARQL graph pattern string.
+    """
+    if schema_g is None:
+        return f"{{ {body} }}"
+    return f"GRAPH <{schema_g}> {{ {body} }}"
 
 _AGG_EXPR: dict[AggFunc, str] = {
     AggFunc.count: "COUNT(DISTINCT ?inst)",
@@ -39,8 +72,23 @@ class _EntityMixin:
         class_uri: str,
         filters: list[EntityFilter] | None = None,
         limit: int = 100,
+        ontology: str | None = None,
     ) -> list[EntityResult]:
-        """Find instances of a class with optional filter conditions."""
+        """Find instances of a class with optional filter conditions.
+
+        Args:
+            class_uri: Full URI or prefixed name of the ontology class.
+            filters: Optional list of property-value conditions.
+            limit: Maximum number of results.
+            ontology: Ontology id for scoped query, or None for union.
+
+        Returns:
+            Matching entity list with properties.
+        """
+        ontology = validate_ontology_id(ontology)
+        data_g = data_graph_uri(ontology) if ontology is not None else None
+        schema_g = schema_graph_uri(ontology) if ontology is not None else None
+
         pfx = self._pfx()
         cls = uri_ref(class_uri)
         filter_triples, filter_line = build_filter_sparql(filters or [])
@@ -50,15 +98,21 @@ class _EntityMixin:
         # rdfs:subClassOf in the schema graph, so the path is joined across
         # the two named graphs. The UNION direct-match branch keeps results
         # correct even when no TBox/subClassOf is loaded.
+        #
+        # ontology=None: both patterns use the union default graph (no GRAPH
+        # wrapper) — tdb2:unionDefaultGraph true makes the default graph the
+        # union of all named graphs, backward-compat behavior preserved.
+        # ontology=id: data patterns scoped to data_g, schema to schema_g.
+        data_main = (
+            f"?inst a ?type .\n"
+            f"    OPTIONAL {{ ?inst rdfs:label ?label . }}\n"
+            f"{filter_triples}"
+        )
         uri_query = f"""{pfx}
 SELECT DISTINCT ?inst ?label
 WHERE {{
-  GRAPH <{_DATA}> {{
-    ?inst a ?type .
-    OPTIONAL {{ ?inst rdfs:label ?label . }}
-{filter_triples}
-  }}
-  {{ GRAPH <{_SCHEMA}> {{ ?type rdfs:subClassOf* {cls} . }} }}
+  {_data_clause(data_g, data_main)}
+  {{ {_schema_clause(schema_g, f"?type rdfs:subClassOf* {cls} .")} }}
   UNION
   {{ FILTER(?type = {cls}) }}
 {filter_line}
@@ -73,15 +127,16 @@ LIMIT {limit}"""
 
         # Batch-fetch all properties for found entities (including obj labels for URI values)
         values_block = " ".join(f"<{u}>" for u, _ in uris)
+        prop_body = (
+            f"?inst ?pred ?obj .\n"
+            f"    FILTER(?pred != rdf:type)\n"
+            f"    OPTIONAL {{ ?obj rdfs:label ?objLabel . }}"
+        )
         prop_query = f"""{pfx}
 SELECT ?inst ?pred ?obj ?objLabel
 WHERE {{
   VALUES ?inst {{ {values_block} }}
-  GRAPH <{_DATA}> {{
-    ?inst ?pred ?obj .
-    FILTER(?pred != rdf:type)
-    OPTIONAL {{ ?obj rdfs:label ?objLabel . }}
-  }}
+  {_data_clause(data_g, prop_body)}
 }}"""
         prop_result = await self._sparql_select(prop_query)
 
@@ -122,8 +177,24 @@ WHERE {{
         self,
         uri: str,
         predicates: list[str] | None = None,
+        ontology: str | None = None,
     ) -> EntityResult:
-        """Return all (or selected) properties of an entity."""
+        """Return all (or selected) properties of an entity.
+
+        Args:
+            uri: Full URI of the entity.
+            predicates: Optional list of predicate URIs to restrict output.
+            ontology: Ontology id for scoped query, or None for union.
+
+        Returns:
+            Entity with properties, including rdf:type.
+
+        Raises:
+            KeyError: If the entity does not exist in the store.
+        """
+        ontology = validate_ontology_id(ontology)
+        data_g = data_graph_uri(ontology) if ontology is not None else None
+
         pfx = self._pfx()
         subj = uri_ref(uri)
         values_clause = (
@@ -132,15 +203,16 @@ WHERE {{
             else ""
         )
 
+        inner_body = (
+            f"{subj} ?pred ?obj .\n"
+            f"    OPTIONAL {{ {subj} rdfs:label ?label . }}\n"
+            f"    OPTIONAL {{ ?obj rdfs:label ?objLabel . }}"
+        )
         query = f"""{pfx}
 SELECT ?pred ?obj ?label ?objLabel
 WHERE {{
 {values_clause}
-  GRAPH <{_DATA}> {{
-    {subj} ?pred ?obj .
-    OPTIONAL {{ {subj} rdfs:label ?label . }}
-    OPTIONAL {{ ?obj rdfs:label ?objLabel . }}
-  }}
+  {_data_clause(data_g, inner_body)}
 }}"""
         result = await self._sparql_select(query)
         bindings = result.get("results", {}).get("bindings", [])
@@ -182,21 +254,33 @@ WHERE {{
         self,
         class_uri: str,
         filters: list[EntityFilter] | None = None,
+        ontology: str | None = None,
     ) -> int:
-        """Count instances of a class matching optional filters."""
+        """Count instances of a class matching optional filters.
+
+        Args:
+            class_uri: Full URI or prefixed name of the ontology class.
+            filters: Optional filter conditions.
+            ontology: Ontology id for scoped query, or None for union.
+
+        Returns:
+            Number of matching instances.
+        """
+        ontology = validate_ontology_id(ontology)
+        data_g = data_graph_uri(ontology) if ontology is not None else None
+        schema_g = schema_graph_uri(ontology) if ontology is not None else None
+
         pfx = self._pfx()
         cls = uri_ref(class_uri)
         filter_triples, filter_line = build_filter_sparql(filters or [])
 
         # Subclass-aware count (reasoning parity) — see find_entities.
+        data_main = f"?inst a ?type .\n{filter_triples}"
         query = f"""{pfx}
 SELECT (COUNT(DISTINCT ?inst) AS ?n)
 WHERE {{
-  GRAPH <{_DATA}> {{
-    ?inst a ?type .
-{filter_triples}
-  }}
-  {{ GRAPH <{_SCHEMA}> {{ ?type rdfs:subClassOf* {cls} . }} }}
+  {_data_clause(data_g, data_main)}
+  {{ {_schema_clause(schema_g, f"?type rdfs:subClassOf* {cls} .")} }}
   UNION
   {{ FILTER(?type = {cls}) }}
 {filter_line}
@@ -210,20 +294,32 @@ WHERE {{
         class_uri: str,
         group_by: str,
         agg: AggFunc = AggFunc.count,
+        ontology: str | None = None,
     ) -> list[AggregateResult]:
-        """Group instances by a property and apply an aggregation function."""
+        """Group instances by a property and apply an aggregation function.
+
+        Args:
+            class_uri: Class to aggregate over.
+            group_by: Property URI or prefixed name to group by.
+            agg: Aggregation function (count, sum, avg, min, max).
+            ontology: Ontology id for scoped query, or None for union.
+
+        Returns:
+            List of group_value → aggregated_result pairs.
+        """
+        ontology = validate_ontology_id(ontology)
+        data_g = data_graph_uri(ontology) if ontology is not None else None
+
         pfx = self._pfx()
         cls = uri_ref(class_uri)
         prop = uri_ref(group_by)
         agg_expr = _AGG_EXPR[agg]
 
+        agg_body = f"?inst a {cls} .\n    ?inst {prop} ?group ."
         query = f"""{pfx}
 SELECT ?group ({agg_expr} AS ?result)
 WHERE {{
-  GRAPH <{_DATA}> {{
-    ?inst a {cls} .
-    ?inst {prop} ?group .
-  }}
+  {_data_clause(data_g, agg_body)}
 }}
 GROUP BY ?group
 ORDER BY DESC(?result)"""

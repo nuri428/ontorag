@@ -27,6 +27,7 @@ import logging
 import re
 from typing import TYPE_CHECKING, Any
 
+from ontorag.core.ontology import data_graph_uri, schema_graph_uri, validate_ontology_id
 from ontorag.stores.base import SearchHit
 
 if TYPE_CHECKING:
@@ -34,7 +35,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Named graphs used throughout the ontorag store.
+# Legacy default graph URIs — used when ontology=None (union default graph).
 _DATA = "urn:ontorag:data"
 _SCHEMA = "urn:ontorag:schema"
 
@@ -123,6 +124,7 @@ class _FusekiSearchMixin:
         query: str,
         class_uri: str | None = None,
         limit: int = 20,
+        ontology: str | None = None,
     ) -> list[SearchHit]:
         """Search ontology instance data using jena-text (Lucene) BM25 scoring.
 
@@ -142,6 +144,7 @@ class _FusekiSearchMixin:
             query: Lucene query string (e.g. "피카츄", "pika*").
             class_uri: Optional full URI of a class to restrict results.
             limit: Maximum number of hits to return (default 20, max 200).
+            ontology: Ontology id for scoped query, or None for union.
 
         Returns:
             List of SearchHit ordered by Lucene score descending, or an
@@ -149,9 +152,10 @@ class _FusekiSearchMixin:
 
         Raises:
             ValueError: If the query string is empty or contains only
-                        control characters.
+                        control characters, or ontology id is invalid.
             httpx.HTTPStatusError: If Fuseki returns an HTTP error.
         """
+        ontology = validate_ontology_id(ontology)
         safe_query = _escape_lucene_query_for_sparql(query)
 
         # Over-fetch so deduplication (a node hit for multiple triples)
@@ -159,7 +163,9 @@ class _FusekiSearchMixin:
         internal_limit = max(limit * 5, limit + 50)
 
         try:
-            rows = await self._run_text_query(safe_query, class_uri, internal_limit)
+            rows = await self._run_text_query(
+                safe_query, class_uri, internal_limit, ontology=ontology
+            )
         except Exception as exc:
             logger.warning(
                 "search_text: SPARQL query failed (%s); returning empty results.", exc
@@ -219,6 +225,7 @@ class _FusekiSearchMixin:
         safe_query: str,
         class_uri: str | None,
         internal_limit: int,
+        ontology: str | None = None,
     ) -> list[dict[str, Any]]:
         """Execute the jena-text SPARQL query and return raw result rows.
 
@@ -230,11 +237,28 @@ class _FusekiSearchMixin:
             safe_query: SPARQL-safe (escaped) Lucene query string.
             class_uri: Optional class URI for subClassOf-aware filtering.
             internal_limit: Over-fetch cap before Python-side deduplication.
+            ontology: Validated ontology id or None for union default graph.
 
         Returns:
             Raw SPARQL result bindings (list of dicts).
         """
         from ontorag.core.sparql import uri_ref  # local to break circular import
+
+        # Resolve graph URIs for scoped queries.
+        # ontology=None: no GRAPH wrapper (union default graph).
+        # ontology=id: scope data and schema queries to per-ontology graphs.
+        if ontology is not None:
+            data_g: str | None = data_graph_uri(ontology)
+            schema_g: str | None = schema_graph_uri(ontology)
+        else:
+            data_g = None
+            schema_g = None
+
+        def _g(uri: str | None, body: str) -> str:
+            """Local helper to emit GRAPH <uri> { body } or just { body }."""
+            if uri is None:
+                return f"{{ {body} }}"
+            return f"GRAPH <{uri}> {{ {body} }}"
 
         if class_uri is not None:
             # Validate class_uri — uri_ref raises ValueError on unsafe input.
@@ -244,13 +268,13 @@ PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 SELECT ?inst ?score ?label ?type WHERE {{
   (?inst ?score) text:query ("{safe_query}" {internal_limit}) .
-  GRAPH <{_DATA}> {{ ?inst rdf:type ?itype . }}
-  {{ GRAPH <{_SCHEMA}> {{ ?itype rdfs:subClassOf* {safe_cls} . }} }}
+  {_g(data_g, f"?inst rdf:type ?itype .")}
+  {{ {_g(schema_g, f"?itype rdfs:subClassOf* {safe_cls} .")} }}
   UNION
   {{ FILTER(?itype = {safe_cls}) }}
-  OPTIONAL {{ GRAPH <{_DATA}> {{ ?inst rdfs:label ?label . }} }}
+  OPTIONAL {{ {_g(data_g, "?inst rdfs:label ?label .")} }}
   OPTIONAL {{
-    GRAPH <{_DATA}> {{ ?inst rdf:type ?type . FILTER(!isBlank(?type)) }}
+    {_g(data_g, "?inst rdf:type ?type . FILTER(!isBlank(?type))")}
   }}
 }}
 ORDER BY DESC(?score)
@@ -261,10 +285,10 @@ PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 SELECT ?inst ?score ?label ?type WHERE {{
   (?inst ?score) text:query ("{safe_query}" {internal_limit}) .
-  GRAPH <{_DATA}> {{ ?inst rdf:type ?anytype . }}
-  OPTIONAL {{ GRAPH <{_DATA}> {{ ?inst rdfs:label ?label . }} }}
+  {_g(data_g, "?inst rdf:type ?anytype .")}
+  OPTIONAL {{ {_g(data_g, "?inst rdfs:label ?label .")} }}
   OPTIONAL {{
-    GRAPH <{_DATA}> {{ ?inst rdf:type ?type . FILTER(!isBlank(?type)) }}
+    {_g(data_g, "?inst rdf:type ?type . FILTER(!isBlank(?type))")}
   }}
 }}
 ORDER BY DESC(?score)
