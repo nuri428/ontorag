@@ -11,6 +11,7 @@ from rdflib import Graph
 from ontorag.core.loader import detect_mode, parse_rdf
 from ontorag.core.sparql import STANDARD_PREFIXES, pattern_to_sparql, uri_ref
 from ontorag.stores._entity_mixin import _EntityMixin
+from ontorag.stores._fuseki_embedding_mixin import _FusekiEmbeddingMixin
 from ontorag.stores._fuseki_search_mixin import _FusekiSearchMixin
 from ontorag.stores._traversal_mixin import _TraversalMixin
 from ontorag.stores.base import (
@@ -30,7 +31,7 @@ SCHEMA_GRAPH_URI = "urn:ontorag:schema"
 DATA_GRAPH_URI = "urn:ontorag:data"
 
 
-class FusekiStore(_EntityMixin, _FusekiSearchMixin, _TraversalMixin):
+class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _TraversalMixin):
     """Apache Jena Fuseki graph store adapter.
 
     Uses SPARQL 1.1 endpoints and the RDF Graph Store Protocol (GSP).
@@ -88,10 +89,15 @@ class FusekiStore(_EntityMixin, _FusekiSearchMixin, _TraversalMixin):
         return self._client
 
     async def aclose(self) -> None:
-        """Close the underlying HTTP client and release connections."""
+        """Close the underlying HTTP client and Qdrant client (if created)."""
         if self._client is not None and not self._client.is_closed:
             await self._client.aclose()
             self._client = None
+        # Close the Qdrant client if the embedding mixin ever created one.
+        qdrant = getattr(self, "_qdrant", None)
+        if qdrant is not None:
+            await qdrant.aclose()
+            self._qdrant = None  # type: ignore[assignment]
 
     async def _ensure_dataset(self) -> None:
         """Create the dataset via the admin API if it does not exist.
