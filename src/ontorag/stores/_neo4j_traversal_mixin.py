@@ -523,11 +523,17 @@ def _rel_pattern(
 def _pred_rel_type_filter(
     predicate: str | None, shorten_fn: "callable"  # type: ignore[valid-type]
 ) -> str:
-    """Build single-hop relationship type filter for edge detail query."""
+    """Build single-hop relationship type filter for the edge detail query.
+
+    The caller already supplies the relationship variable and brackets
+    (``-[rel{...}]->``), so this returns only the *type predicate* — a
+    leading-colon type label with NO brackets. Returning ``[:...]`` here
+    would yield the malformed ``-[rel[:...]]->`` (double brackets).
+    """
     if not predicate:
         return ""
     short = _safe_rel(shorten_fn(predicate).replace(":", "__"))
-    return f"[:`{short}`]"
+    return f":`{short}`"
 
 
 async def _enrich_labels(
