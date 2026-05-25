@@ -99,18 +99,24 @@ async def test_load_rdf_raises_for_missing_file(store):
 async def test_status_connected(store):
     ping_resp = _ok_response(200)
 
-    sparql_resp = MagicMock()
-    sparql_resp.status_code = 200
-    sparql_resp.raise_for_status = MagicMock()
-    sparql_resp.json.side_effect = [
-        {"results": {"bindings": [{"n": {"value": "5"}}]}},  # schema count
-        {"results": {"bindings": [{"n": {"value": "10"}}]}},  # data count
-    ]
+    # status() now issues three union COUNT queries (total / schema / data)
+    # against the union default graph (tdb2:unionDefaultGraph) so per-ontology
+    # data is reflected. They run concurrently via asyncio.gather.
+    def _count_resp(value: str):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.raise_for_status = MagicMock()
+        resp.json.return_value = {"results": {"bindings": [{"n": {"value": value}}]}}
+        return resp
 
     mock_client = AsyncMock()
     mock_client.get.return_value = ping_resp
-    # post: two SPARQL COUNT queries (no _ensure_dataset in status())
-    mock_client.post.side_effect = [sparql_resp, sparql_resp]
+    # post: total=15, schema declarations=5, data instances=10
+    mock_client.post.side_effect = [
+        _count_resp("15"),  # _count_union_total
+        _count_resp("5"),   # _count_union_schema
+        _count_resp("10"),  # _count_union_data
+    ]
 
     with patch.object(store, "_http", return_value=mock_client):
         s = await store.status()

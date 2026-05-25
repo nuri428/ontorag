@@ -306,3 +306,213 @@ async def test_clear_graph_with_ontology_removes_only_that_graph(store_clean, tm
         f"{_NS_PKMN}Pokemon", ontology="pkmn"
     )
     assert n_pkmn_after > 0, "Pokémon data must survive clearing 'other' ontology"
+
+
+# ── Unit tests: helper validation ─────────────────────────────────────────────
+
+
+def test_scoped_graph_rejects_bad_kind():
+    """scoped_graph raises on an unknown graph kind."""
+    with pytest.raises(ValueError, match="kind must be"):
+        _scoped_graph("pkmn", "bogus")
+
+
+def test_scoped_graph_rejects_bad_id():
+    """scoped_graph propagates validate_ontology_id's ValueError on bad ids."""
+    with pytest.raises(ValueError, match="Invalid ontology id"):
+        _scoped_graph("pk:Foo", "data")
+
+
+# ── HIGH #1 regression: status + dump_graph reflect per-ontology data ─────────
+
+
+@pytest.mark.asyncio
+@pytestmark_integration
+async def test_status_reflects_per_ontology_data(store_clean, tmp_path):
+    """status() reports data_loaded/schema_loaded=True when data lives only in
+    a per-ontology graph (not the legacy default graphs)."""
+    # Load ONLY under ontology="other" — nothing in the legacy default graphs.
+    other_schema, other_data = _load_other(tmp_path)
+    await store_clean.load_rdf(other_schema, mode="schema", ontology="other")
+    await store_clean.load_rdf(other_data, mode="data", ontology="other")
+
+    st = await store_clean.status()
+    assert st.connected is True
+    assert st.data_loaded is True, (
+        "status must report data_loaded=True for per-ontology ABox"
+    )
+    assert st.schema_loaded is True, (
+        "status must report schema_loaded=True for per-ontology TBox"
+    )
+    assert st.triple_count and st.triple_count > 0, (
+        "status triple_count must count per-ontology graphs (union)"
+    )
+
+
+@pytest.mark.asyncio
+@pytestmark_integration
+async def test_dump_graph_scoped_returns_per_ontology_triples(store_clean, tmp_path):
+    """dump_graph(ontology='other') returns that ontology's triples; default
+    dump (ontology=None) does NOT contain them."""
+    other_schema, other_data = _load_other(tmp_path)
+    await store_clean.load_rdf(other_schema, mode="schema", ontology="other")
+    await store_clean.load_rdf(other_data, mode="data", ontology="other")
+
+    scoped_dump = await store_clean.dump_graph("all", fmt="ttl", ontology="other")
+    scoped_text = scoped_dump.decode()
+    assert "Widget" in scoped_text, (
+        f"Scoped dump must contain Widget triples; got: {scoped_text!r}"
+    )
+
+    # The legacy default graphs are empty, so an unscoped dump is empty of Widget.
+    default_dump = await store_clean.dump_graph("all", fmt="ttl", ontology=None)
+    assert "Widget" not in default_dump.decode(), (
+        "Default-graph dump must not contain per-ontology 'other' triples"
+    )
+
+
+# ── HIGH #3 regression: scoped direct-match arm (no subclass) + isolation ─────
+
+
+@pytest.mark.asyncio
+@pytestmark_integration
+async def test_scoped_direct_match_no_subclass_isolated(store_clean, tmp_path):
+    """find_entities/count for a class with NO subclass exercises the scoped
+    direct-match arm. It must return the instance when scoped to its own
+    ontology and zero when scoped to a different ontology."""
+    # Load pokemon under pkmn and the Widget ontology under other.
+    await store_clean.load_rdf(str(_POKEMON / "schema.ttl"), mode="schema", ontology="pkmn")
+    await store_clean.load_rdf(str(_POKEMON / "data.ttl"), mode="data", ontology="pkmn")
+    other_schema, other_data = _load_other(tmp_path)
+    await store_clean.load_rdf(other_schema, mode="schema", ontology="other")
+    await store_clean.load_rdf(other_data, mode="data", ontology="other")
+
+    # Widget has no subclasses → only the direct-match arm can match it.
+    widgets = await store_clean.find_entities(
+        f"{_NS_OTHER}Widget", ontology="other", limit=100
+    )
+    assert widgets, "Direct-match arm must return Widget when scoped to 'other'"
+    n_widget = await store_clean.count_entities(f"{_NS_OTHER}Widget", ontology="other")
+    assert n_widget == len(widgets) == 1
+
+    # Scoped to a different ontology: direct-match arm must not leak.
+    widget_in_pkmn = await store_clean.find_entities(
+        f"{_NS_OTHER}Widget", ontology="pkmn", limit=100
+    )
+    assert widget_in_pkmn == [], "Direct-match arm must be isolated to its ontology"
+    assert await store_clean.count_entities(f"{_NS_OTHER}Widget", ontology="pkmn") == 0
+
+
+@pytest.mark.asyncio
+@pytestmark_integration
+async def test_scoped_find_entities_still_subclass_aware(store_clean):
+    """Scoped find_entities keeps subclass inference (subClassOf* arm) intact:
+    find_entities(Pokemon, ontology='pkmn') includes LegendaryPokemon."""
+    await store_clean.load_rdf(str(_POKEMON / "schema.ttl"), mode="schema", ontology="pkmn")
+    await store_clean.load_rdf(str(_POKEMON / "data.ttl"), mode="data", ontology="pkmn")
+
+    pokemon = await store_clean.find_entities(
+        f"{_NS_PKMN}Pokemon", ontology="pkmn", limit=200
+    )
+    legendary = await store_clean.find_entities(
+        f"{_NS_PKMN}LegendaryPokemon", ontology="pkmn", limit=200
+    )
+    assert legendary, "Expected at least one LegendaryPokemon"
+    pokemon_uris = {e.uri for e in pokemon}
+    legendary_uris = {e.uri for e in legendary}
+    assert legendary_uris.issubset(pokemon_uris), (
+        "Scoped find_entities must still include subclass instances"
+    )
+    assert len(pokemon_uris) > len(legendary_uris)
+
+
+# ── HIGH #2 regression: scoped search_text recall ─────────────────────────────
+
+
+@pytest.mark.asyncio
+@pytestmark_integration
+async def test_scoped_search_text_recall_and_isolation(store_clean, tmp_path):
+    """search_text scoped to 'other' returns Widget (recall) and never a
+    Pokémon hit (isolation), even though Pokémon dominates the index size."""
+    # pkmn is large; other is tiny — exercises the recall trade-off.
+    await store_clean.load_rdf(str(_POKEMON / "schema.ttl"), mode="schema", ontology="pkmn")
+    await store_clean.load_rdf(str(_POKEMON / "data.ttl"), mode="data", ontology="pkmn")
+    other_schema, other_data = _load_other(tmp_path)
+    await store_clean.load_rdf(other_schema, mode="schema", ontology="other")
+    await store_clean.load_rdf(other_data, mode="data", ontology="other")
+
+    # Scoped to "other": the Widget label must be recalled.
+    other_hits = await store_clean.search_text("Widget", ontology="other", limit=10)
+    other_uris = {h.uri for h in other_hits}
+    assert f"{_NS_OTHER}w1" in other_uris, (
+        f"Scoped search must recall the Widget instance; got {other_uris}"
+    )
+    # No Pokémon URI may leak into the 'other'-scoped result.
+    assert all(_NS_OTHER in u or "other" in u for u in other_uris), (
+        f"Scoped 'other' search leaked non-other URIs: {other_uris}"
+    )
+
+    # Scoped to "pkmn": Widget must NOT appear.
+    pkmn_hits = await store_clean.search_text("Widget", ontology="pkmn", limit=10)
+    assert f"{_NS_OTHER}w1" not in {h.uri for h in pkmn_hits}, (
+        "Widget must not appear in a 'pkmn'-scoped search"
+    )
+
+
+# ── HIGH #4 regression: scoped traverse predicate-label does not leak ─────────
+
+
+@pytest.mark.asyncio
+@pytestmark_integration
+async def test_scoped_traverse_predicate_label_no_cross_ontology(store_clean, tmp_path):
+    """A scoped traverse must use only its own ontology's predicate rdfs:label.
+
+    Two ontologies declare the SAME predicate URI with DIFFERENT labels.
+    Traversing in ontology 'a' must surface 'a's label, never 'b's.
+    """
+    ns = "http://example.org/shared#"
+    pred = f"{ns}linkedTo"
+
+    # Ontology A: predicate label "Label A", one edge n1 -> n2.
+    a_schema = tmp_path / "a_schema.ttl"
+    a_schema.write_text(dedent(f"""\
+        @prefix owl:  <http://www.w3.org/2002/07/owl#> .
+        @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+        @prefix ex:   <{ns}> .
+        ex:Node a owl:Class .
+        ex:linkedTo a owl:ObjectProperty ; rdfs:label "Label A" .
+    """))
+    a_data = tmp_path / "a_data.ttl"
+    a_data.write_text(dedent(f"""\
+        @prefix ex: <{ns}> .
+        ex:n1 a ex:Node ; ex:linkedTo ex:n2 .
+        ex:n2 a ex:Node .
+    """))
+
+    # Ontology B: SAME predicate URI, different label "Label B".
+    b_schema = tmp_path / "b_schema.ttl"
+    b_schema.write_text(dedent(f"""\
+        @prefix owl:  <http://www.w3.org/2002/07/owl#> .
+        @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+        @prefix ex:   <{ns}> .
+        ex:linkedTo a owl:ObjectProperty ; rdfs:label "Label B" .
+    """))
+
+    await store_clean.clear_graph("all", ontology="a")
+    await store_clean.clear_graph("all", ontology="b")
+    try:
+        await store_clean.load_rdf(str(a_schema), mode="schema", ontology="a")
+        await store_clean.load_rdf(str(a_data), mode="data", ontology="a")
+        await store_clean.load_rdf(str(b_schema), mode="schema", ontology="b")
+
+        result = await store_clean.traverse(f"{ns}n1", max_depth=1, ontology="a")
+        link_edges = [e for e in result.edges if e.get("predicate") == pred]
+        assert link_edges, "Expected a linkedTo edge in the scoped traversal"
+        for e in link_edges:
+            assert e.get("predicate_label") == "Label A", (
+                f"Scoped traverse leaked another ontology's predicate label: "
+                f"{e.get('predicate_label')!r} (expected 'Label A')"
+            )
+    finally:
+        await store_clean.clear_graph("all", ontology="a")
+        await store_clean.clear_graph("all", ontology="b")
