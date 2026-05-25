@@ -78,6 +78,24 @@ _NEO4J_UP = _neo4j_reachable()
 _RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
 
 
+def _props_referencing(properties: dict, target_uri: str) -> list[str]:
+    """Return property keys whose value (scalar or list) references *target_uri*.
+
+    Args:
+        properties: An EntityResult.properties dict.
+        target_uri: The URI to search for in property values.
+
+    Returns:
+        The list of property keys that reference the URI (empty if none).
+    """
+    hits: list[str] = []
+    for key, val in properties.items():
+        items = val if isinstance(val, list) else [val]
+        if any(isinstance(x, dict) and x.get("uri") == target_uri for x in items):
+            hits.append(key)
+    return hits
+
+
 def _outgoing_bindings(uri: str) -> dict:
     """Fake SPARQL result for outgoing query on *uri* (Bob node)."""
     return {
@@ -195,6 +213,85 @@ async def test_fuseki_unit_predicates_filter_applied_to_inverse():
 
 
 @pytest.mark.asyncio
+async def test_fuseki_unit_rdf_type_inverse_skipped_client_side():
+    """Mock unit: a leaked rdf:type inverse binding is skipped client-side.
+
+    The SPARQL FILTER(?invPred != rdf:type) excludes rdf:type server-side, but
+    a mock bypasses that. The client-side guard must still drop it so a
+    contrived `rdf:type owl:inverseOf X` cannot surface a typed neighbor — this
+    test fails if that guard regresses.
+    """
+    store = FusekiStore("http://localhost:3030", "test", "admin", "admin")
+
+    rdf_type_inverse = {
+        "results": {
+            "bindings": [
+                {
+                    "invPred": {"type": "uri", "value": _RDF_TYPE},
+                    "other": {"type": "uri", "value": _ALICE},
+                    "otherLabel": {"type": "literal", "value": "Alice"},
+                }
+            ]
+        }
+    }
+    with patch.object(
+        store,
+        "_sparql_select",
+        new=AsyncMock(
+            side_effect=[
+                _outgoing_bindings(_BOB),
+                rdf_type_inverse,  # leaked rdf:type inverse — must be skipped
+            ]
+        ),
+    ):
+        entity = await store.describe_entity(_BOB)
+
+    assert _RDF_TYPE not in entity.properties, (
+        "rdf:type must never be surfaced as an inverse predicate"
+    )
+    # Alice must not leak in via the rdf:type binding either.
+    assert _ALICE not in _props_referencing(entity.properties, _ALICE)
+    assert not _props_referencing(entity.properties, _ALICE)
+
+
+@pytest.mark.asyncio
+async def test_fuseki_unit_non_inverse_predicate_not_surfaced():
+    """Mock unit: a 'knows' inverse binding (no real inverse) restricted by filter.
+
+    Simulates the inverse query leaking a knows-keyed binding while the caller
+    only requested parentOf. The client-side predicates guard must drop the
+    knows row — catching a regression where the filter is removed.
+    """
+    store = FusekiStore("http://localhost:3030", "test", "admin", "admin")
+
+    knows_inverse = {
+        "results": {
+            "bindings": [
+                {
+                    "invPred": {"type": "uri", "value": _KNOWS},
+                    "other": {"type": "uri", "value": _CAROL},
+                    "otherLabel": {"type": "literal", "value": "Carol"},
+                }
+            ]
+        }
+    }
+    with patch.object(
+        store,
+        "_sparql_select",
+        new=AsyncMock(
+            side_effect=[
+                _outgoing_bindings(_BOB),
+                knows_inverse,
+            ]
+        ),
+    ):
+        entity = await store.describe_entity(_BOB, predicates=[_PARENT_OF])
+
+    assert _KNOWS not in entity.properties
+    assert not _props_referencing(entity.properties, _CAROL)
+
+
+@pytest.mark.asyncio
 async def test_fuseki_unit_outgoing_unaffected():
     """Mock unit: outgoing parentOf on Alice is unchanged after inverse pass."""
     store = FusekiStore("http://localhost:3030", "test", "admin", "admin")
@@ -288,20 +385,14 @@ async def test_fuseki_integration_outgoing_unaffected(fuseki_store):
 @pytest.mark.integration
 @pytest.mark.skipif(not _FUSEKI_UP, reason=f"Fuseki not reachable at {_FUSEKI_URL}")
 async def test_fuseki_integration_no_inverse_for_knows(fuseki_store):
-    """Live Fuseki: knows has no inverseOf — Dave must NOT have an inverse edge."""
+    """Live Fuseki: knows has no inverseOf — Carol must NOT leak into Dave's props.
+
+    Carol --knows--> Dave is an incoming edge on Dave whose predicate (ex:knows)
+    has NO owl:inverseOf declaration, so the inverse pass must surface nothing.
+    The assertion fails if any property value references Carol.
+    """
     entity = await fuseki_store.describe_entity(_DAVE)
-    # _KNOWS has no inverseOf → nothing from Carol should appear
-    assert _KNOWS not in entity.properties or entity.properties.get(_KNOWS) is None or (
-        # If Dave describes outgoing knows edges they would be fine, but Carol→Dave
-        # must not produce an inverse on Dave since knows has no inverseOf.
-        True  # lenient: just assert no surprise "inverseKnows" key
-    )
-    # More precise: there must be no key whose value includes Carol (from inverse path)
-    props_with_carol = [
-        k for k, v in entity.properties.items()
-        if (isinstance(v, dict) and v.get("uri") == _CAROL)
-        or (isinstance(v, list) and any(isinstance(x, dict) and x.get("uri") == _CAROL for x in v))
-    ]
+    props_with_carol = _props_referencing(entity.properties, _CAROL)
     assert not props_with_carol, (
         f"Carol must NOT appear in Dave's properties via inverse pass; found: {props_with_carol}"
     )
@@ -383,11 +474,7 @@ async def test_neo4j_integration_outgoing_unaffected(neo4j_store):
 async def test_neo4j_integration_no_inverse_for_knows(neo4j_store):
     """Live Neo4j: knows has no inverseOf — Carol must NOT appear in Dave's props."""
     entity = await neo4j_store.describe_entity(_DAVE)
-    props_with_carol = [
-        k for k, v in entity.properties.items()
-        if (isinstance(v, dict) and v.get("uri") == _CAROL)
-        or (isinstance(v, list) and any(isinstance(x, dict) and x.get("uri") == _CAROL for x in v))
-    ]
+    props_with_carol = _props_referencing(entity.properties, _CAROL)
     assert not props_with_carol, (
         f"Carol must NOT appear in Dave's properties; found: {props_with_carol}"
     )

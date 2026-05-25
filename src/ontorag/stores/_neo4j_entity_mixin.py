@@ -212,14 +212,52 @@ class _Neo4jEntityMixin:
                 props[full_pred] = [existing, obj]
 
         # -- Incoming-via-inverse pass ------------------------------------------
+        # Best-effort: a transient failure of the incoming/inverse queries must
+        # NOT turn a successful describe_entity into a 500 (symmetric with the
+        # Fuseki try/except, HIGH #2). On exception we log and treat inverses as
+        # empty — the entity is still described from its outgoing triples.
+        try:
+            await self._merge_inverse_edges(props, uri, predicates, ontology)
+        except Exception:  # noqa: BLE001 — best-effort, never fail the describe
+            logger.warning(
+                "describe_entity: inverse-of pass failed for %s — skipping", uri
+            )
+
+        # Filter to requested predicates if given (apply to final props dict)
+        if predicates:
+            props = {k: v for k, v in props.items() if k in predicates}
+
+        return EntityResult(uri=uri, label=label, class_uri=class_uri, properties=props)
+
+    async def _merge_inverse_edges(  # type: ignore[override]
+        self: "Neo4jStore",
+        props: dict[str, Any],
+        uri: str,
+        predicates: list[str] | None,
+        ontology: str | None,
+    ) -> None:
+        """Query incoming edges + owl:inverseOf and merge inverses into *props*.
+
+        For each incoming edge ``X p <uri>`` where the TBox declares
+        ``p owl:inverseOf q`` (in either direction), merge ``q -> X`` into
+        ``props``. Incoming edges with no declared inverse — and the rdf:type
+        link — are never surfaced.
+
+        Raises are propagated to the caller, which wraps this in try/except so a
+        transient query failure does not fail the whole describe_entity.
+
+        Args:
+            props: The properties dict to merge inverse edges into (mutated).
+            uri: The entity URI being described.
+            predicates: Optional predicate filter (applied to the inverse URI).
+            ontology: Optional ontology id to scope the ``other`` node.
+        """
         # Query incoming edges (exclude rdf:type links as they are ABox → TBox).
         # When ontology is given, scope the "other" node too via its _ontology
         # list-property so cross-ontology false positives are excluded.
         other_scope_frag, other_scope_params = ontology_scope_filter(
             ontology, node_alias="other"
         )
-        # Merge scope params: n-scope already in scope_params; other-scope uses
-        # "ontology_id" key — same value, so merging is safe (identical value).
         incoming_where_parts = ["type(r) <> 'rdf__type'"]
         if other_scope_frag:
             incoming_where_parts.append(other_scope_frag)
@@ -237,65 +275,64 @@ class _Neo4jEntityMixin:
             **other_scope_params,
         )
 
-        if incoming_rows:
-            # Collect unique predicate full-URIs from all incoming edges
-            incoming: list[tuple[str, str, Any]] = []
-            seen_pred_uris: set[str] = set()
-            for row in incoming_rows:
-                rel_short = row.get("rel_type")
-                other_uri_val = row.get("other_uri")
-                if not rel_short or not other_uri_val:
-                    continue
-                pred_uri = self._expand(rel_short)
-                incoming.append((pred_uri, other_uri_val, row.get("other_label")))
-                seen_pred_uris.add(pred_uri)
+        if not incoming_rows:
+            return
 
-            if seen_pred_uris:
-                # Query owl:inverseOf in either direction for the collected
-                # predicate URIs.  Undirected relationship traversal
-                # (-[:owl__inverseOf]-) catches both declaration orderings in
-                # a single query.
-                inv_rows = await self._run(
-                    """
-                    MATCH (p:Resource)-[:owl__inverseOf]-(inv:Resource)
-                    WHERE p.uri IN $puris
-                    RETURN p.uri AS p_uri, inv.uri AS inv_uri
-                    """,
-                    puris=list(seen_pred_uris),
-                )
+        # Collect unique predicate full-URIs from all incoming edges
+        incoming: list[tuple[str, str, Any]] = []
+        seen_pred_uris: set[str] = set()
+        for row in incoming_rows:
+            rel_short = row.get("rel_type")
+            other_uri_val = row.get("other_uri")
+            if not rel_short or not other_uri_val:
+                continue
+            pred_uri = self._expand(rel_short)
+            incoming.append((pred_uri, other_uri_val, row.get("other_label")))
+            seen_pred_uris.add(pred_uri)
 
-                # Build predicate URI → inverse URI map
-                inverse_map: dict[str, str] = {
-                    row["p_uri"]: row["inv_uri"] for row in inv_rows if row.get("p_uri") and row.get("inv_uri")
-                }
+        if not seen_pred_uris:
+            return
 
-                rdf_type_uri = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-                for pred_uri, other_uri_val, other_label_raw in incoming:
-                    inv_pred = inverse_map.get(pred_uri)
-                    if inv_pred is None:
-                        continue  # no declared inverse — skip per contract
-                    if inv_pred == rdf_type_uri:
-                        continue  # never surface rdf:type as an inverse
-                    if predicates and inv_pred not in predicates:
-                        continue  # filtered out by caller
+        # Query owl:inverseOf in either direction for the collected predicate
+        # URIs. Undirected relationship traversal (-[:owl__inverseOf]-) catches
+        # both declaration orderings in a single query.
+        inv_rows = await self._run(
+            """
+            MATCH (p:Resource)-[:owl__inverseOf]-(inv:Resource)
+            WHERE p.uri IN $puris
+            RETURN p.uri AS p_uri, inv.uri AS inv_uri
+            """,
+            puris=list(seen_pred_uris),
+        )
 
-                    inv_obj: Any = {
-                        "uri": other_uri_val,
-                        "label": first_scalar(other_label_raw),
-                    }
-                    existing = props.get(inv_pred)
-                    if existing is None:
-                        props[inv_pred] = inv_obj
-                    elif isinstance(existing, list):
-                        existing.append(inv_obj)
-                    else:
-                        props[inv_pred] = [existing, inv_obj]
+        # Build predicate URI → inverse URI map
+        inverse_map: dict[str, str] = {
+            row["p_uri"]: row["inv_uri"]
+            for row in inv_rows
+            if row.get("p_uri") and row.get("inv_uri")
+        }
 
-        # Filter to requested predicates if given (apply to final props dict)
-        if predicates:
-            props = {k: v for k, v in props.items() if k in predicates}
+        rdf_type_uri = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+        for pred_uri, other_uri_val, other_label_raw in incoming:
+            inv_pred = inverse_map.get(pred_uri)
+            if inv_pred is None:
+                continue  # no declared inverse — skip per contract
+            if inv_pred == rdf_type_uri:
+                continue  # never surface rdf:type as an inverse
+            if predicates and inv_pred not in predicates:
+                continue  # filtered out by caller
 
-        return EntityResult(uri=uri, label=label, class_uri=class_uri, properties=props)
+            inv_obj: Any = {
+                "uri": other_uri_val,
+                "label": first_scalar(other_label_raw),
+            }
+            existing = props.get(inv_pred)
+            if existing is None:
+                props[inv_pred] = inv_obj
+            elif isinstance(existing, list):
+                existing.append(inv_obj)
+            else:
+                props[inv_pred] = [existing, inv_obj]
 
     async def count_entities(  # type: ignore[override]
         self: "Neo4jStore",

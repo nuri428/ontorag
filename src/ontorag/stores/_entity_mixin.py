@@ -261,11 +261,18 @@ WHERE {{
                 + " }\n"
             )
 
-        # incoming_body: X p <uri>  in the data graph
-        incoming_body = f"?other ?p {subj} ."
-        # inverse_union: p owl:inverseOf q in either direction, in the schema graph
-        inv_forward = f"?p owl:inverseOf ?invPred ."
-        inv_backward = f"?invPred owl:inverseOf ?p ."
+        # incoming_body: X p <uri>  in the data graph. Exclude p = rdf:type so a
+        # contrived TBox declaring `rdf:type owl:inverseOf X` can never surface
+        # every typed node (symmetric with the Neo4j rdf:type guard, HIGH #1).
+        incoming_body = (
+            f"?other ?p {subj} .\n"
+            f"    FILTER(?p != rdf:type)"
+        )
+        # inverse_union: p owl:inverseOf q in either direction, in the schema
+        # graph. Also guard ?invPred against rdf:type for the reverse-declaration
+        # direction (`?invPred owl:inverseOf rdf:type`).
+        inv_forward = f"?p owl:inverseOf ?invPred . FILTER(?invPred != rdf:type)"
+        inv_backward = f"?invPred owl:inverseOf ?p . FILTER(?invPred != rdf:type)"
         label_body = f"OPTIONAL {{ {_data_clause(data_g, '?other rdfs:label ?otherLabel .')} }}"
 
         inv_query = f"""{pfx}
@@ -301,6 +308,10 @@ WHERE {{
             inv_pred = b["invPred"]["value"]
             other_uri = b["other"]["value"]
             other_label = b.get("otherLabel", {}).get("value")
+            # Never surface rdf:type as an inverse (defense in depth — the SPARQL
+            # FILTERs already exclude it, but a mocked back-end may not).
+            if inv_pred == rdf_type:
+                continue
             # Client-side guard: the VALUES clause filters server-side, but apply
             # the predicates set here too so tests with mocked back-ends are
             # consistent and results are never wider than requested.
