@@ -92,6 +92,10 @@ requires_both = pytest.mark.skipif(
     reason="Requires live Fuseki (http://localhost:3030) and Qdrant (http://localhost:6333)",
 )
 
+# Apply to EVERY test in this module — without this, the tests run (and fail)
+# when Fuseki/Qdrant are down instead of skipping gracefully.
+pytestmark = [pytest.mark.integration, requires_both]
+
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
