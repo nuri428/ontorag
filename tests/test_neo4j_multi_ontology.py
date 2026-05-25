@@ -37,8 +37,15 @@ _POKEMON_CLASS = "http://example.org/pokemon#Pokemon"
 _TRAINER_CLASS = "http://example.org/pokemon#Trainer"
 _ANIMAL_CLASS = "http://example.org/other#Animal"
 _PIKACHU_URI = "http://example.org/pokemon/data#Pikachu"
+_CAT_URI = "http://example.org/other/data#Cat"
+_DOG_URI = "http://example.org/other/data#Dog"
+_OTHER_HAS_FRIEND = "http://example.org/other#hasFriend"
 
-# A tiny "other" ontology with two Animal instances.
+# Pokemon's own transitive predicate (used by property_path_closure tests).
+_PK_EVOLVES_FROM = "http://example.org/pokemon#evolvesFrom"
+
+# A tiny "other" ontology: two Animal instances connected by hasFriend so the
+# property_path_closure Mode 1 scope check has an edge to traverse.
 _OTHER_TTL = textwrap.dedent("""\
     @prefix owl: <http://www.w3.org/2002/07/owl#> .
     @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -49,8 +56,13 @@ _OTHER_TTL = textwrap.dedent("""\
     other:Animal a owl:Class ;
         rdfs:label "Animal" .
 
+    other:hasFriend a owl:ObjectProperty ;
+        rdfs:domain other:Animal ;
+        rdfs:range other:Animal .
+
     odata:Cat a other:Animal ;
-        rdfs:label "Cat" .
+        rdfs:label "Cat" ;
+        other:hasFriend odata:Dog .
 
     odata:Dog a other:Animal ;
         rdfs:label "Dog" .
@@ -179,6 +191,26 @@ def test_scope_filter_invalid_raises():
 
     with pytest.raises(ValueError):
         ontology_scope_filter("bad id!")
+
+
+# ── Unit-level: build_where helper ────────────────────────────────────────────
+
+
+def test_build_where_empty_returns_blank():
+    """build_where([]) and all-empty fragments return an empty string."""
+    from ontorag.stores._neo4j_scope import build_where  # noqa: PLC0415
+
+    assert build_where([]) == ""
+    assert build_where(["", ""]) == ""
+
+
+def test_build_where_drops_empty_fragments():
+    """build_where joins only non-empty fragments with AND."""
+    from ontorag.stores._neo4j_scope import build_where  # noqa: PLC0415
+
+    assert build_where(["a"]) == "WHERE a"
+    assert build_where(["a", "", "b"]) == "WHERE a AND b"
+    assert build_where(["", "scope"]) == "WHERE scope"
 
 
 # ── Integration: tagging ──────────────────────────────────────────────────────
@@ -434,3 +466,152 @@ async def test_search_text_other_excludes_pkmn(dual_store) -> None:
     hits = await dual_store.search_text("Pikachu", ontology="other", limit=20)
     hit_uris = {h.uri for h in hits}
     assert _PIKACHU_URI not in hit_uris
+
+
+# ── Integration: traverse scoping (HIGH #1 — edge-detail leak) ───────────────
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_traverse_scoped_edges_only_reference_in_scope_nodes(dual_store) -> None:
+    """Scoped traverse: every edge endpoint must be a node in the scoped node set.
+
+    Regression for HIGH #1 — the edge-detail secondary query was unscoped, so
+    edges to out-of-scope neighbors leaked into TraversalResult.edges.
+    """
+    result = await dual_store.traverse(_PIKACHU_URI, max_depth=2, ontology="pkmn")
+
+    node_uris = {n["uri"] for n in result.nodes}
+    edge_endpoints = {e["from"] for e in result.edges} | {
+        e["to"] for e in result.edges
+    }
+    leaks = edge_endpoints - node_uris
+    assert leaks == set(), f"Edges leak out-of-scope endpoints: {leaks}"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_traverse_scoped_excludes_other_ontology_edges(dual_store) -> None:
+    """Scoped traverse from an 'other' node must not surface pkmn neighbors.
+
+    Cat --hasFriend--> Dog lives in 'other'.  Traversing Cat scoped to 'other'
+    returns the Dog edge; scoping to 'pkmn' must return no edges (Dog is not
+    tagged 'pkmn').
+    """
+    other_res = await dual_store.traverse(_CAT_URI, max_depth=2, ontology="other")
+    other_edge_targets = {e["to"] for e in other_res.edges}
+    assert _DOG_URI in other_edge_targets, "Dog edge expected in 'other' scope"
+
+    pkmn_res = await dual_store.traverse(_CAT_URI, max_depth=2, ontology="pkmn")
+    pkmn_edge_targets = {e["to"] for e in pkmn_res.edges}
+    assert _DOG_URI not in pkmn_edge_targets, "Dog edge must not leak into pkmn scope"
+
+
+# ── Integration: find_path scoping ───────────────────────────────────────────
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_find_path_cross_ontology_endpoints_empty(dual_store) -> None:
+    """find_path between a pkmn node and an 'other' node, scoped, returns empty.
+
+    Pikachu (pkmn) and Cat (other) — scoping to either ontology excludes one
+    endpoint, so no path is returned.
+    """
+    res_pkmn = await dual_store.find_path(_PIKACHU_URI, _CAT_URI, ontology="pkmn")
+    assert res_pkmn.nodes == [], "Cat is out of pkmn scope — no path expected"
+
+    res_other = await dual_store.find_path(_PIKACHU_URI, _CAT_URI, ontology="other")
+    assert res_other.nodes == [], "Pikachu is out of other scope — no path expected"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_find_path_within_scope_works(dual_store) -> None:
+    """find_path between two in-scope 'other' nodes returns a path."""
+    res = await dual_store.find_path(_CAT_URI, _DOG_URI, ontology="other")
+    node_uris = {n["uri"] for n in res.nodes}
+    assert _CAT_URI in node_uris
+    assert _DOG_URI in node_uris
+
+
+# ── Integration: property_path_closure Mode 1 scoping (HIGH #2) ──────────────
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_ppc_mode1_out_of_scope_start_empty(dual_store) -> None:
+    """property_path_closure Mode 1 with an out-of-scope start_uri returns empty.
+
+    Regression for HIGH #2 — Mode 1 (direct start_uri) did not apply the start
+    scope, so a start node from ontology B was accepted under ontology="A".
+    Cat belongs to 'other'; calling under 'pkmn' must yield no results.
+    """
+    res_wrong = await dual_store.property_path_closure(
+        _OTHER_HAS_FRIEND, start_uri=_CAT_URI, ontology="pkmn"
+    )
+    assert res_wrong == [], f"Out-of-scope start must yield empty, got {res_wrong}"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_ppc_mode1_in_scope_start_returns_reached(dual_store) -> None:
+    """property_path_closure Mode 1 with an in-scope start returns reached nodes."""
+    res_right = await dual_store.property_path_closure(
+        _OTHER_HAS_FRIEND, start_uri=_CAT_URI, ontology="other"
+    )
+    reached_uris = {r["uri"] for r in res_right}
+    assert _DOG_URI in reached_uris, f"Expected Dog reached from Cat, got {res_right}"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_ppc_mode1_none_scope_union(dual_store) -> None:
+    """property_path_closure Mode 1 with ontology=None reaches the target (union)."""
+    res = await dual_store.property_path_closure(
+        _OTHER_HAS_FRIEND, start_uri=_CAT_URI, ontology=None
+    )
+    reached_uris = {r["uri"] for r in res}
+    assert _DOG_URI in reached_uris
+
+
+# ── Integration: get_class_detail scope-check (MEDIUM) ───────────────────────
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_get_class_detail_out_of_scope_class_raises(dual_store) -> None:
+    """get_class_detail(class, wrong_ontology) raises KeyError.
+
+    Animal is tagged 'other'; requesting it under 'pkmn' must raise, matching
+    get_schema/find_entities scope semantics (MEDIUM scope-consistency).
+    """
+    with pytest.raises(KeyError):
+        await dual_store.get_class_detail(_ANIMAL_CLASS, ontology="pkmn")
+
+    with pytest.raises(KeyError):
+        await dual_store.get_class_detail(_POKEMON_CLASS, ontology="other")
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_get_class_detail_in_scope_class_ok(dual_store) -> None:
+    """get_class_detail(class, matching_ontology) returns the class detail."""
+    detail = await dual_store.get_class_detail(_POKEMON_CLASS, ontology="pkmn")
+    assert detail.uri == _POKEMON_CLASS
+    assert detail.instance_count > 0
+
+    other_detail = await dual_store.get_class_detail(_ANIMAL_CLASS, ontology="other")
+    assert other_detail.uri == _ANIMAL_CLASS
+    assert other_detail.instance_count == 2
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_get_class_detail_none_scope_unchanged(dual_store) -> None:
+    """get_class_detail(ontology=None) returns any class regardless of tagging."""
+    pk_detail = await dual_store.get_class_detail(_POKEMON_CLASS, ontology=None)
+    assert pk_detail.uri == _POKEMON_CLASS
+
+    animal_detail = await dual_store.get_class_detail(_ANIMAL_CLASS, ontology=None)
+    assert animal_detail.uri == _ANIMAL_CLASS
