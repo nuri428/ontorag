@@ -60,12 +60,20 @@ bench = [
     # Optional — install only when running `ontorag eval` against
     # non-ontorag baselines OR computing RAGAS metrics. Requires
     # OPENAI_API_KEY at runtime.
-    "langchain>=0.3.0",
-    "langchain-openai>=0.2.0",
-    "langchain-chroma>=0.1.0",
-    "chromadb>=0.5.0",
-    "ragas>=0.2.0",
-    "datasets>=2.0.0",
+    #
+    # Upper bounds are REQUIRED: ragas>=0.4 imports
+    # `langchain_community.chat_models.vertexai` (removed in the langchain 1.x
+    # ecosystem), so loose pins resolve to ragas 0.4.x + langchain 1.x — a combo
+    # that fails at `import ragas`. Pinned to the verified-working 0.3-era
+    # langchain + ragas 0.2.x line (ragas 0.2.15 + langchain 0.3.30 confirmed).
+    "langchain>=0.3,<0.4",
+    "langchain-core>=0.3,<0.4",
+    "langchain-community>=0.3,<0.4",
+    "langchain-openai>=0.2,<0.3",
+    "langchain-chroma>=0.1,<0.2",
+    "chromadb>=0.5,<0.6",
+    "ragas>=0.2,<0.3",
+    "datasets>=2,<4",
 ]
 neo4j = [
     # Neo4j + neosemantics (n10s) backend — install only when running with
