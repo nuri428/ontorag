@@ -307,17 +307,33 @@ WHERE {{
         """
         ontology = validate_ontology_id(ontology)
         data_g = data_graph_uri(ontology) if ontology is not None else None
+        schema_g = schema_graph_uri(ontology) if ontology is not None else None
 
         pfx = self._pfx()
         cls = uri_ref(class_uri)
         prop = uri_ref(group_by)
         agg_expr = _AGG_EXPR[agg]
 
-        agg_body = f"?inst a {cls} .\n    ?inst {prop} ?group ."
+        # Subclass-aware (parity with find_entities/count + the Neo4j aggregate):
+        # aggregate over instances of <cls> AND any subclass. The matched
+        # instances are first collapsed by a DISTINCT ?inst subquery so the
+        # subClassOf*-zero-length + direct-match UNION cannot double-count
+        # SUM/AVG (COUNT already uses DISTINCT, but SUM/AVG would inflate).
+        inst_select = (
+            "SELECT DISTINCT ?inst WHERE {\n"
+            "      {\n"
+            f"        {_data_clause(data_g, '?inst a ?type .')}\n"
+            f"        {_schema_clause(schema_g, f'?type rdfs:subClassOf* {cls} .')}\n"
+            "      }\n"
+            "      UNION\n"
+            f"      {{ {_data_clause(data_g, f'?inst a {cls} .')} }}\n"
+            "    }"
+        )
         query = f"""{pfx}
 SELECT ?group ({agg_expr} AS ?result)
 WHERE {{
-  {_data_clause(data_g, agg_body)}
+  {{ {inst_select} }}
+  {_data_clause(data_g, f"?inst {prop} ?group .")}
 }}
 GROUP BY ?group
 ORDER BY DESC(?result)"""
