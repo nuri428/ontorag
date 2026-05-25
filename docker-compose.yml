@@ -37,6 +37,22 @@ services:
       retries: 10
       start_period: 60s
 
+  # Qdrant vector store — used by the Fuseki backend for find_similar.
+  # Opt-in:  docker compose --profile qdrant up -d qdrant
+  # The Fuseki embedding mixin reads QDRANT_URL (default http://localhost:6333).
+  qdrant:
+    image: qdrant/qdrant:v1.9.4
+    profiles: ["qdrant"]
+    ports:
+      - "6333:6333"   # REST + gRPC-HTTP
+      - "6334:6334"   # gRPC
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:6333/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
   api:
     build:
       context: .

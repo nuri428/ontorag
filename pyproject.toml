@@ -73,6 +73,12 @@ neo4j = [
     # driver lives in neo4j>=5 (neo4j.AsyncGraphDatabase).
     "neo4j>=5.14.0",
 ]
+vector = [
+    # Qdrant vector store — used by the Fuseki backend for find_similar /
+    # build_embeddings. Install when GRAPH_STORE=fuseki and you want
+    # structural / textual / hybrid similarity search.
+    "qdrant-client>=1.9.0,<1.10.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/nuri428/ontorag"
@@ -105,4 +111,6 @@ markers = [
 dev = [
     "pillow>=12.2.0",
     "pytest>=9.0.3",
+    "pytest-asyncio>=0.23.0",
+    "qdrant-client>=1.9.0,<1.10.0",
 ]
