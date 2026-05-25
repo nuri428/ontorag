@@ -504,6 +504,54 @@ def test_search_text_and_find_similar_in_toolset():
     assert "find_similar" in names
 
 
+def test_aggregate_in_toolset():
+    """aggregate (L1 group-by) must be exposed to the LLM."""
+    from ontorag.chat.agent import _TOOLS  # noqa: PLC0415
+
+    assert "aggregate" in {t["name"] for t in _TOOLS}
+
+
+async def test_dispatch_aggregate():
+    """_call_tool('aggregate') maps args to store.aggregate + shapes result."""
+    from ontorag.stores.base import AggFunc  # noqa: PLC0415
+
+    store = _make_store()
+    store.aggregate = AsyncMock(
+        return_value=[
+            MagicMock(model_dump=lambda: {"group_value": "Fire", "result": 3})
+        ]
+    )
+    agent = AgentLoop(store, AsyncMock())
+
+    out = await agent._call_tool(
+        "aggregate",
+        {"class_uri": "pk:Pokemon", "group_by": "pk:hasType", "agg": "count"},
+    )
+
+    store.aggregate.assert_awaited_once_with(
+        class_uri="pk:Pokemon", group_by="pk:hasType", agg=AggFunc.count
+    )
+    assert out["returned"] == 1
+    assert out["groups"][0]["group_value"] == "Fire"
+
+
+async def test_dispatch_aggregate_defaults_to_count():
+    """agg omitted → defaults to AggFunc.count."""
+    from ontorag.stores.base import AggFunc  # noqa: PLC0415
+
+    store = _make_store()
+    store.aggregate = AsyncMock(return_value=[])
+    agent = AgentLoop(store, AsyncMock())
+
+    await agent._call_tool(
+        "aggregate", {"class_uri": "pk:Pokemon", "group_by": "pk:hasType"}
+    )
+
+    store.aggregate.assert_awaited_once_with(
+        class_uri="pk:Pokemon", group_by="pk:hasType", agg=AggFunc.count
+    )
+
+
 async def test_dispatch_search_text():
     """_call_tool('search_text') calls store.search_text and shapes the result."""
     store = _make_store()
