@@ -227,6 +227,34 @@ class TestStructuralEmbeddingIntegration:
                     f"TBox type leaked into class_uri: {h.class_uri}"
                 )
 
+    @pytest.mark.asyncio
+    async def test_class_uri_is_domain_class_and_stable(self):
+        """HIGH #2: class_uri resolves to the real domain class, stable across calls.
+
+        Raichu is a pk:Pokemon — its class_uri must be the Pokemon domain class
+        (never owl:Class / a vocab type), and identical across repeated queries.
+        """
+        _POKEMON_CLASS = "http://example.org/pokemon#Pokemon"
+        await _clean_qdrant()
+        store = await _fresh_store()
+        try:
+            await store.build_embeddings("structural")
+            hits1 = await store.find_similar(_PIKACHU_URI, top_k=10, mode="structural")
+            hits2 = await store.find_similar(_PIKACHU_URI, top_k=10, mode="structural")
+        finally:
+            await store.aclose()
+
+        raichu1 = next((h for h in hits1 if h.uri == _RAICHU_URI), None)
+        raichu2 = next((h for h in hits2 if h.uri == _RAICHU_URI), None)
+        assert raichu1 is not None, "Raichu expected in Pikachu's structural top-10."
+        assert raichu2 is not None
+        # class_uri must be the real domain class, not a vocab type.
+        assert raichu1.class_uri == _POKEMON_CLASS, (
+            f"Expected Pokemon domain class, got {raichu1.class_uri!r}"
+        )
+        # Deterministic across calls.
+        assert raichu1.class_uri == raichu2.class_uri
+
 
 # ── Textual embedding integration ─────────────────────────────────────────────
 

@@ -61,6 +61,7 @@ class FakeQdrantWrapper:
         self._collections: dict[str, dict[str, list[float]]] = {}
         self.ensure_collection_calls: list[tuple[str, int]] = []
         self.upsert_calls: list[tuple[str, list[tuple[str, list[float]]]]] = []
+        self.delete_collection_calls: list[str] = []
 
     async def ensure_collection(self, name: str, dim: int) -> None:
         self.ensure_collection_calls.append((name, dim))
@@ -88,6 +89,7 @@ class FakeQdrantWrapper:
         return results[:top_k]
 
     async def delete_collection(self, name: str) -> None:
+        self.delete_collection_calls.append(name)
         self._collections.pop(name, None)
 
     async def aclose(self) -> None:
@@ -255,9 +257,58 @@ class TestBuildStructural:
         assert len(fake_qdrant._collections.get(STRUCT_COLLECTION, {})) == 5
         # Ensure collection was called with correct dim.
         assert any(dim == _STRUCT_DIM for _, dim in fake_qdrant.ensure_collection_calls)
+        # MEDIUM #2: clear-on-build — struct collection dropped before recreate.
+        assert STRUCT_COLLECTION in fake_qdrant.delete_collection_calls
+
+    @pytest.mark.asyncio
+    async def test_node_query_filters_tbox_types(self):
+        """HIGH #4 regression: the structural node SELECT excludes vocab types."""
+        captured: list[str] = []
+
+        async def _capture(sparql: str):
+            captured.append(sparql)
+            # First call = node query; return a single instance.
+            if len(captured) == 1:
+                return {"results": {"bindings": [{"inst": {"value": "http://ex.org/P0"}}]}}
+            return {"results": {"bindings": []}}  # edge query
+
+        store = MagicMock(spec=_FusekiEmbeddingMixin)
+        fake_qdrant = FakeQdrantWrapper()
+        store._qdrant = fake_qdrant
+        store._get_qdrant = lambda: fake_qdrant
+        store._sparql_select = _capture
+        store._build_structural_embeddings = (
+            lambda: _FusekiEmbeddingMixin._build_structural_embeddings(store)
+        )
+
+        await store._build_structural_embeddings()
+
+        node_query = captured[0]
+        # Vocab types must be excluded via NOT IN.
+        assert "NOT IN" in node_query
+        assert "owl#Class" in node_query
+        assert "owl#ObjectProperty" in node_query
 
 
 # ── build_embeddings — textual ────────────────────────────────────────────────
+
+
+def _make_textual_store(fake_qdrant: FakeQdrantWrapper) -> MagicMock:
+    """Build a store-like object wired for _build_textual_embeddings.
+
+    Wires the real paged build method plus its two static helpers
+    (_textual_page_sparql, _rows_to_text_pairs) so the paging loop runs
+    against the real code path.
+    """
+    store = MagicMock(spec=_FusekiEmbeddingMixin)
+    store._qdrant = fake_qdrant
+    store._get_qdrant = lambda: fake_qdrant
+    store._build_textual_embeddings = (
+        lambda p: _FusekiEmbeddingMixin._build_textual_embeddings(store, p)
+    )
+    store._textual_page_sparql = _FusekiEmbeddingMixin._textual_page_sparql
+    store._rows_to_text_pairs = _FusekiEmbeddingMixin._rows_to_text_pairs
+    return store
 
 
 class TestBuildTextual:
@@ -266,29 +317,28 @@ class TestBuildTextual:
     @pytest.mark.asyncio
     async def test_no_text_returns_zero(self):
         """When no instance has embeddable text, textual build returns 0."""
-        text_result = {
+        page = {
             "results": {
                 "bindings": [
                     {"inst": {"value": "http://ex.org/P0"}},  # no label/comment/def
                 ]
             }
         }
-        store = MagicMock(spec=_FusekiEmbeddingMixin)
+        empty = {"results": {"bindings": []}}
         fake_qdrant = FakeQdrantWrapper()
-        store._qdrant = fake_qdrant
-        store._get_qdrant = lambda: fake_qdrant
-        store._sparql_select = AsyncMock(return_value=text_result)
-        store._build_textual_embeddings = (
-            lambda p: _FusekiEmbeddingMixin._build_textual_embeddings(store, p)
-        )
+        store = _make_textual_store(fake_qdrant)
+        # First page has rows (but no text) → advance; second page empty → stop.
+        store._sparql_select = AsyncMock(side_effect=[page, empty])
 
         result = await store._build_textual_embeddings(FakeEmbeddingProvider())
         assert result == 0
+        # No collection should be created when nothing is embeddable.
+        assert TEXT_COLLECTION not in fake_qdrant._collections
 
     @pytest.mark.asyncio
     async def test_calls_embed_and_upserts(self):
         """With labelled instances, provider.embed is called and vectors upserted."""
-        text_result = {
+        page = {
             "results": {
                 "bindings": [
                     {
@@ -302,15 +352,11 @@ class TestBuildTextual:
                 ]
             }
         }
+        empty = {"results": {"bindings": []}}
 
-        store = MagicMock(spec=_FusekiEmbeddingMixin)
         fake_qdrant = FakeQdrantWrapper()
-        store._qdrant = fake_qdrant
-        store._get_qdrant = lambda: fake_qdrant
-        store._sparql_select = AsyncMock(return_value=text_result)
-        store._build_textual_embeddings = (
-            lambda p: _FusekiEmbeddingMixin._build_textual_embeddings(store, p)
-        )
+        store = _make_textual_store(fake_qdrant)
+        store._sparql_select = AsyncMock(side_effect=[page, empty])
 
         provider = FakeEmbeddingProvider()
         result = await store._build_textual_embeddings(provider)
@@ -323,6 +369,81 @@ class TestBuildTextual:
         assert any(
             dim == provider.dimension for _, dim in fake_qdrant.ensure_collection_calls
         )
+
+    @pytest.mark.asyncio
+    async def test_textual_pages_multiple_fetches(self, monkeypatch):
+        """HIGH #3 regression: textual build pages with SKIP/LIMIT (multiple fetches).
+
+        Monkeypatch the page size to 2 and feed 5 instances across 3 pages
+        (2 + 2 + 1).  Assert _sparql_select is called once per page (the last
+        partial page stops the loop) and provider.embed is called per page.
+        """
+        # Force a tiny page size so 5 rows span multiple pages.
+        monkeypatch.setattr(
+            "ontorag.stores._fuseki_embedding_mixin._TEXT_PAGE_SIZE", 2
+        )
+
+        def _page(uris: list[str]) -> dict:
+            # Labels must be >= _MIN_TEXT_LEN (3) chars to be embeddable.
+            return {
+                "results": {
+                    "bindings": [
+                        {
+                            "inst": {"value": u},
+                            "label": {"value": f"name-{u.rsplit('/', 1)[-1]}"},
+                        }
+                        for u in uris
+                    ]
+                }
+            }
+
+        page1 = _page(["http://ex.org/A", "http://ex.org/B"])  # full page (2)
+        page2 = _page(["http://ex.org/C", "http://ex.org/D"])  # full page (2)
+        page3 = _page(["http://ex.org/E"])  # partial page (1) → stops loop
+
+        fake_qdrant = FakeQdrantWrapper()
+        store = _make_textual_store(fake_qdrant)
+        store._sparql_select = AsyncMock(side_effect=[page1, page2, page3])
+
+        provider = FakeEmbeddingProvider()
+        # Track embed calls.
+        embed_calls: list[int] = []
+        orig_embed = provider.embed
+
+        async def _counting_embed(texts):
+            embed_calls.append(len(texts))
+            return await orig_embed(texts)
+
+        provider.embed = _counting_embed  # type: ignore[method-assign]
+
+        result = await store._build_textual_embeddings(provider)
+
+        # All 5 instances embedded + upserted.
+        assert result == 5
+        # Three SPARQL page fetches (2 full + 1 partial).
+        assert store._sparql_select.call_count == 3
+        # provider.embed called once per non-empty page → 3 calls of sizes 2,2,1.
+        assert embed_calls == [2, 2, 1]
+        assert len(fake_qdrant._collections.get(TEXT_COLLECTION, {})) == 5
+
+    @pytest.mark.asyncio
+    async def test_textual_clears_collection_on_build(self):
+        """MEDIUM #2 regression: textual build drops the collection first (clear-on-build)."""
+        page = {
+            "results": {
+                "bindings": [
+                    {"inst": {"value": "http://ex.org/A"}, "label": {"value": "Alpha"}},
+                ]
+            }
+        }
+        fake_qdrant = FakeQdrantWrapper()
+        store = _make_textual_store(fake_qdrant)
+        store._sparql_select = AsyncMock(side_effect=[page])
+
+        await store._build_textual_embeddings(FakeEmbeddingProvider())
+
+        # The text collection must have been deleted before (re)creation.
+        assert TEXT_COLLECTION in fake_qdrant.delete_collection_calls
 
 
 # ── find_similar — single mode ───────────────────────────────────────────────
@@ -400,44 +521,77 @@ class TestFindSimilarSingle:
             assert h.uri != "http://ex.org/A"  # self excluded
 
     @pytest.mark.asyncio
-    async def test_tbox_type_excluded_from_class_uri(self):
-        """Vocabulary type URIs (owl:Class etc.) must not appear as class_uri."""
-        fake_qdrant = FakeQdrantWrapper()
-        await fake_qdrant.ensure_collection(STRUCT_COLLECTION, dim=4)
-        await fake_qdrant.upsert(
-            STRUCT_COLLECTION,
-            [
-                ("http://ex.org/A", [1.0, 0.0, 0.0, 0.0]),
-                ("http://ex.org/B", [0.9, 0.1, 0.0, 0.0]),
-            ],
+    async def test_resolve_meta_filters_tbox_in_sparql(self):
+        """HIGH #2 regression: _resolve_entity_meta filters vocab types IN SPARQL.
+
+        SAMPLE/MIN can only pick a real ABox class because the vocab types are
+        excluded by ``FILTER(?cls NOT IN (...))`` and the class is chosen
+        deterministically via ``MIN(STR(?cls))``.
+        """
+        captured: list[str] = []
+
+        async def _capture(sparql: str):
+            captured.append(sparql)
+            return {
+                "results": {
+                    "bindings": [
+                        {
+                            "inst": {"value": "http://ex.org/B"},
+                            "class_uri": {"value": "http://ex.org/Pokemon"},
+                            "label": {"value": "B"},
+                        }
+                    ]
+                }
+            }
+
+        store = MagicMock(spec=_FusekiEmbeddingMixin)
+        store._sparql_select = _capture
+        store._resolve_entity_meta = (
+            lambda *a, **kw: _FusekiEmbeddingMixin._resolve_entity_meta(store, *a, **kw)
         )
 
-        # B's type is owl:Class — a TBox vocab type, should be None in output.
+        meta = await store._resolve_entity_meta(["http://ex.org/B"])
+
+        sparql = captured[0]
+        # Vocab types must be excluded inside the query (not Python-side).
+        assert "NOT IN" in sparql
+        assert "owl#Class" in sparql
+        # Class must be picked deterministically via MIN.
+        assert "MIN(STR(?cls))" in sparql
+        # The resolved class is the real ABox class.
+        assert meta["http://ex.org/B"]["class_uri"] == "http://ex.org/Pokemon"
+
+    @pytest.mark.asyncio
+    async def test_resolve_meta_class_uri_stable_across_calls(self):
+        """HIGH #2 regression: class_uri is deterministic across repeated calls.
+
+        Given the same SPARQL result, MIN(STR(?cls)) yields a single stable
+        value — verify two consecutive resolves return the identical class_uri.
+        """
         meta_result = {
             "results": {
                 "bindings": [
                     {
                         "inst": {"value": "http://ex.org/B"},
-                        "class_uri": {"value": "http://www.w3.org/2002/07/owl#Class"},
-                    },
+                        "class_uri": {"value": "http://ex.org/Pokemon"},
+                    }
                 ]
             }
         }
 
         store = MagicMock(spec=_FusekiEmbeddingMixin)
-        store._get_qdrant = lambda: fake_qdrant
         store._sparql_select = AsyncMock(return_value=meta_result)
         store._resolve_entity_meta = (
             lambda *a, **kw: _FusekiEmbeddingMixin._resolve_entity_meta(store, *a, **kw)
         )
-        store._find_similar_single = (
-            lambda *a, **kw: _FusekiEmbeddingMixin._find_similar_single(store, *a, **kw)
+
+        meta1 = await store._resolve_entity_meta(["http://ex.org/B"])
+        meta2 = await store._resolve_entity_meta(["http://ex.org/B"])
+        assert (
+            meta1["http://ex.org/B"]["class_uri"]
+            == meta2["http://ex.org/B"]["class_uri"]
+            == "http://ex.org/Pokemon"
         )
-
-        hits = await store._find_similar_single("http://ex.org/A", 1, "structural")
-
-        assert len(hits) == 1
-        assert hits[0].class_uri is None  # TBox type was filtered out
 
 
 # ── find_similar — hybrid / RRF ───────────────────────────────────────────────
@@ -553,3 +707,71 @@ class TestSimilarRoute:
         resp = client.post("/tools/similar", json={"uri": "http://ex.org/A"})
         assert resp.status_code == 501
         assert "501" in resp.text or "not supported" in resp.text.lower()
+
+
+# ── QdrantWrapper.retrieve_vector — vector shape handling ─────────────────────
+
+
+class _FakePoint:
+    """Minimal stand-in for a qdrant_client Record with a `.vector` attr."""
+
+    def __init__(self, vector):
+        self.vector = vector
+
+
+class TestQdrantRetrieveVector:
+    """MEDIUM #1 regression: retrieve_vector handles list, dict, and bad shapes."""
+
+    def _wrapper_with_client(self, retrieve_return):
+        """Build a QdrantWrapper whose client.retrieve returns the given value."""
+        from ontorag.stores._qdrant import QdrantWrapper
+
+        wrapper = QdrantWrapper.__new__(QdrantWrapper)  # bypass __init__ (no real client)
+        client = MagicMock()
+        client.retrieve = AsyncMock(return_value=retrieve_return)
+        wrapper._client = client
+        return wrapper
+
+    @pytest.mark.asyncio
+    async def test_plain_list_vector(self):
+        """A plain list[float] vector is returned as-is."""
+        wrapper = self._wrapper_with_client([_FakePoint([0.1, 0.2, 0.3])])
+        vec = await wrapper.retrieve_vector("c", "http://ex.org/A")
+        assert vec == [0.1, 0.2, 0.3]
+
+    @pytest.mark.asyncio
+    async def test_named_vector_dict_default_key(self):
+        """A dict with the default '' key returns that vector (not None)."""
+        wrapper = self._wrapper_with_client(
+            [_FakePoint({"": [0.4, 0.5, 0.6], "other": [9.0]})]
+        )
+        vec = await wrapper.retrieve_vector("c", "http://ex.org/A")
+        assert vec == [0.4, 0.5, 0.6]
+
+    @pytest.mark.asyncio
+    async def test_named_vector_dict_first_key_fallback(self):
+        """A dict without '' returns the first vector (with a warning)."""
+        wrapper = self._wrapper_with_client([_FakePoint({"struct": [0.7, 0.8]})])
+        vec = await wrapper.retrieve_vector("c", "http://ex.org/A")
+        assert vec == [0.7, 0.8]
+
+    @pytest.mark.asyncio
+    async def test_empty_dict_returns_none(self):
+        """An empty dict yields None (no vector present)."""
+        wrapper = self._wrapper_with_client([_FakePoint({})])
+        vec = await wrapper.retrieve_vector("c", "http://ex.org/A")
+        assert vec is None
+
+    @pytest.mark.asyncio
+    async def test_unexpected_type_returns_none(self):
+        """An unexpected vector type (e.g. str) yields None, not a crash."""
+        wrapper = self._wrapper_with_client([_FakePoint("not-a-vector")])
+        vec = await wrapper.retrieve_vector("c", "http://ex.org/A")
+        assert vec is None
+
+    @pytest.mark.asyncio
+    async def test_no_results_returns_none(self):
+        """No matching point yields None."""
+        wrapper = self._wrapper_with_client([])
+        vec = await wrapper.retrieve_vector("c", "http://ex.org/A")
+        assert vec is None
