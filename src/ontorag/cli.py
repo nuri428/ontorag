@@ -280,9 +280,12 @@ def embed_run(
         help="임베딩 모드: structural | textual | both (기본값: both)",
     ),
 ) -> None:
-    """그래프 임베딩을 생성합니다 (GRAPH_STORE=neo4j 전용).
+    """그래프 임베딩을 생성합니다.
 
-    --mode structural : GDS FastRP 구조적 임베딩만 생성
+    Fuseki 백엔드: FastRP(pure-Python) + Qdrant 벡터 스토어 사용.
+    Neo4j 백엔드: GDS FastRP + 네이티브 벡터 인덱스 사용.
+
+    --mode structural : 구조적 임베딩만 생성
     --mode textual    : EmbeddingProvider 의미적 임베딩만 생성
     --mode both       : 구조적 + 의미적 모두 생성 (기본값)
 
@@ -306,11 +309,11 @@ def embed_run(
     # capability/provider guards below) releases the store's connection — a
     # bare guard `raise` would otherwise leak the Fuseki httpx client.
     try:
-        # Verify the store supports embeddings (Neo4j only).
+        # Verify the store supports embeddings.
         build_fn = getattr(store, "build_embeddings", None)
         if build_fn is None:
             console.print(
-                "[red]Error:[/] 그래프 임베딩은 GRAPH_STORE=neo4j 에서만 지원됩니다."
+                "[red]Error:[/] 이 그래프 스토어는 임베딩을 지원하지 않습니다."
             )
             raise typer.Exit(1)
 

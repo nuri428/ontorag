@@ -41,7 +41,7 @@ class FindSimilarRequest(BaseModel):
     operation_id="find_similar",
     summary=(
         "그래프 임베딩 유사도 검색 — 구조적(FastRP) / 의미적(텍스트) / 혼합(RRF) "
-        "유사 엔티티 반환 (Neo4j 전용)"
+        "유사 엔티티 반환 (Fuseki/Qdrant 또는 Neo4j)"
     ),
     response_model=list[SimilarHit],
 )
@@ -51,9 +51,12 @@ async def find_similar(
 ) -> list[SimilarHit]:
     """Find the most similar ontology entities using graph embeddings.
 
-    Only available when ``GRAPH_STORE=neo4j`` and embeddings have been built
-    via ``ontorag embed``.  Returns 501 for Fuseki or any backend that does
-    not expose the ``find_similar`` capability.
+    Available when embeddings have been built via ``ontorag embed``.
+    For Fuseki, requires Qdrant (``QDRANT_URL``, default
+    ``http://localhost:6333``) and the ``[vector]`` extra.
+    For Neo4j, uses native vector indexes.
+    Returns 501 for any backend that does not expose the ``find_similar``
+    capability.
 
     Structural mode uses GDS FastRP (graph topology).
     Textual mode uses EmbeddingProvider cosine similarity (semantic content).
@@ -73,7 +76,9 @@ async def find_similar(
     Raises:
         HTTPException: 501 if the active backend does not support find_similar.
     """
-    # Capability guard: only Neo4j exposes find_similar.
+    # Capability guard: expose find_similar only when the backend implements it.
+    # Both FusekiStore (Qdrant-backed) and Neo4jStore expose this method after
+    # embeddings are built via `ontorag embed`.
     fn = getattr(store, "find_similar", None)
     if fn is None:
         raise HTTPException(
@@ -81,8 +86,7 @@ async def find_similar(
             detail=(
                 "Graph embedding similarity search is not supported by the "
                 f"active graph store ({type(store).__name__}). "
-                "This endpoint requires GRAPH_STORE=neo4j and embeddings built "
-                "via 'ontorag embed'."
+                "Run 'ontorag embed' after loading data to enable this endpoint."
             ),
         )
 
