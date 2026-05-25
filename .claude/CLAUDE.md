@@ -75,11 +75,10 @@ Out of scope for v0.3:
 - **BM25 full-text search** (`search_text`): **both backends** — Neo4j fulltext index / Fuseki jena-text (Lucene). `docs/design/neo4j-bm25.md`.
 - **Graph embeddings** (`find_similar` + `ontorag embed`): **both backends** — structural + textual (`EmbeddingProvider`: OpenAI/Ollama via `EMBEDDING_PROVIDER`) + `hybrid` (RRF), explicit `ontorag embed` trigger. Neo4j: GDS FastRP + native vector index. Fuseki: `core/fastrp.py` + EmbeddingProvider → **Qdrant**. `docs/design/neo4j-embedding.md`, `docs/design/fuseki-parity.md`.
 - **Reasoning, full-text, and vector similarity have full backend parity** (Fuseki ⇄ Neo4j); each uses its native tech.
-- **Multi-ontology per instance** (shipped): one instance hosts many ontologies; every read tool + `load` takes an optional `ontology` scope (`None` = union/all, backward-compatible). Fuseki = per-ontology named graphs (`urn:ontorag:{id}:schema/data`); Neo4j = node `_ontology` list tag (no named graphs). `docs/design/multi-ontology.md`.
+- **Multi-ontology per instance** (shipped): one instance hosts many ontologies; every read tool + `load` + `embed`/`find_similar` takes an optional `ontology` scope (`None` = union/all, backward-compatible). Fuseki = per-ontology named graphs (`urn:ontorag:{id}:schema/data`); Neo4j = node `_ontology` list tag. Embeddings are scoped too — Qdrant points carry an `ontology` payload (un-tagged, not deleted, when shared across ontologies); Neo4j post-filters kNN by `_ontology`. `docs/design/multi-ontology.md`.
 
 ### v0.5+ (still planned)
-- Per-ontology scoping of `build_embeddings`/`find_similar` (currently global — deferred follow-up)
-- Per-ontology access control / cross-ontology entity alignment
+- Per-ontology access control / cross-ontology entity alignment (owl:sameAs)
 
 ## Architecture
 
@@ -468,7 +467,7 @@ Fuseki healthcheck: `GET /$/ping` → 200 OK.
 - Multi-ontology per instance (`ontology` scope on all read tools + `load`).
 
 ### v0.6+ (planned)
-- Per-ontology scoping of embeddings/find_similar (currently global)
+- Per-ontology access control; cross-ontology entity alignment (owl:sameAs)
 
 ## What NOT to do (anti-patterns)
 

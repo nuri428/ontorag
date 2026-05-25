@@ -119,10 +119,12 @@ ontorag load data   people.ttl --ontology foaf
 ontorag load schema gist.ttl   --ontology gist
 ```
 
-Every read tool (`get_schema`, `find_entities`, `search_text`, …) takes an
-optional `ontology` argument: pass an id to isolate, omit it for the union of
-all ontologies (the default, backward-compatible). Fuseki isolates with
-per-ontology named graphs; Neo4j tags nodes with an `_ontology` property.
+Every read tool (`get_schema`, `find_entities`, `search_text`, `find_similar`, …)
+plus `ontorag embed --ontology <id>` takes an optional `ontology` argument: pass
+an id to isolate, omit it for the union of all ontologies (the default,
+backward-compatible). Fuseki isolates with per-ontology named graphs; Neo4j tags
+nodes with an `_ontology` property. A scoped `embed` only rebuilds that
+ontology's vectors and leaves the others intact.
 
 ---
 
