@@ -17,7 +17,12 @@ from ontorag.core.cypher import (
     _parse_literal_value,
     pattern_to_cypher,
 )
-from ontorag.stores.base import PatternFilter, PatternQuery, PatternTriple
+from ontorag.stores.base import (
+    PatternFilter,
+    PatternQuery,
+    PatternTriple,
+    TraversalDirection,
+)
 
 
 # ── pattern_to_cypher ─────────────────────────────────────────────────────────
@@ -425,3 +430,70 @@ class TestFactory:
                 create_store()
         finally:
             del os.environ["GRAPH_STORE"]
+
+
+# ── traverse rel-pattern helpers (regression: malformed Cypher) ───────────────
+
+_PK = "http://example.org/pokemon#"
+_EVOLVES = _PK + "evolvesFrom"
+
+
+def _shorten_pk(uri: str) -> str:
+    """Stub mirroring Neo4jStore._shorten_prefixed: full URI → prefixed name."""
+    if uri.startswith(_PK):
+        return "pk:" + uri[len(_PK) :]
+    return uri
+
+
+class TestTraverseRelPattern:
+    """Guards the single-hop edge filter and the var-length rel pattern.
+
+    Regression: ``_pred_rel_type_filter`` returned ``[:`x`]`` (with brackets)
+    but the edge-detail query wraps it in ``-[rel{...}]->``, producing the
+    malformed ``-[rel[:`x`]]->`` that Neo4j rejects with a CypherSyntaxError.
+    The filter must be a *bare* type label so the caller's brackets are the
+    only ones. Live verification: traverse(Charizard, evolvesFrom) reaches
+    Charmeleon + Charmander on neo4j:5.26.
+    """
+
+    def test_pred_rel_type_filter_has_no_brackets(self) -> None:
+        from ontorag.stores._neo4j_traversal_mixin import (  # noqa: PLC0415
+            _pred_rel_type_filter,
+        )
+
+        filt = _pred_rel_type_filter(_EVOLVES, _shorten_pk)
+        assert filt == ":`pk__evolvesFrom`"
+        assert "[" not in filt and "]" not in filt
+
+    def test_edge_query_fragment_is_balanced(self) -> None:
+        from ontorag.stores._neo4j_traversal_mixin import (  # noqa: PLC0415
+            _pred_rel_type_filter,
+        )
+
+        filt = _pred_rel_type_filter(_EVOLVES, _shorten_pk)
+        fragment = f"-[rel{filt}]->"  # exactly how the edge-detail query builds it
+        assert fragment == "-[rel:`pk__evolvesFrom`]->"
+        assert fragment.count("[") == 1 and fragment.count("]") == 1
+
+    def test_pred_rel_type_filter_empty_for_none(self) -> None:
+        from ontorag.stores._neo4j_traversal_mixin import (  # noqa: PLC0415
+            _pred_rel_type_filter,
+        )
+
+        # None → all predicates → caller yields a valid ``-[rel]->``.
+        assert _pred_rel_type_filter(None, _shorten_pk) == ""
+
+    def test_rel_pattern_varlength_well_formed(self) -> None:
+        from ontorag.stores._neo4j_traversal_mixin import _rel_pattern  # noqa: PLC0415
+
+        pat = _rel_pattern(_EVOLVES, 3, TraversalDirection.outgoing, _shorten_pk)
+        assert pat == "-[:`pk__evolvesFrom`*1..3]->"
+        assert pat.count("[") == 1 and pat.count("]") == 1
+
+    def test_rel_pattern_directions(self) -> None:
+        from ontorag.stores._neo4j_traversal_mixin import _rel_pattern  # noqa: PLC0415
+
+        inc = _rel_pattern(_EVOLVES, 2, TraversalDirection.incoming, _shorten_pk)
+        both = _rel_pattern(_EVOLVES, 2, TraversalDirection.both, _shorten_pk)
+        assert inc == "<-[:`pk__evolvesFrom`*1..2]-"
+        assert both == "-[:`pk__evolvesFrom`*1..2]-"
