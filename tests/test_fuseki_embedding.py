@@ -55,42 +55,87 @@ class FakeEmbeddingProvider:
 
 
 class FakeQdrantWrapper:
-    """In-memory fake QdrantWrapper for unit tests."""
+    """In-memory fake QdrantWrapper for unit tests.
+
+    Supports the new ``ontology`` param on ``upsert``, ``ontology_filter`` on
+    ``query``, and ``delete_by_ontology`` — all added for per-ontology scoping.
+    """
 
     def __init__(self) -> None:
         self._collections: dict[str, dict[str, list[float]]] = {}
+        # Stores {collection: {uri: [ontology_id, ...]}} for filtering tests.
+        self._ontologies: dict[str, dict[str, list[str]]] = {}
         self.ensure_collection_calls: list[tuple[str, int]] = []
         self.upsert_calls: list[tuple[str, list[tuple[str, list[float]]]]] = []
         self.delete_collection_calls: list[str] = []
+        self.delete_by_ontology_calls: list[tuple[str, str]] = []
 
     async def ensure_collection(self, name: str, dim: int) -> None:
         self.ensure_collection_calls.append((name, dim))
         if name not in self._collections:
             self._collections[name] = {}
 
-    async def upsert(self, collection: str, points: list[tuple[str, list[float]]]) -> int:
+    async def upsert(
+        self,
+        collection: str,
+        points: list[tuple[str, list[float]]],
+        ontology: str | None = None,
+    ) -> int:
         self.upsert_calls.append((collection, points))
         if collection not in self._collections:
             self._collections[collection] = {}
+        if collection not in self._ontologies:
+            self._ontologies[collection] = {}
         for uri, vec in points:
             self._collections[collection][uri] = vec
+            # Track ontology membership for filter tests.
+            if ontology is not None:
+                prev = self._ontologies[collection].get(uri, [])
+                if ontology not in prev:
+                    self._ontologies[collection][uri] = [*prev, ontology]
+            else:
+                self._ontologies[collection].setdefault(uri, [])
         return len(points)
 
     async def retrieve_vector(self, collection: str, uri: str) -> list[float] | None:
         return self._collections.get(collection, {}).get(uri)
 
     async def query(
-        self, collection: str, vector: list[float], top_k: int
+        self,
+        collection: str,
+        vector: list[float],
+        top_k: int,
+        ontology_filter: str | None = None,
     ) -> list[tuple[str, float]]:
         store = self._collections.get(collection, {})
         # Trivial similarity: return all stored URIs ordered by first-element difference.
         results = [(u, 1.0 - abs(v[0] - vector[0])) for u, v in store.items()]
+        # Apply ontology filter if provided.
+        if ontology_filter is not None:
+            ont_map = self._ontologies.get(collection, {})
+            results = [
+                (u, s) for u, s in results
+                if ontology_filter in ont_map.get(u, [])
+            ]
         results.sort(key=lambda x: x[1], reverse=True)
         return results[:top_k]
 
     async def delete_collection(self, name: str) -> None:
         self.delete_collection_calls.append(name)
         self._collections.pop(name, None)
+        self._ontologies.pop(name, None)
+
+    async def delete_by_ontology(self, collection: str, ontology: str) -> None:
+        """Remove points whose ontology list contains the given id."""
+        self.delete_by_ontology_calls.append((collection, ontology))
+        ont_map = self._ontologies.get(collection, {})
+        to_remove = [
+            uri for uri, ids in ont_map.items() if ontology in ids
+        ]
+        col = self._collections.get(collection, {})
+        for uri in to_remove:
+            col.pop(uri, None)
+            ont_map.pop(uri, None)
 
     async def aclose(self) -> None:
         pass
