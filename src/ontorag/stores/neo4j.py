@@ -444,6 +444,7 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
             triples_loaded=loaded,
             source=path,
             mode=resolved_mode,
+            ontology=ontology,
         )
 
     async def _tag_ontology_nodes(self, graph: Graph, ontology: str) -> int:

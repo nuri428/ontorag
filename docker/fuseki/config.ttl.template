@@ -1,6 +1,12 @@
-# Fuseki assembler config — jena-text (Lucene) full-text index over TDB2
-# Replaces the --mem flag so the dataset persists between container restarts
-# and the text:TextDataset wrapper enables text:query in SPARQL.
+# Fuseki assembler config TEMPLATE — jena-text (Lucene) full-text index over TDB2.
+# The entrypoint substitutes __FUSEKI_DATASET__ with $FUSEKI_DATASET at startup
+# and writes the result to /fuseki/config.ttl. This keeps the dataset name (the
+# URL path) configurable — restoring the old `--mem /${FUSEKI_DATASET}` behaviour
+# while still enabling jena-text + unionDefaultGraph.
+#
+# NOTE: only the dataset NAME and on-disk locations are templated. The named
+# graph URIs urn:ontorag:schema / urn:ontorag:data are FIXED (the store hardcodes
+# them) and must NOT be templated.
 #
 # Named graphs used by ontorag:
 #   urn:ontorag:schema  → TBox (class/property declarations)
@@ -29,7 +35,7 @@
 # ── Service ───────────────────────────────────────────────────────────────────
 
 :service rdf:type fuseki:Service ;
-    fuseki:name "ontorag" ;
+    fuseki:name "__FUSEKI_DATASET__" ;
 
     # Default endpoints (no path name) used by GSP and plain SPARQL clients
     fuseki:endpoint [ fuseki:operation fuseki:query ] ;
@@ -54,20 +60,18 @@
 # ── TDB2 persistent store ─────────────────────────────────────────────────────
 
 :tdb rdf:type tdb2:DatasetTDB2 ;
-    tdb2:location "/fuseki/databases/ontorag" ;
+    tdb2:location "/fuseki/databases/__FUSEKI_DATASET__" ;
     # unionDefaultGraph makes queries without GRAPH <...> hit all named graphs.
-    # ontorag always uses explicit GRAPH <urn:ontorag:schema> / GRAPH <urn:ontorag:data>
-    # so this is safe and avoids surprises on the default graph.
+    # Used by multi-ontology union reads (ontology=None).
     tdb2:unionDefaultGraph true .
 
 # ── Lucene text index ─────────────────────────────────────────────────────────
 
 :luceneIndex rdf:type text:TextIndexLucene ;
-    text:directory "/fuseki/databases/ontorag-lucene" ;
+    text:directory "/fuseki/databases/__FUSEKI_DATASET__-lucene" ;
     # storeValues=true: the indexed value is stored in Lucene so text:query
     # can return the matched literal without a second SPARQL triple fetch.
     text:storeValues true ;
-    # graphField="graph": stored so multi-graph datasets can filter by named graph.
     text:entityMap :entityMap .
 
 # ── Entity map: which predicates are indexed ──────────────────────────────────

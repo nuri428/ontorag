@@ -29,6 +29,10 @@ async def load_rdf(
         Literal["schema", "data", "auto"],
         Form(description="schema=TBox, data=ABox, auto=내용으로 자동 감지"),
     ] = "auto",
+    ontology: Annotated[
+        str | None,
+        Form(description="로드할 온톨로지 id (미지정 시 기본/레거시 그래프)."),
+    ] = None,
     store: GraphStore = Depends(get_store),
 ) -> LoadResult:
     """Upload an RDF file and load it into the graph store.
@@ -36,9 +40,10 @@ async def load_rdf(
     Args:
         file: RDF file to upload.
         mode: Load mode — auto-detects TBox vs ABox when set to "auto".
+        ontology: Optional ontology id to load under (None = default graphs).
 
     Returns:
-        Number of triples loaded and the resolved load mode.
+        Number of triples loaded, the resolved load mode, and ontology id.
     """
     content = await file.read()
     suffix = _file_suffix(file.filename)
@@ -48,7 +53,7 @@ async def load_rdf(
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp.write(content)
             tmp_path = tmp.name
-        return await store.load_rdf(tmp_path, mode)
+        return await store.load_rdf(tmp_path, mode, ontology=ontology)
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
