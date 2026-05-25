@@ -261,6 +261,7 @@ PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 SELECT ?inst ?score ?label ?type WHERE {{
   (?inst ?score) text:query ("{safe_query}" {internal_limit}) .
+  GRAPH <{_DATA}> {{ ?inst rdf:type ?anytype . }}
   OPTIONAL {{ GRAPH <{_DATA}> {{ ?inst rdfs:label ?label . }} }}
   OPTIONAL {{
     GRAPH <{_DATA}> {{ ?inst rdf:type ?type . FILTER(!isBlank(?type)) }}

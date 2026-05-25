@@ -7,6 +7,8 @@ from ontorag.stores.base import PatternFilter, PatternQuery
 DATA_GRAPH_URI = "urn:ontorag:data"
 
 _SAFE_URI_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9+\-.]*:[^\s<>"{}|\\^`\[\]]*$')
+# Bare token (no scheme/prefix) — conservative local-name charset.
+_SAFE_LOCAL_RE = re.compile(r"^[a-zA-Z0-9_.\-]+$")
 
 STANDARD_PREFIXES: dict[str, str] = {
     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
@@ -123,10 +125,25 @@ def uri_ref(uri: str) -> str:
     Raises:
         ValueError: If the URI contains characters that could enable SPARQL injection.
     """
-    if "://" in uri and not uri.startswith("<"):
+    if uri.startswith("?") or uri.startswith("<"):
+        # SPARQL variable or already-bracketed URI — pass through.
+        return uri
+    if "://" in uri:
+        # Absolute URI → validate and wrap in angle brackets.
         if not _SAFE_URI_RE.match(uri):
             raise ValueError(f"Invalid or potentially unsafe URI: {uri!r}")
         return f"<{uri}>"
+    if ":" in uri:
+        # Prefixed name (prefix:local) or opaque scheme (e.g. urn:) — validate
+        # against the same safe charset but leave unwrapped. Closes the
+        # injection gap where non-"://" inputs were previously returned
+        # verbatim (e.g. "pk:Foo } INJECT", "urn:x:Foo} SELECT ...").
+        if not _SAFE_URI_RE.match(uri):
+            raise ValueError(f"Invalid or potentially unsafe prefixed name: {uri!r}")
+        return uri
+    # Bare token (no scheme/prefix) — allow only safe local-name characters.
+    if not _SAFE_LOCAL_RE.match(uri):
+        raise ValueError(f"Invalid or potentially unsafe term: {uri!r}")
     return uri
 
 
