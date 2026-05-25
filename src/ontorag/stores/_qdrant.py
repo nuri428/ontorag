@@ -14,6 +14,14 @@ are module-level constants so they cannot be user-supplied.
 Lazy import: ``qdrant_client`` is an optional dependency in the ``[vector]``
 extra.  A clear ``ValueError`` is raised when the package is missing (mirrors
 the neo4j driver pattern in ``stores/factory.py``).
+
+Staleness note:
+    Vectors live in Qdrant, separate from the RDF graph in Fuseki.  Deleting
+    entities from the graph (e.g. ``ontorag clear data``) does NOT remove their
+    Qdrant points — those become zombies until the next ``ontorag embed``.  To
+    avoid surfacing deleted entities, ``build_embeddings`` recreates (clears)
+    each collection at the start of every build, so a re-run after a data
+    change always produces a consistent, zombie-free index.
 """
 
 import logging
@@ -99,22 +107,43 @@ class QdrantWrapper:
         """
         from qdrant_client.models import Distance, VectorParams  # noqa: PLC0415
 
+        # Inspect the existing collection (if any).  A not-found error here is
+        # expected for a first-time build and means we should fall through to
+        # create.  We deliberately keep this try/except SEPARATE from the
+        # delete below so that a real delete failure cannot be silently
+        # swallowed and leave a stale wrong-dim collection in place (HIGH #1).
+        existing_dim: int | None = None
         try:
             info = await self._client.get_collection(name)
             existing_dim = info.config.params.vectors.size  # type: ignore[union-attr]
+        except Exception:
+            existing_dim = None  # Collection does not exist yet — create below.
+
+        if existing_dim is not None:
             if existing_dim == dim:
                 logger.debug("Qdrant collection '%s' already exists (dim=%d).", name, dim)
                 return
-            # Dimension mismatch — drop and recreate.
+            # Dimension mismatch — drop and recreate.  If the delete fails we
+            # must NOT fall through to create (that would leave the stale
+            # wrong-dim collection), so log and re-raise.
             logger.info(
                 "Qdrant collection '%s' has dim=%d (expected %d); recreating.",
                 name,
                 existing_dim,
                 dim,
             )
-            await self._client.delete_collection(name)
-        except Exception:
-            pass  # Collection does not exist yet — create it below.
+            try:
+                await self._client.delete_collection(name)
+            except Exception as exc:
+                logger.error(
+                    "Failed to delete stale Qdrant collection '%s' (dim=%d) before "
+                    "recreating at dim=%d: %s",
+                    name,
+                    existing_dim,
+                    dim,
+                    exc,
+                )
+                raise
 
         await self._client.create_collection(
             collection_name=name,
@@ -223,10 +252,34 @@ class QdrantWrapper:
             vec = results[0].vector
             if vec is None:
                 return None
-            # qdrant-client returns list[float] or dict[str, list[float]]
-            # for named/unnamed vectors respectively.
+            # qdrant-client returns a plain list[float] for the default
+            # (unnamed) vector — the only shape ontorag writes.  Named-vector
+            # collections return dict[str, list[float]]; we extract the
+            # default ("") key when present, otherwise the first vector.
             if isinstance(vec, list):
                 return vec
+            if isinstance(vec, dict):
+                if not vec:
+                    return None
+                # Prefer the default unnamed vector ("") if it exists.
+                default = vec.get("")
+                if isinstance(default, list):
+                    return default
+                first = next(iter(vec.values()), None)
+                if isinstance(first, list):
+                    logger.warning(
+                        "Qdrant point in '%s' uses named vectors; using first key %r.",
+                        collection,
+                        next(iter(vec.keys()), None),
+                    )
+                    return first
+                return None
+            logger.warning(
+                "Qdrant retrieve from '%s' returned unexpected vector type %s; "
+                "treating as missing.",
+                collection,
+                type(vec).__name__,
+            )
             return None
         except Exception as exc:
             logger.debug("Qdrant retrieve from '%s' failed: %s", collection, exc)
