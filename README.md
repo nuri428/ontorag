@@ -95,7 +95,12 @@ Run on Neo4j:
 
 ```bash
 docker compose --profile neo4j up -d neo4j   # neo4j 5.26 + apoc + n10s + GDS
-export GRAPH_STORE=neo4j                       # NEO4J_* in .env
+
+# Point ontorag at Neo4j — writes GRAPH_STORE + NEO4J_* to .env:
+ontorag config set --graph-store neo4j \
+  --neo4j-url bolt://localhost:7687 --neo4j-user neo4j --neo4j-password ontorag123
+ontorag config show                            # verify backend + connection
+# (or set GRAPH_STORE=neo4j and NEO4J_* directly in .env / the environment)
 ```
 
 Vector search on **either** backend (Fuseki needs Qdrant + the `[vector]` extra):
@@ -242,8 +247,18 @@ Settings are written to `.env` in the current directory.
 | `ANTHROPIC_API_KEY` | — | Required for Anthropic |
 | `OPENAI_API_KEY` | — | Required for OpenAI |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server |
-| `FUSEKI_URL` | `http://localhost:3030` | SPARQL endpoint |
+| `GRAPH_STORE` | `fuseki` | Backend: `fuseki` · `neo4j` |
+| `FUSEKI_URL` | `http://localhost:3030` | SPARQL endpoint (`GRAPH_STORE=fuseki`) |
 | `FUSEKI_DATASET` | `ontorag` | Dataset name |
+| `NEO4J_URI` | `bolt://localhost:7687` | Bolt endpoint (`GRAPH_STORE=neo4j`) |
+| `NEO4J_USER` / `NEO4J_PASSWORD` | `neo4j` / — | Neo4j credentials |
+| `NEO4J_DATABASE` | `neo4j` | Neo4j database name |
+| `QDRANT_URL` | `http://localhost:6333` | Vector store for Fuseki `find_similar` |
+| `EMBEDDING_PROVIDER` | `openai` | Textual embeddings: `openai` · `ollama` |
+
+All of the above can be written to `.env` via `ontorag config set`
+(`--graph-store`, `--neo4j-url/-user/-password`, `--qdrant-url`, …) and
+inspected with `ontorag config show`.
 
 ---
 

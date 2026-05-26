@@ -59,6 +59,67 @@ def test_config_set_ollama_url(tmp_path, monkeypatch):
     assert "OLLAMA_BASE_URL" in result.output
 
 
+# ── config set: backend (Neo4j / GRAPH_STORE / Qdrant) ─────────────────────────
+
+
+def test_config_set_graph_store_neo4j(tmp_path, monkeypatch):
+    from dotenv import dotenv_values  # noqa: PLC0415
+
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(app, ["config", "set", "--graph-store", "neo4j"])
+    assert result.exit_code == 0
+    assert "GRAPH_STORE=neo4j" in result.output
+    # set_key quotes values in .env — parse rather than substring-match.
+    assert dotenv_values(tmp_path / ".env").get("GRAPH_STORE") == "neo4j"
+
+
+def test_config_set_graph_store_invalid(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(app, ["config", "set", "--graph-store", "mongodb"])
+    assert result.exit_code != 0
+    assert "graph-store" in result.output or "Error" in result.output
+
+
+def test_config_set_neo4j_url_and_user(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        app,
+        [
+            "config", "set",
+            "--neo4j-url", "bolt://db:7687",
+            "--neo4j-user", "neo4j",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "NEO4J_URI=bolt://db:7687" in result.output
+    assert "NEO4J_USER=neo4j" in result.output
+    from dotenv import dotenv_values  # noqa: PLC0415
+
+    vals = dotenv_values(tmp_path / ".env")
+    assert vals.get("NEO4J_URI") == "bolt://db:7687"
+    assert vals.get("NEO4J_USER") == "neo4j"
+
+
+def test_config_set_neo4j_password_masked(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        app, ["config", "set", "--neo4j-password", "superSecret123"]
+    )
+    assert result.exit_code == 0
+    assert "NEO4J_PASSWORD=***" in result.output
+    assert "superSecret123" not in result.output  # never echoed
+    assert "superSecret123" in (tmp_path / ".env").read_text()  # but persisted
+
+
+def test_config_set_qdrant_url(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        app, ["config", "set", "--qdrant-url", "http://qdrant:6333"]
+    )
+    assert result.exit_code == 0
+    assert "QDRANT_URL=http://qdrant:6333" in result.output
+
+
 # ── config show ──────────────────────────────────────────────────────────────
 
 
@@ -87,6 +148,26 @@ def test_config_show_masks_api_key(tmp_path, monkeypatch):
     assert result.exit_code == 0
     assert "supersecretkey12345" not in result.output
     assert "sk-ant-s" in result.output  # first 8 chars shown
+
+
+def test_config_show_includes_backend(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text(
+        "GRAPH_STORE=neo4j\nNEO4J_URI=bolt://db:7687\nNEO4J_USER=neo4j\n"
+    )
+    result = runner.invoke(app, ["config", "show"])
+    assert result.exit_code == 0
+    assert "neo4j" in result.output
+    assert "bolt://db:7687" in result.output
+
+
+def test_config_show_masks_neo4j_password(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text("NEO4J_PASSWORD=verysecretpw99999\n")
+    result = runner.invoke(app, ["config", "show"])
+    assert result.exit_code == 0
+    assert "verysecretpw99999" not in result.output  # masked
+    assert "verysecr" in result.output  # first 8 chars shown
 
 
 # ── status ───────────────────────────────────────────────────────────────────

@@ -462,6 +462,18 @@ def config_set(
         None, help="Fuseki SPARQL 엔드포인트 URL."
     ),
     ollama_url: Optional[str] = typer.Option(None, help="Ollama base URL."),
+    graph_store: Optional[str] = typer.Option(
+        None, help="그래프 백엔드 (fuseki | neo4j)."
+    ),
+    neo4j_url: Optional[str] = typer.Option(
+        None, help="Neo4j bolt URI (예: bolt://localhost:7687)."
+    ),
+    neo4j_user: Optional[str] = typer.Option(None, help="Neo4j 사용자명."),
+    neo4j_password: Optional[str] = typer.Option(None, help="Neo4j 비밀번호."),
+    neo4j_database: Optional[str] = typer.Option(None, help="Neo4j 데이터베이스명."),
+    qdrant_url: Optional[str] = typer.Option(
+        None, help="Qdrant URL (Fuseki 백엔드의 find_similar 벡터 스토어)."
+    ),
 ) -> None:
     """LLM 및 스토어 설정을 .env 파일에 저장합니다."""
     from dotenv import set_key
@@ -506,6 +518,38 @@ def config_set(
         set_key(str(env_file), "OLLAMA_BASE_URL", ollama_url)
         changes.append(f"OLLAMA_BASE_URL={ollama_url}")
 
+    if graph_store is not None:
+        from ontorag.stores.factory import VALID_BACKENDS  # noqa: PLC0415
+
+        if graph_store not in VALID_BACKENDS:
+            console.print(
+                f"[red]Error:[/] --graph-store는 {set(VALID_BACKENDS)} 중 "
+                "하나여야 합니다."
+            )
+            raise typer.Exit(1)
+        set_key(str(env_file), "GRAPH_STORE", graph_store)
+        changes.append(f"GRAPH_STORE={graph_store}")
+
+    if neo4j_url is not None:
+        set_key(str(env_file), "NEO4J_URI", neo4j_url)
+        changes.append(f"NEO4J_URI={neo4j_url}")
+
+    if neo4j_user is not None:
+        set_key(str(env_file), "NEO4J_USER", neo4j_user)
+        changes.append(f"NEO4J_USER={neo4j_user}")
+
+    if neo4j_password is not None:
+        set_key(str(env_file), "NEO4J_PASSWORD", neo4j_password)
+        changes.append("NEO4J_PASSWORD=***")
+
+    if neo4j_database is not None:
+        set_key(str(env_file), "NEO4J_DATABASE", neo4j_database)
+        changes.append(f"NEO4J_DATABASE={neo4j_database}")
+
+    if qdrant_url is not None:
+        set_key(str(env_file), "QDRANT_URL", qdrant_url)
+        changes.append(f"QDRANT_URL={qdrant_url}")
+
     if not changes:
         console.print(
             "[yellow]변경 사항 없음.[/] 옵션을 지정하세요. (예: --provider anthropic)"
@@ -540,10 +584,17 @@ def config_show() -> None:
         ("ANTHROPIC_API_KEY", "Anthropic API 키"),
         ("OPENAI_API_KEY", "OpenAI API 키"),
         ("OLLAMA_BASE_URL", "Ollama URL"),
+        ("GRAPH_STORE", "그래프 백엔드"),
         ("FUSEKI_URL", "Fuseki URL"),
         ("FUSEKI_DATASET", "Fuseki 데이터셋"),
+        ("NEO4J_URI", "Neo4j URI"),
+        ("NEO4J_USER", "Neo4j 사용자"),
+        ("NEO4J_PASSWORD", "Neo4j 비밀번호"),
+        ("NEO4J_DATABASE", "Neo4j DB"),
+        ("QDRANT_URL", "Qdrant URL"),
+        ("EMBEDDING_PROVIDER", "임베딩 제공자"),
     ]
-    sensitive = {"ANTHROPIC_API_KEY", "OPENAI_API_KEY"}
+    sensitive = {"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "NEO4J_PASSWORD"}
 
     for env_key, label in keys:
         value = effective.get(env_key, "")
