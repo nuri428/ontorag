@@ -6,9 +6,17 @@ from pathlib import Path
 from typing import Literal, Optional
 
 import typer
+from click.exceptions import UsageError
 from dotenv import load_dotenv
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.table import Table
 
 from ontorag.cli_eval import eval_app
@@ -24,7 +32,31 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-load_app = typer.Typer(help="RDF 파일을 그래프 스토어에 로드합니다.")
+class _LoadGroup(typer.core.TyperGroup):
+    """Route an unknown first token to the hidden ``auto`` command.
+
+    ``load`` is a group with ``schema``/``data`` sub-commands, so Click would
+    reject ``ontorag load <PATH>`` ("No such command '<path>'") — it resolves
+    the first positional as a sub-command name. Fall back to ``auto`` (which
+    takes the path as its argument) when the token is neither a known
+    sub-command nor an option. This makes ``load <FILE|DIR>`` work alongside
+    ``load schema``/``load data``.
+    """
+
+    def resolve_command(self, ctx, args):  # type: ignore[override]
+        try:
+            return super().resolve_command(ctx, args)
+        except UsageError:
+            if not args or args[0].startswith("-"):
+                raise  # no token, or an option (e.g. --help) — keep Click's error
+            return super().resolve_command(ctx, ["auto", *args])
+
+
+load_app = typer.Typer(
+    cls=_LoadGroup,
+    no_args_is_help=True,
+    help="RDF 파일/디렉토리를 그래프 스토어에 로드합니다 (load <FILE|DIR>).",
+)
 app.add_typer(load_app, name="load")
 
 clear_app = typer.Typer(help="그래프 스토어의 TBox/ABox 데이터를 삭제합니다.")
@@ -96,26 +128,121 @@ def _run_load(
     )
 
 
-@load_app.callback(
-    invoke_without_command=True,
-    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
-)
+def _run_load_directory(
+    root: Path,
+    ontology: str | None = None,
+    replace: bool = False,
+    recursive: bool = True,
+) -> None:
+    """Scan a directory and load its RDF files, with a progress bar + summary.
+
+    Maps sub-directories to ontology scopes (or flat-merges under --ontology),
+    loads schema-before-data per scope, and prints a Rich summary table. Exits
+    with code 1 if any file failed. See docs/design/directory-loader.md.
+    """
+    from ontorag.core.batch_loader import load_directory
+    from ontorag.stores.base import FileLoadOutcome
+    from ontorag.stores.factory import create_store
+
+    store = create_store()
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        console=console,
+        transient=True,
+    ) as progress:
+        # Total is unknown until the scan runs inside load_directory; start
+        # indeterminate and set the total on the first callback.
+        task = progress.add_task(f"{root.name}/ 스캔 중...", total=None)
+
+        def _on_file(outcome: FileLoadOutcome) -> None:
+            icon = {"loaded": "✓", "skipped": "−", "failed": "✗"}[outcome.status]
+            progress.advance(task)
+            progress.console.log(
+                f"  [dim]{icon}[/] {outcome.source}"
+                + (f" [dim]({outcome.reason})[/]" if outcome.reason else "")
+            )
+
+        try:
+            result = asyncio.run(
+                load_directory(
+                    store,
+                    root,
+                    ontology=ontology,
+                    replace=replace,
+                    recursive=recursive,
+                    on_file=_on_file,
+                )
+            )
+        except (ValueError, NotADirectoryError) as exc:
+            console.print(f"[red]Error:[/] {exc}")
+            raise typer.Exit(1)
+        except Exception as exc:  # noqa: BLE001
+            console.print(f"[red]Error:[/] 그래프 스토어 연결 실패 — {exc}")
+            raise typer.Exit(1)
+
+    table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
+    table.add_column("결과", style="cyan")
+    table.add_column("수", justify="right")
+    table.add_row("로드됨 (loaded)", str(result.loaded))
+    table.add_row("건너뜀 (skipped)", str(result.skipped))
+    table.add_row("실패 (failed)", str(result.failed))
+    table.add_row("총 트리플", f"{result.total_triples:,}")
+    console.print(table)
+
+    if result.failed or result.skipped:
+        for o in result.outcomes:
+            if o.status in ("failed", "skipped"):
+                console.print(
+                    f"  [yellow]{o.status}[/] {o.source}"
+                    + (f" — {o.reason}" if o.reason else "")
+                )
+
+    summary = (
+        f"[green]✓[/] {result.loaded}개 파일, "
+        f"[bold]{result.total_triples:,}[/] 트리플 로드 ← {root}/"
+    )
+    console.print(summary)
+    if result.failed:
+        raise typer.Exit(1)
+
+
+@load_app.command("auto", hidden=True)
 def load_auto(
-    ctx: typer.Context,
+    path: Path = typer.Argument(..., help="RDF 파일 또는 디렉토리 경로."),
     ontology: Optional[str] = typer.Option(
         None, "--ontology", help="로드할 온톨로지 id (미지정 시 기본 그래프)."
     ),
+    replace: bool = typer.Option(
+        False,
+        "--replace",
+        help="ABox 재로드 시 교체 (디렉토리: 스코프별 첫 data 파일에서만).",
+    ),
+    recursive: bool = typer.Option(
+        True,
+        "--recursive/--no-recursive",
+        help="디렉토리를 하위까지 재귀 스캔 (기본 on).",
+    ),
 ) -> None:
-    """RDF 파일을 자동 감지 모드로 로드합니다 (TBox/ABox 자동 판별)."""
-    if ctx.invoked_subcommand is not None:
-        return
-    if not ctx.args:
-        console.print("[red]Error:[/] 파일 경로를 지정하세요.")
-        console.print("  사용법: ontorag load <FILE> [--ontology <id>]")
-        console.print("         ontorag load schema <FILE>")
-        console.print("         ontorag load data <FILE>")
+    """RDF 파일 또는 디렉토리를 자동 감지 모드로 로드합니다.
+
+    파일이면 TBox/ABox를 자동 판별해 로드하고, 디렉토리면 하위 RDF 파일을
+    스캔해 온톨로지별로 로드합니다 (서브디렉토리명 = ontology id;
+    --ontology 지정 시 플랫 병합). `ontorag load <FILE|DIR>`로 호출됩니다.
+    """
+    if not path.exists():
+        console.print(f"[red]Error:[/] 경로를 찾을 수 없습니다: {path}")
         raise typer.Exit(1)
-    _run_load(Path(ctx.args[0]), "auto", ontology=ontology)
+    if path.is_dir():
+        _run_load_directory(
+            path, ontology=ontology, replace=replace, recursive=recursive
+        )
+    else:
+        _run_load(path, "auto", replace=replace, ontology=ontology)
 
 
 @load_app.command("schema")

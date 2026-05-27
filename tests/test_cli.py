@@ -230,3 +230,68 @@ def test_embed_on_non_neo4j_backend_exits_and_closes_store():
 def test_embed_rejects_invalid_mode():
     result = runner.invoke(app, ["embed", "--mode", "bogus"])
     assert result.exit_code == 1
+
+
+# ── load <DIR> (directory loader, design directory-loader.md §9) ───────────────
+
+_SCHEMA_TTL = (
+    "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n"
+    "@prefix ex: <http://ex.org/> .\nex:Foo a owl:Class .\n"
+)
+_DATA_TTL = "@prefix ex: <http://ex.org/> .\nex:bar a ex:Foo .\n"
+
+
+def _fake_store(fail_substrings=None):
+    """AsyncMock store whose load_rdf returns a LoadResult (or raises)."""
+    from ontorag.stores.base import LoadResult
+
+    fail = fail_substrings or set()
+
+    async def _load_rdf(path, mode="auto", replace=False, ontology=None):
+        if any(s in path for s in fail):
+            raise RuntimeError("boom")
+        return LoadResult(triples_loaded=7, source=path, mode=mode, ontology=ontology)
+
+    store = AsyncMock()
+    store.load_rdf = AsyncMock(side_effect=_load_rdf)
+    return store
+
+
+def test_load_directory_basic(tmp_path, monkeypatch):
+    monkeypatch.delenv("GRAPH_STORE", raising=False)
+    (tmp_path / "foaf").mkdir()
+    (tmp_path / "foaf" / "schema.ttl").write_text(_SCHEMA_TTL)
+    (tmp_path / "foaf" / "data.ttl").write_text(_DATA_TTL)
+    (tmp_path / "pokemon").mkdir()
+    (tmp_path / "pokemon" / "data.ttl").write_text(_DATA_TTL)
+
+    store = _fake_store()
+    with patch("ontorag.stores.fuseki.FusekiStore") as MockStore:
+        MockStore.from_env.return_value = store
+        result = runner.invoke(app, ["load", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert store.load_rdf.await_count == 3
+    scopes = {c.kwargs.get("ontology") for c in store.load_rdf.await_args_list}
+    assert scopes == {"foaf", "pokemon"}
+
+
+def test_load_directory_failed_exits_1(tmp_path, monkeypatch):
+    monkeypatch.delenv("GRAPH_STORE", raising=False)
+    (tmp_path / "a").mkdir()
+    (tmp_path / "a" / "schema.ttl").write_text(_SCHEMA_TTL)
+
+    store = _fake_store(fail_substrings={"schema.ttl"})
+    with patch("ontorag.stores.fuseki.FusekiStore") as MockStore:
+        MockStore.from_env.return_value = store
+        result = runner.invoke(app, ["load", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "failed" in result.output.lower() or "실패" in result.output
+
+
+def test_load_missing_path_errors(monkeypatch):
+    monkeypatch.delenv("GRAPH_STORE", raising=False)
+    result = runner.invoke(app, ["load", "/no/such/path-xyz"])
+    assert result.exit_code == 1
+    assert "찾을 수 없" in result.output or "Error" in result.output
