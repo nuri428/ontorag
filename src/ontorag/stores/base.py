@@ -23,6 +23,42 @@ class LoadResult(BaseModel):
     )
 
 
+class FileLoadOutcome(BaseModel):
+    """Per-file result of a directory / multi-file load.
+
+    Returned (aggregated in :class:`BatchLoadResult`) by the directory-loader
+    orchestrator — not by a :class:`GraphStore` adapter. See
+    ``docs/design/directory-loader.md``.
+    """
+
+    source: str = Field(description="File path, relative to the scan root.")
+    ontology: str | None = Field(
+        default=None,
+        description="Ontology id the file was attributed to. None = the "
+        "default (legacy) graph pair.",
+    )
+    status: Literal["loaded", "skipped", "failed"]
+    mode: Literal["schema", "data"] | None = Field(
+        default=None, description="Detected RDF mode; set only when loaded."
+    )
+    triples_loaded: int = 0
+    reason: str | None = Field(
+        default=None, description="Why the file was skipped or failed."
+    )
+
+
+class BatchLoadResult(BaseModel):
+    """Aggregate result of a directory / multi-file load."""
+
+    root: str
+    total_files: int
+    loaded: int
+    skipped: int
+    failed: int
+    total_triples: int
+    outcomes: list[FileLoadOutcome] = Field(default_factory=list)
+
+
 class ClassSummary(BaseModel):
     """Compact class entry for the schema overview.
 
