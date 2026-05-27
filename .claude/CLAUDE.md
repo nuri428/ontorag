@@ -170,7 +170,10 @@ Ontology-aware tools exposed via MCP, embedded in FastAPI process. Each tool ret
 # RDF 로드 (진행률 표시 — rich 라이브러리)
 ontorag load schema ./ontology.ttl     # TBox (클래스/속성 정의)
 ontorag load data   ./instances.ttl   # ABox (인스턴스 데이터)
-ontorag load        ./combined.ttl    # 자동 감지
+ontorag load        ./combined.ttl    # 자동 감지 (파일)
+ontorag load        ./ontologies/     # 디렉토리 — 서브디렉토리명=ontology id, schema→data 순서 보장
+                                       #   (--ontology 플랫병합 · --replace · --no-recursive)
+                                       #   core/batch_loader.py 오케스트레이션 (GraphStore Protocol 불변)
 
 # LLM 설정 (.env 또는 커맨드)
 ontorag config set --provider anthropic --api-key sk-ant-...

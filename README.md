@@ -272,6 +272,12 @@ ontorag load data   <FILE>               # Load ABox — appends to existing dat
 ontorag load data   <FILE> --replace     # Load ABox — replaces existing data
 ontorag load        <FILE>               # Auto-detect TBox vs ABox
 
+ontorag load        <DIR>                # Load a directory — each sub-dir name = ontology id,
+                                         #   schema files load before data (per scope)
+ontorag load        <DIR> --ontology X   # Flat-merge every file under one ontology id
+ontorag load        <DIR> --replace      # Replace each scope's data graph once, then append
+ontorag load        <DIR> --no-recursive # Top-level files only (no sub-dir walk)
+
 ontorag clear schema                     # Drop TBox graph
 ontorag clear data                       # Drop ABox graph
 ontorag clear all                        # Drop both graphs
