@@ -188,6 +188,14 @@ User  (CLI / browser)
    Neo4j + n10s        (Cypher)  ← v0.5, GRAPH_STORE=neo4j
 ```
 
+The diagram shows the L1/L2 core. The full MCP surface also includes the v0.5
+**capability tools** (`search_text`, `find_similar`, `find_aligned`) and the
+v0.7/v0.8 **reasoning tools** (`compute_posterior`, `mpe`, `do_query`,
+`identify_effect`, `counterfactual`) — the latter compute over a Bayesian network
+/ causal DAG held in dedicated named graphs (`urn:ontorag:probabilistic` /
+`urn:ontorag:causal`). See [MCP tools](#mcp-tools) and
+[Reasoning stack](#reasoning-stack--probabilistic-v07--causal-v08).
+
 ### SSE event types
 
 | Event | Payload | When |
@@ -207,10 +215,17 @@ User  (CLI / browser)
 ```bash
 git clone https://github.com/nuri428/ontorag.git
 cd ontorag
-uv sync          # installs all dependencies
+uv sync                      # core dependencies (Fuseki backend)
+
+# optional extras — install only what you need:
+uv sync --extra bayes        # v0.7/v0.8 probabilistic + causal reasoning (pgmpy + pandas)
+uv sync --extra neo4j        # Neo4j + n10s backend driver (GRAPH_STORE=neo4j)
+uv sync --extra vector       # Qdrant vector store (Fuseki find_similar)
 ```
 
-Requires [uv](https://docs.astral.sh/uv/) and Docker.
+Requires [uv](https://docs.astral.sh/uv/) and Docker. The Bayesian / causal tools
+(`compute_posterior`, `do_query`, …) return HTTP 501 until the `bayes` extra is
+installed.
 
 ---
 
