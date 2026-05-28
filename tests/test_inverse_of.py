@@ -425,12 +425,34 @@ pytestmark_neo4j = pytest.mark.skipif(
 
 @pytest.fixture()
 async def neo4j_store():
-    """Live Neo4j store loaded with the inverseOf fixture; skips if Neo4j is down."""
+    """Live Neo4j store loaded with the inverseOf fixture; skips if Neo4j is down.
+
+    Cross-test isolation note
+    ─────────────────────────
+    n10s stores namespace-prefix mappings in a global ``_NsPrefDef`` node
+    (shared across the whole database).  When different test files load
+    ontologies that use the same prefix letter (e.g. ``ex``) for different
+    namespaces, n10s silently ignores subsequent ``nsprefixes.add`` calls for
+    an already-registered prefix (it raises an "already exists" error, which
+    ``_register_prefixes`` swallows).  The stale prefix then causes
+    ``_shorten`` / ``_expand`` to produce wrong URIs — making property lookups
+    fail intermittently depending on which test ran first.
+
+    Fix: delete all ``_NsPrefDef`` nodes **before** calling ``clear_graph``
+    and ``load_rdf``, so every fixture run re-registers its own prefixes from
+    scratch against a clean n10s namespace table.  The ``_prefix_map_loaded``
+    flag on the new store instance is already ``False``, so the first
+    ``_ensure_prefix_map`` call after ``load_rdf`` will read the freshly
+    populated ``_NsPrefDef`` rows.
+    """
     if not _NEO4J_UP:
         pytest.skip("Neo4j not reachable at bolt://localhost:7687")
     from ontorag.stores.neo4j import Neo4jStore  # noqa: PLC0415
 
     store = Neo4jStore(uri=_NEO4J_URI, user=_NEO4J_USER, password=_NEO4J_PASSWORD)
+    # Reset n10s global prefix state BEFORE clearing graph data so that
+    # _register_prefixes can register the correct URIs for this fixture.
+    await store._run_write("MATCH (p:_NsPrefDef) DETACH DELETE p")
     await store.clear_graph("all")
     await store.load_rdf(_SCHEMA_TTL, mode="schema")
     await store.load_rdf(_DATA_TTL, mode="data")
