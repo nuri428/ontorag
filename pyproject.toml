@@ -1,6 +1,6 @@
 [project]
 name = "ontorag"
-version = "0.5.0"
+version = "0.6.0"
 description = "Ontology-aware RAG framework. Ontology as the source of truth."
 readme = "README.md"
 requires-python = ">=3.12"

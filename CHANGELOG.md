@@ -2,6 +2,66 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.0 — 2026-05-28
+
+### Added — agent retrieval tools, directory loader, backend config
+
+- **Agent now wields 13 tools** (was 9). The v0.5 retrieval capabilities were
+  reachable only via MCP routes; they are now wired into the chat `AgentLoop`:
+  `search_text` (BM25), `find_similar` (vector), and `aggregate` (group-by →
+  count/sum/avg/min/max). Verified live: the agent picks `search_text` for
+  fuzzy/partial-name lookups and chains `search_text`→`find_similar` for
+  "similar to X" questions.
+- **`find_similar` subClassOf-aware `class_uri` filter** — restricts neighbours
+  to instances of a class (or subclass), on both backends (Fuseki post-filters
+  via a scoped SPARQL membership query; Neo4j filters in-query with
+  `[:rdfs__subClassOf*0..]`). Threaded through the `/tools/similar` route and
+  the agent tool. Raised semantic-goldset answer correctness ~0.64 → ~0.74.
+- **Directory / multi-file loader** — `ontorag load <DIR>` scans a directory and
+  loads its RDF files: each sub-directory name becomes an ontology id
+  (`--ontology` flat-merges), schema files load before data per scope, with a
+  Rich per-file progress bar + loaded/skipped/failed summary. Orchestrated in
+  `core/batch_loader.py` (the `GraphStore` protocol is unchanged — both backends
+  get it for free). New options `--ontology`, `--replace`, `--no-recursive`.
+  See `docs/design/directory-loader.md`.
+- **`ontorag.yaml` manifest** (optional) for the directory loader — explicit
+  file→ontology mapping + load order + globs, overriding the default sub-dir
+  rule (`core/manifest.py`). Manifest + `--ontology` is a conflict error.
+- **Backend config in the CLI** — `ontorag config set` gained `--graph-store`,
+  `--neo4j-url/-user/-password/-database`, `--qdrant-url`; `config show`
+  displays `GRAPH_STORE`, `NEO4J_*`, `QDRANT_URL`, `EMBEDDING_PROVIDER`
+  (password masked). Previously the backend was env-only.
+- **Web UI** — full-text search, find-similar, and aggregate panels added to the
+  Data tab (`/ui`), backed by the existing tools.
+
+### Fixed
+
+- **`ontorag load <FILE|DIR>` routing** — the positional (no sub-command) form
+  failed with "No such command" because Click resolves the first token as a
+  sub-command before the group callback runs. Fixed with a default-command
+  group that routes unknown tokens to a hidden `auto` command, so the path form
+  works alongside `load schema`/`load data`.
+- **Neo4j `traverse(start, predicate=<uri>)`** generated malformed Cypher
+  (`-[rel[:...]]->`, double brackets) → `CypherSyntaxError`. Now emits a bare
+  type label.
+- **`[bench]` extra dependency resolution** — loose pins resolved
+  `ragas 0.4.x` + `langchain 1.x` which fails at `import ragas`; pinned to the
+  verified-working `ragas<0.3` + `langchain 0.3.x` line.
+
+### Tests
+
+- Stabilized two flaky tests: `test_neo4j_integration_inverse_surfaces`
+  (cleared n10s global `_NsPrefDef` prefix state per fixture to kill cross-file
+  pollution) and the LangChain live baseline (now gated behind
+  `RUN_LIVE_LLM_TESTS=1` + `@pytest.mark.integration`, so a key in the env no
+  longer fires a billable live call). Full suite: 886 passed with containers.
+
+### Docs
+
+- README + CLAUDE.md: directory-loader usage, backend config via `config set`,
+  13-tool agent + capability tools table, environment-variable table, v0.5.x
+  4-domain RAGAS re-run results. `directory-loader.md` marked Implemented.
+
 ## v0.5.0 — 2026-05-25
 
 ### Added — Neo4j backend, full backend parity, multi-ontology
