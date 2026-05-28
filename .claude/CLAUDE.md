@@ -17,9 +17,29 @@ Developers who are researching and evaluating ontology-based LLM application fra
 - LangChain/LlamaIndex: code-first RAG libraries, ontology not central
 - Dify: visual LLM app builder, ontology not supported
 - GraphRAG (Microsoft): KG from unstructured text as a property graph — no OWL semantics, no SPARQL reasoning, no transitive inference, no user-defined schema enforced at query time
-- **ontorag**: OWL-native — TBox defines the schema, Fuseki enforces OWL reasoning (`rdfs:subClassOf`, `owl:TransitiveProperty`, `owl:inverseOf`), all tools speak SPARQL 1.1; **v0.3 adds LLMs4OL** (text → ontology extension) so the graph grows without manual authoring
+- **ontorag**: OWL-native — TBox defines the schema, Fuseki enforces OWL reasoning (`rdfs:subClassOf`, `owl:TransitiveProperty`, `owl:inverseOf`), all tools speak SPARQL 1.1; **v0.3 adds LLMs4OL** (text → ontology extension) so the graph grows without manual authoring; **v0.7+ adds probabilistic + causal inference** (Bayesian / Pearl Rung 2-3) so the ontology becomes a reasoning substrate, not just a graph
 
-One-line: "RAG framework where OWL ontology is the source of truth — and LLMs extend it."
+One-line: "OWL-native reasoning framework — ontology as source of truth, extended by LLMs and queried under uncertainty by LLM agents via MCP."
+
+## 4-layer reasoning stack (north star)
+
+ontorag's long-term architecture is a 4-layer reasoning stack, accumulated one layer per major release:
+
+```
+Layer 4 — Learning              ← v1.0+ (GNN: R-GCN link prediction, neural CPT, structure learning)
+Layer 3 — Counterfactual        ← v0.8 (Pearl Rung 2+3: do-calculus, counterfactuals)
+Layer 2 — Probabilistic         ← v0.7 (Bayesian network inference: posterior, MPE)
+Layer 1 — Logical (RDFS+)       ← shipped (subClassOf*, inverseOf, Transitive)
+Layer 0 — Storage               ← shipped (Fuseki / Neo4j; FalkorDB → v0.9)
+```
+
+Each layer answers a different *kind* of question:
+- Logical: "Is X necessarily true?"
+- Probabilistic: "How likely is X?"
+- Counterfactual: "What if we intervened on Y? What if Y had been different?"
+- Learning: "What patterns does the graph itself reveal?"
+
+This stack is independent of (and complementary to) Palantir's Semantic/Kinetic/Dynamic frame — Layers 2-4 collectively activate Palantir's Dynamic layer. Kinetic (actions/workflows) is intentionally out of scope for ontorag and lives in a separate BPM project; ontorag exposes capability via MCP so external Kinetic engines can compose.
 
 ## Version scope
 
@@ -358,14 +378,17 @@ ontorag/
 │   │           ├── _sparql.py     # L3: POST /tools/query/sparql (Fuseki-only, getattr 501)
 │   │           ├── learning.py    # v0.3 L1: type_term, extract_triples (MCP exposed)
 │   │           ├── search.py      # v0.5 POST /tools/search/text (BM25 — both backends)
-│   │           └── similar.py     # v0.5 POST /tools/similar (find_similar — both backends)
+│   │           ├── similar.py     # v0.5 POST /tools/similar (find_similar — both backends)
+│   │           └── bayes.py       # v0.7.3 POST /tools/bayes/posterior + /mpe (both backends)
 │   ├── core/
 │   │   ├── loader.py          # RDF parsing & loading (with progress callback)
 │   │   ├── sparql.py          # PatternQuery DSL → SPARQL translator (Fuseki) + uri_ref
 │   │   ├── cypher.py          # PatternQuery DSL → Cypher translator (Neo4j) + _safe_rel
+│   │   ├── ontology.py        # named-graph URIs + OntologyLayer (v0.7.0)
+│   │   ├── bayes.py           # v0.7.1 bn: vocab + BN/StructureSpec models + RDF round-trip
 │   │   └── fastrp.py          # v0.5 pure-Python FastRP structural embeddings (Fuseki)
 │   ├── stores/
-│   │   ├── base.py            # GraphStore Protocol + result types
+│   │   ├── base.py            # GraphStore + BayesianStore Protocols + result types
 │   │   ├── factory.py         # create_store() — GRAPH_STORE=fuseki|neo4j
 │   │   ├── fuseki.py          # v0.1 default (SPARQL over HTTP)
 │   │   ├── neo4j.py           # v0.5 (Neo4j + n10s, async driver)
@@ -378,6 +401,8 @@ ontorag/
 │   │   ├── _neo4j_embedding_mixin.py # v0.5 GDS FastRP + textual embeddings (build_embeddings, find_similar)
 │   │   ├── _fuseki_search_mixin.py   # v0.5 jena-text full-text (search_text)
 │   │   ├── _fuseki_embedding_mixin.py# v0.5 FastRP + textual → Qdrant (build_embeddings, find_similar)
+│   │   ├── _fuseki_bayes_mixin.py     # v0.7.1 BayesianStore via GSP on urn:ontorag:probabilistic
+│   │   ├── _neo4j_bayes_mixin.py      # v0.7.2 BayesianStore via :_Bayes* nodes (_scope tag)
 │   │   └── _qdrant.py                # v0.5 async Qdrant wrapper (Fuseki vector store)
 │   ├── llm/
 │   │   ├── base.py            # LLMProvider abstract base
@@ -387,13 +412,17 @@ ontorag/
 │   │   └── embedding.py       # v0.5 EmbeddingProvider (OpenAI/Ollama) for textual embeddings
 │   ├── chat/
 │   │   └── agent.py           # Agentic MCP loop (LLM + tool calls + SSE emit)
-│   └── learn/                 # v0.3 — LLMs4OL ontology learning
-│       ├── __init__.py
-│       ├── base.py            # OntologyLearner Protocol + result types
-│       ├── term_typing.py     # Task A: term → TBox class
-│       ├── taxonomy.py        # Task B: rdfs:subClassOf discovery
-│       ├── relation.py        # Task C: object/data property extraction
-│       └── pipeline.py        # A+B+C orchestration + auto-load
+│   ├── learn/                 # v0.3 — LLMs4OL ontology learning
+│   │   ├── __init__.py
+│   │   ├── base.py            # OntologyLearner Protocol + result types
+│   │   ├── term_typing.py     # Task A: term → TBox class
+│   │   ├── taxonomy.py        # Task B: rdfs:subClassOf discovery
+│   │   ├── relation.py        # Task C: object/data property extraction
+│   │   └── pipeline.py        # A+B+C orchestration + auto-load
+│   ├── bayes/                 # v0.7 — probabilistic layer (pgmpy, [bayes] extra)
+│   │   ├── engine.py          # v0.7.3 BayesianEngine: compute_posterior / mpe
+│   │   └── learn.py           # v0.7.4 CPT learning from ABox data
+│   └── cli_bayes.py           # v0.7.4 `ontorag bayes` group (load/show/posterior/mpe/clear/learn-cpt)
 ├── examples/
 │   └── foaf/                  # FOAF ontology schema + sample instance data
 └── tests/
@@ -447,34 +476,88 @@ Fuseki healthcheck: `GET /$/ping` → 200 OK.
 - Anthropic, OpenAI, Ollama providers
 - Rate-limit UX + forced tool-use when ontology has data
 
-### v0.3 — LLMs4OL (current focus)
+### v0.3 — LLMs4OL ✅ shipped
+- `learn/` module: term typing (Task A), taxonomy discovery (Task B), relation extraction (Task C), A+B+C pipeline with auto-load
+- MCP tools: `type_term`, `extract_triples`
+- CLI: `ontorag learn type-term/taxonomy/extract/populate`
+- Validation: predicate_uri/class_uri must exist in current TBox
 
-**Goal**: `ontorag learn populate --text corpus.txt` extracts RDF triples and loads them to Fuseki.
+### v0.4 — RAGAS eval harness + prompt externalization + SHACL gate ✅ shipped
+- v0.4.0: 4-domain RAGAS eval, evaluation harness
+- v0.4.1: prompt externalization, SHACL validation gate
+- v0.4.2: PyPI publish readiness, positioning table in README
 
-| Step | Deliverable |
-|------|-------------|
-| 1 | `learn/base.py` — OntologyLearner Protocol + all result dataclasses |
-| 2 | `learn/term_typing.py` — Task A, LLM prompt chain: schema → candidate ranking |
-| 3 | `learn/taxonomy.py` — Task B, pairwise subclass scoring |
-| 4 | `learn/relation.py` — Task C, relation extraction with schema-validated predicates |
-| 5 | `learn/pipeline.py` — A+B+C orchestration, confidence filtering, RDF serialisation |
-| 6 | `api/routes/tools/learning.py` — `type_term` + `extract_triples` MCP tools |
-| 7 | CLI `ontorag learn` command group |
-| 8 | Example: extend Pokémon ontology from English Wikipedia text |
-
-**Quality bar**: Task A top-1 accuracy ≥ 70% on Pokémon example; output RDF parses cleanly.
-
-### v0.5 — Neo4j backend ✅ shipped
+### v0.5 — Neo4j backend + capability parity ✅ shipped
 - Neo4j + n10s adapter behind `GRAPH_STORE` env var (factory-selected); full GraphStore protocol in Cypher with native subClassOf inference; `pattern_to_cypher` for L2; live-tested against neo4j:5.26.
-- `docker compose --profile neo4j up neo4j` to run the backend; `[neo4j]` extra for the driver.
-
-### v0.5 — also shipped
+- `docker compose --profile neo4j up neo4j`; `[neo4j]` extra for the driver.
 - BM25 full-text (`search_text`) + vector similarity (`find_similar`/`ontorag embed`) — both backends.
 - Multi-ontology per instance (`ontology` scope on all read tools + `load`).
 
-### v0.6+ (planned)
-- ✅ Per-ontology access control + cross-ontology entity alignment (owl:sameAs) — shipped in v0.6.1 (see above).
-- Read-side access guards on capability tools (search_text/find_similar/find_aligned); multi-file upload REST endpoint.
+### v0.6 / v0.6.1 ✅ shipped
+- v0.6.0: agent tools, directory loader, backend config
+- v0.6.1: config-driven per-ontology access control + cross-ontology entity alignment (`owl:sameAs` → `find_aligned`); `load_rdf` pre-parsed-graph fast path.
+
+---
+
+### v0.7 — Probabilistic Foundation (Bayesian) 🎯 current focus
+
+**Goal**: ontorag becomes a probabilistic reasoning system — LLM agents can call `compute_posterior(evidence, query)` and `mpe(evidence)` against a BN layered over the OWL graph. Activates Palantir's Dynamic layer.
+
+**Decomposition** (target ~12 weeks total):
+
+| Sub-version | Deliverable |
+|---|---|
+| **v0.7.0** ✅ shipped | **Named Graph foundation** (extracts Phase 1 of paused `layered-ontology-plan.md`): `OntologyLayer` enum (`semantic`/`policy`/`state`/`provenance`) + `LAYER_GRAPH_URI` + `layer_graph_uri()` in `core/ontology.py` (re-exported from `stores/base.py`); opt-in multi-graph inference assembler `docker/fuseki/config-inference.ttl.template` (OWLMicro reasoner over `urn:x-arq:UnionGraph`, selected via `FUSEKI_CONFIG_TEMPLATE`); `schema/data` → `semantic/state` **vocabulary** rename. **Key decision**: physical graph URIs are kept (`semantic`→`urn:ontorag:schema`, `state`→`urn:ontorag:data`) — only the layer *names* changed, so persisted TDB2 data + tests are untouched; `"schema"`/`"data"` stay accepted as aliases (`resolve_layer`). `policy`/`provenance` are reserved vocabulary (no read/write path until deferred Phases 2/4). Design: `docs/design/named-graph-layers.md`. *Note: layered-plan's "Dynamic" is renamed to "State" to avoid collision with Palantir Dynamic (= reasoning capability).* |
+| **v0.7.1** ✅ shipped | `bn:` mini-vocabulary + spec models + RDF round-trip (`core/bayes.py`) + `BayesianStore` Protocol (`stores/base.py`) + Fuseki CPT mixin (`_fuseki_bayes_mixin.py`); stores CPTs in `urn:ontorag:probabilistic` named graph **only**. `probabilistic_graph_uri()` is deliberately NOT an `OntologyLayer` member (reasoning-stack storage ≠ document layer). |
+| **v0.7.2** ✅ shipped | Neo4j CPT mixin (`_neo4j_bayes_mixin.py`) — `:_BayesVariable`/`:_BayesCPD` nodes tagged `_scope`; full backend parity (identical `BayesNetwork` returned). |
+| **v0.7.3** ✅ shipped | `BayesianEngine` (pgmpy wrapper, `bayes/engine.py`, lazy import) + MCP tools `compute_posterior`, `mpe` (`api/routes/tools/bayes.py`). pgmpy is the `[bayes]` optional extra. Quality bar: hand-computed Pokémon posteriors in `tests/test_bayes_engine.py`. |
+| **v0.7.4** ✅ shipped | CPT learning from data — `ontorag bayes` CLI (load/show/posterior/mpe/clear/learn-cpt; `cli_bayes.py`) + `bayes/learn.py`; `bn:dependsOn` structure specs; ties v0.3 LLMs4OL output to BN parameter estimation. Design: `docs/design/bayesian-layer.md`. |
+
+**Quality bar**: synthetic Pokémon BN (type matchup → battle outcome) verified against hand-computed posteriors; both backends return identical results.
+
+**Library choice**: pgmpy (Python-native, MIT, async-friendly via `asyncio.to_thread`). OpenMarkov rejected (Java GUI focus, no fit). pyAgrum as fallback for scale.
+
+### v0.8 — Causal Layer (Pearl Rung 2 + 3)
+
+**Goal**: `do_query(intervention, query)` and `counterfactual(observed, intervention, query)` MCP tools — interventional and counterfactual reasoning over the BN.
+
+**Decomposition** (~10 weeks):
+
+| Sub-version | Deliverable |
+|---|---|
+| **v0.8.0** | `causal:` vocabulary + `urn:ontorag:causal` named graph for DAG/intervention metadata. ~1 week. |
+| **v0.8.1** | Pearl Rung 2 — DoWhy integration, `do_query` MCP tool, backdoor/frontdoor adjustment. ~3-4 weeks. |
+| **v0.8.2** | Pearl Rung 3 — counterfactual MCP tool, twin-network construction. ~2-3 weeks. |
+| **v0.8.3** | Structure learning — PC algorithm, score-based DAG discovery from observational data. ~2 weeks. |
+
+**Quality bar**: synthetic confounder example (smoking → tar → cancer with genotype confounder) — interventional and counterfactual queries match Pearl textbook answers.
+
+**Library choice**: DoWhy (Microsoft, MIT) for identification + estimation; pgmpy for underlying BN.
+
+**Over-claim guard**: README must state explicitly — *"Causal DAG is user-supplied; tool computes interventional/counterfactual queries assuming the DAG is correctly specified. ontorag does not validate causal semantics."*
+
+### v0.9 — FalkorDB backend
+
+**Goal**: third graph backend (Cypher-compatible, GraphBLAS-accelerated, LLM/RAG-positioned). Validates the parity story across all capability layers.
+
+**Decomposition** (~3-4 weeks):
+
+| Sub-version | Deliverable |
+|---|---|
+| **v0.9.0** | `stores/falkordb.py` + Cypher dialect adaptation; core protocol (schema/entities/traversal). ~2 weeks. |
+| **v0.9.1** | Capability parity — full-text (Redis Search), vector (built-in), Bayesian + Causal CPT/DAG storage. ~1-2 weeks. |
+
+**License note**: FalkorDB is **RSAL (Redis Source Available License)**, *not* OSI-approved open source. README will document this honestly alongside Fuseki (Apache 2.0) and Neo4j (GPL/AGPL).
+
+### v1.0+ — Learning Layer (GNN)
+
+**Goal**: GNN integration as the 4th reasoning layer — R-GCN for link prediction over OWL graphs, neural CPT (Pyro) for Bayesian, structure learning for Causal (DECI).
+
+**Out of scope until v1.0**: GPU/training infrastructure, PyTorch Geometric dependency, neural-symbolic loss for OWL constraint preservation. This is the first paradigm shift — ontorag becomes a "training-capable" framework.
+
+### Deferred — layered-ontology-plan Phase 2/3
+
+`docs/design/layered-ontology-plan.md` Phases 2 (Policy/SHACL/SKOS), 3a (State time-series with State Object pattern), 3b (Router/Schema loader), and 4 (Provenance/PROV-O/DCAT) are **deferred until user signal arrives** (G1/G2 gates in that doc). Phase 1 (Named Graph infrastructure) is absorbed into v0.7.0.
 
 ## What NOT to do (anti-patterns)
 
@@ -487,6 +570,12 @@ Fuseki healthcheck: `GET /$/ping` → 200 OK.
 - Don't optimize prematurely. Get it working first; profile second.
 - v0.3 LLMs4OL: Don't propose new TBox classes automatically — only ABox triples using existing schema. TBox evolution requires human review.
 - v0.3 LLMs4OL: Don't output `predicate_uri` or `class_uri` that don't exist in the current TBox — validate against SchemaResult before returning.
+- v0.7 Bayesian: Don't conflate "Dynamic" (Palantir reasoning capability — Bayesian/Causal) with "State" (time-series ABox — deferred layered-plan Phase 3a). Use the names exactly as defined in the 4-layer stack.
+- v0.7 Bayesian: Don't import a Java engine (OpenMarkov, SamIam). Python-native only — pgmpy primary, pyAgrum as performance fallback.
+- v0.7 Bayesian: Don't store CPTs in the schema or data named graphs. They go in `urn:ontorag:probabilistic` exclusively.
+- v0.8 Causal: Don't auto-modify the causal DAG from observational data without human review. Structure learning (PC algorithm) produces *proposals*, never auto-committed.
+- v0.8 Causal: Don't claim causal validity. README and tool docstrings must state the DAG is user-supplied; ontorag computes interventional/counterfactual queries assuming the DAG is correct.
+- v1.0 GNN: Don't add GPU/training infrastructure before v0.9 ships. ontorag stays "training-free" through v0.9. v1.0 is the deliberate paradigm shift.
 
 ## Open questions (decide when reached)
 

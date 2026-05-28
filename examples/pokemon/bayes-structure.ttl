@@ -1,0 +1,32 @@
+# Synthetic Pokémon BN *structure* (v0.7.4) — DAG only, no CPTs.
+#
+# Input to CPT learning. Each variable's bn:represents names the property whose
+# value (on instances of the target class) is the observation for that variable.
+# Edges are declared with bn:dependsOn (child → parent). Learn the CPTs from
+# ABox data with:
+#     ontorag bayes learn-cpt examples/pokemon/bayes-structure.ttl \
+#         --class https://ontorag.dev/pokemon#Battle --save
+#
+# (Ships as a format example; it expects pk:Battle instances carrying
+# pk:matchupKind / pk:battleResult — load such data first to learn against it.)
+
+@prefix bn:   <https://ontorag.dev/bn#> .
+@prefix pk:   <https://ontorag.dev/pokemon#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+bn:network a bn:Network ;
+    rdfs:label "Pokemon battle (structure)" ;
+    bn:hasVariable pk:TypeMatchup, pk:Outcome .
+
+pk:TypeMatchup a bn:Variable ;
+    rdfs:label "Type matchup" ;
+    bn:represents pk:matchupKind ;
+    bn:states ( "advantage" "neutral" "disadvantage" ) .
+
+pk:Outcome a bn:Variable ;
+    rdfs:label "Battle outcome" ;
+    bn:represents pk:battleResult ;
+    bn:states ( "win" "lose" ) .
+
+# Outcome depends on TypeMatchup (edge: TypeMatchup → Outcome).
+pk:Outcome bn:dependsOn pk:TypeMatchup .

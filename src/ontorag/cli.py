@@ -19,6 +19,7 @@ from rich.progress import (
 )
 from rich.table import Table
 
+from ontorag.cli_bayes import bayes_app
 from ontorag.cli_eval import eval_app
 from ontorag.cli_learn import learn_app
 
@@ -76,6 +77,8 @@ app.add_typer(eval_app, name="eval")
 
 embed_app = typer.Typer(help="그래프 임베딩을 생성합니다 (Fuseki+Qdrant 또는 Neo4j).")
 app.add_typer(embed_app, name="embed")
+
+app.add_typer(bayes_app, name="bayes")
 
 
 # ── load subcommands ─────────────────────────────────────────────────────────

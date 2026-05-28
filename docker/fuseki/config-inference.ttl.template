@@ -1,0 +1,93 @@
+# Fuseki assembler config TEMPLATE — OPT-IN native OWL/RDFS inference over TDB2.
+#
+# This is an ALTERNATIVE to config.ttl.template. ontorag's DEFAULT inference is
+# done at QUERY LEVEL (`?inst a/rdfs:subClassOf* <Class>`), which needs no
+# reasoner and is what the test suite exercises. Use THIS config only when you
+# want the store itself to materialise inferences (subClassOf, subPropertyOf,
+# owl:TransitiveProperty, owl:inverseOf) so that even raw SPARQL — or another
+# client hitting Fuseki directly — sees the entailed triples.
+#
+# Opt in by pointing the entrypoint at this template:
+#   docker run -e FUSEKI_CONFIG_TEMPLATE=config-inference.ttl.template ...
+# The entrypoint substitutes __FUSEKI_DATASET__ (dataset name + on-disk
+# location) and writes the result to /fuseki/config.ttl. The TDB2 location is
+# the SAME as config.ttl.template, so you can flip inference on/off over the
+# same persisted data without reloading.
+#
+# TRADE-OFF: this config focuses on inference and does NOT wire the jena-text
+# (Lucene) index, so `search_text` (BM25) is unavailable while it is active.
+# Combining a text:TextDataset with an ja:InfModel default graph is possible
+# but deployment-specific; see docs/design/named-graph-layers.md.
+#
+# Named graph URIs are FIXED (the store hardcodes them) and must NOT be
+# templated:
+#   urn:ontorag:schema       → semantic layer (TBox: class/property decls)
+#   urn:ontorag:data         → state layer    (ABox: instance data)
+#   urn:ontorag:policy       → policy layer      (reserved — deferred Phase 2)
+#   urn:ontorag:provenance   → provenance layer  (reserved — deferred Phase 4)
+# Per-ontology graphs follow the pattern urn:ontorag:<id>:<suffix>.
+
+@prefix :       <#> .
+@prefix fuseki: <http://jena.apache.org/fuseki#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix tdb2:   <http://jena.apache.org/2016/tdb#> .
+@prefix ja:     <http://jena.hpl.hp.com/2005/11/Assembler#> .
+
+# Server declaration — required for --config startup
+[] rdf:type fuseki:Server ;
+   fuseki:services ( :service ) .
+
+# ── Service ───────────────────────────────────────────────────────────────────
+
+:service rdf:type fuseki:Service ;
+    fuseki:name "__FUSEKI_DATASET__" ;
+
+    # Default endpoints (no path name) used by GSP and plain SPARQL clients
+    fuseki:endpoint [ fuseki:operation fuseki:query ] ;
+    fuseki:endpoint [ fuseki:operation fuseki:update ] ;
+    fuseki:endpoint [ fuseki:operation fuseki:gsp-rw ] ;
+
+    # Named endpoints for clients that use explicit paths
+    fuseki:endpoint [ fuseki:name "sparql" ;  fuseki:operation fuseki:query ] ;
+    fuseki:endpoint [ fuseki:name "query" ;   fuseki:operation fuseki:query ] ;
+    fuseki:endpoint [ fuseki:name "update" ;  fuseki:operation fuseki:update ] ;
+    fuseki:endpoint [ fuseki:name "data" ;    fuseki:operation fuseki:gsp-rw ] ;
+    fuseki:endpoint [ fuseki:name "get" ;     fuseki:operation fuseki:gsp-r ] ;
+
+    fuseki:dataset :infDataset .
+
+# ── Dataset: RDFS/OWL inference default graph over the TDB2 union ─────────────
+#
+# Writes (GSP PUT/POST to ?graph=urn:ontorag:...) land in the underlying TDB2
+# named graphs unchanged. Reads through the default graph go through :infModel,
+# which materialises entailments over the union of ALL named graphs — so an
+# instance typed under a subclass in urn:ontorag:data is entailed to be an
+# instance of its parent class declared in urn:ontorag:schema.
+
+:infDataset rdf:type ja:RDFDataset ;
+    ja:defaultGraph :infModel .
+
+:infModel rdf:type ja:InfModel ;
+    ja:baseModel :unionGraph ;
+    # OWLMicro: RDFS + owl:TransitiveProperty + owl:inverseOf + owl:sameAs,
+    # the three OWL constructs ontorag relies on, without the cost of the full
+    # OWL reasoner. Swap for OWLMini/OWL or the plain RDFS reasoner as needed.
+    ja:reasoner [
+        ja:reasonerURL <http://jena.hpl.hp.com/2003/OWLMicroFBRuleReasoner>
+    ] .
+
+# The special ARQ union graph: the merge of every named graph in the TDB2
+# store. This is what lets TBox (urn:ontorag:schema) and ABox
+# (urn:ontorag:data) reason together even though they are separate graphs.
+:unionGraph rdf:type tdb2:GraphTDB2 ;
+    tdb2:dataset :tdb ;
+    tdb2:graphName <urn:x-arq:UnionGraph> .
+
+# ── TDB2 persistent store ─────────────────────────────────────────────────────
+# Same location as config.ttl.template — inference is a read-time model layer,
+# not a separate copy of the data.
+
+:tdb rdf:type tdb2:DatasetTDB2 ;
+    tdb2:location "/fuseki/databases/__FUSEKI_DATASET__" ;
+    tdb2:unionDefaultGraph true .

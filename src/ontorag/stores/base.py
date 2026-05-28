@@ -6,6 +6,19 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field, field_validator
 
+# Re-exported so the layer vocabulary sits beside the other store enums
+# (FilterOp, TraversalDirection, AggFunc). Authoritative definition — including
+# the backward-compat URI mapping — lives in ontorag.core.ontology.
+from ontorag.core.ontology import LAYER_GRAPH_URI as LAYER_GRAPH_URI
+from ontorag.core.ontology import OntologyLayer as OntologyLayer
+
+# Bayesian-network spec models (v0.7.1). Authoritative definition + RDF
+# (de)serialization live in ontorag.core.bayes; re-exported here so the
+# BayesianStore Protocol and the bayes routes share one import surface.
+from ontorag.core.bayes import BayesNetwork as BayesNetwork
+from ontorag.core.bayes import BayesVariable as BayesVariable
+from ontorag.core.bayes import CPD as CPD
+
 if TYPE_CHECKING:
     from rdflib import Graph
 
@@ -699,5 +712,60 @@ class GraphStore(Protocol):
 
         Idempotent: safe to call when the store is already closed. Callers
         (CLI commands, request lifecycle) invoke this for clean shutdown.
+        """
+        ...
+
+
+# ── BayesianStore capability (v0.7.1) ─────────────────────────────────────────
+
+
+@runtime_checkable
+class BayesianStore(Protocol):
+    """Optional capability: persist a discrete Bayesian network (v0.7.1).
+
+    Not part of :class:`GraphStore` — like ``search_text`` / ``find_similar``,
+    routes guard with ``getattr(store, "put_bayes_network", None)`` and return
+    501 on a backend that does not implement it. Both Fuseki and Neo4j
+    implement it (v0.7.1 / v0.7.2).
+
+    The network is stored **only** in the probabilistic named graph
+    (``urn:ontorag:probabilistic``, or per-ontology scoped) — never in the
+    schema or data graphs. One network per (store, ontology) scope; writes
+    replace the whole network.
+    """
+
+    async def put_bayes_network(
+        self, network: BayesNetwork, ontology: str | None = None
+    ) -> int:
+        """Replace the stored Bayesian network for this scope.
+
+        Args:
+            network: The validated network (structure + CPTs).
+            ontology: Ontology id to scope under, or None for the default
+                probabilistic graph.
+
+        Returns:
+            The number of stored statements / nodes written (backend-defined).
+        """
+        ...
+
+    async def get_bayes_network(
+        self, ontology: str | None = None
+    ) -> BayesNetwork | None:
+        """Return the stored network for this scope, or None if none is stored.
+
+        Args:
+            ontology: Ontology id to scope under, or None for the default graph.
+        """
+        ...
+
+    async def clear_bayes_network(self, ontology: str | None = None) -> int:
+        """Drop the stored network for this scope.
+
+        Args:
+            ontology: Ontology id to scope under, or None for the default graph.
+
+        Returns:
+            How many statements / nodes were removed before deletion.
         """
         ...

@@ -1,0 +1,43 @@
+# Synthetic Pokémon Bayesian network (v0.7) — type matchup → battle outcome.
+#
+# A full bn: network (structure + CPTs). Load it with:
+#     ontorag bayes load examples/pokemon/bayes-network.ttl
+# then query, e.g.:
+#     ontorag bayes posterior -q https://ontorag.dev/pokemon#Outcome
+#     ontorag bayes mpe -e https://ontorag.dev/pokemon#Outcome=lose
+#
+# Hand-computed posteriors (the v0.7 quality bar — see
+# docs/design/bayesian-layer.md):
+#   P(Outcome=win)                      = .4*.8 + .3*.5 + .3*.2 = 0.53
+#   P(TypeMatchup=advantage | win)      = .32 / .53            ≈ 0.604
+#   MPE()                               = (advantage, win)      (joint .32)
+#   MPE(Outcome=lose)                   = TypeMatchup=disadvantage
+
+@prefix bn:   <https://ontorag.dev/bn#> .
+@prefix pk:   <https://ontorag.dev/pokemon#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+bn:network a bn:Network ;
+    rdfs:label "Pokemon battle" ;
+    bn:hasVariable pk:TypeMatchup, pk:Outcome .
+
+pk:TypeMatchup a bn:Variable ;
+    rdfs:label "Type matchup" ;
+    bn:represents pk:hasType ;
+    bn:states ( "advantage" "neutral" "disadvantage" ) .
+
+pk:Outcome a bn:Variable ;
+    rdfs:label "Battle outcome" ;
+    bn:states ( "win" "lose" ) .
+
+# Prior over the type matchup.
+[] a bn:CPD ;
+    bn:forVariable pk:TypeMatchup ;
+    bn:values "[[0.4], [0.3], [0.3]]" .
+
+# P(Outcome | TypeMatchup). Columns enumerate TypeMatchup states in declared
+# order (advantage, neutral, disadvantage); rows are (win, lose).
+[] a bn:CPD ;
+    bn:forVariable pk:Outcome ;
+    bn:evidence ( pk:TypeMatchup ) ;
+    bn:values "[[0.8, 0.5, 0.2], [0.2, 0.5, 0.8]]" .

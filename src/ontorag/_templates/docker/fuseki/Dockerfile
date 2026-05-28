@@ -14,10 +14,13 @@ RUN apk add --no-cache curl \
     && mv /opt/apache-jena-fuseki-${FUSEKI_VERSION}/* /opt/fuseki/ \
     && rm -rf /opt/apache-jena-fuseki-${FUSEKI_VERSION}
 
-# Copy the jena-text assembler TEMPLATE. The entrypoint substitutes
-# $FUSEKI_DATASET into it (dataset name + on-disk locations) so the dataset
-# name stays configurable, then starts Fuseki with the generated config.
+# Copy the assembler TEMPLATEs. The entrypoint substitutes $FUSEKI_DATASET into
+# the selected template (dataset name + on-disk locations) so the dataset name
+# stays configurable, then starts Fuseki with the generated config.
+#   config.ttl.template            → jena-text + query-level inference (DEFAULT)
+#   config-inference.ttl.template  → native OWL/RDFS reasoner (opt-in, no text)
 COPY docker/fuseki/config.ttl.template /fuseki/config.ttl.template
+COPY docker/fuseki/config-inference.ttl.template /fuseki/config-inference.ttl.template
 
 WORKDIR /opt/fuseki
 
@@ -30,12 +33,15 @@ HEALTHCHECK --interval=10s --timeout=5s --retries=6 --start-period=40s \
     CMD curl -sf http://localhost:3030/$/ping || exit 1
 
 # Use --config instead of --mem so jena-text (Lucene) is enabled. Substitute
-# $FUSEKI_DATASET into the template (name + locations), create the per-dataset
-# dirs, then start. urn:ontorag:* named graphs are NOT templated (fixed).
+# $FUSEKI_DATASET into the SELECTED template (name + locations), create the
+# per-dataset dirs, then start. FUSEKI_CONFIG_TEMPLATE selects the assembler
+# (default config.ttl.template; set to config-inference.ttl.template for the
+# opt-in native reasoner). urn:ontorag:* named graphs are NOT templated (fixed).
 ENTRYPOINT ["sh", "-c", \
     "ds=\"${FUSEKI_DATASET:-ontorag}\"; \
+     tpl=\"${FUSEKI_CONFIG_TEMPLATE:-config.ttl.template}\"; \
      mkdir -p \"/fuseki/databases/${ds}\" \"/fuseki/databases/${ds}-lucene\"; \
-     sed \"s|__FUSEKI_DATASET__|${ds}|g\" /fuseki/config.ttl.template > /fuseki/config.ttl; \
+     sed \"s|__FUSEKI_DATASET__|${ds}|g\" \"/fuseki/${tpl}\" > /fuseki/config.ttl; \
      chmod -R 777 /fuseki/databases 2>/dev/null; \
      java -Xmx512m -jar fuseki-server.jar \
           --port=3030 \

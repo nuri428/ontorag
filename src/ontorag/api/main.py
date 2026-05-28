@@ -11,6 +11,7 @@ from fastapi_mcp import FastApiMCP
 from ontorag.api.routes import chat, dump, health, load, status
 from ontorag.api.routes.tools import (
     _sparql,
+    bayes,
     entities,
     learning,
     pattern,
@@ -74,6 +75,9 @@ app.include_router(search.router)
 
 # v0.5 graph-embedding similarity search (Neo4j capability; 501 on Fuseki)
 app.include_router(similar.router)
+
+# v0.7 Bayesian inference (compute_posterior, mpe) — capability on both backends
+app.include_router(bayes.router)
 
 # Debug route — Layer 3 (NOT exposed via MCP)
 app.include_router(_sparql.router)

@@ -21,6 +21,7 @@ from ontorag.core.ontology import (
 )
 from ontorag.core.sparql import STANDARD_PREFIXES, pattern_to_sparql, uri_ref
 from ontorag.stores._entity_mixin import _EntityMixin
+from ontorag.stores._fuseki_bayes_mixin import _FusekiBayesMixin
 from ontorag.stores._fuseki_embedding_mixin import _FusekiEmbeddingMixin
 from ontorag.stores._fuseki_search_mixin import _FusekiSearchMixin
 from ontorag.stores._traversal_mixin import _TraversalMixin
@@ -49,7 +50,13 @@ _scoped_graph = scoped_graph
 _graph_clause = graph_clause
 
 
-class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _TraversalMixin):
+class FusekiStore(
+    _EntityMixin,
+    _FusekiBayesMixin,
+    _FusekiEmbeddingMixin,
+    _FusekiSearchMixin,
+    _TraversalMixin,
+):
     """Apache Jena Fuseki graph store adapter.
 
     Uses SPARQL 1.1 endpoints and the RDF Graph Store Protocol (GSP).

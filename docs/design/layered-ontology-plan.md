@@ -7,9 +7,54 @@
 > Provenance), State Object 시계열 패턴, PROV-O provenance 레이어는 아직 미구현**이며
 > 유효한 향후 설계로 남아 있습니다. 본문의 "v0.4" 버전 표기는 역사적 맥락입니다.
 
+> **재배치 결정 (2026-05-28):** 본 플랜은 v0.7~v0.9 작업 일정 검토 중 다음과 같이
+> *분할 흡수·보류*되었습니다. 단일 v0.4 트랙으로 추진하지 않습니다.
+>
+> | 본문 Phase | 재배치 위치 | 사유 |
+> |---|---|---|
+> | **Phase 1** (Named Graph 인프라 — `OntologyLayer` enum, `LAYER_GRAPH_URI`, 다중 그래프 추론 어셈블러) | **v0.7.0에 흡수** | Bayesian/Causal CPT·DAG 저장이 어차피 별도 named graph를 요구. Phase 0 게이트(G1/G2/G3)와 무관한 순수 인프라. ~1.5주. |
+> | **Phase 2** (Policy 레이어 — SHACL + SKOS) | **사용자 시그널 도달까지 보류** | G1 (v0.3.2 사용자 issue) 미답. SHACL 일부는 v0.4.1에서 이미 구현됨. |
+> | **Phase 3a** (State 시계열 — State Object 패턴) | **사용자 시그널 도달까지 보류** | G2 (시계열 reference 도메인) 미답. IoT/금융 도메인 채택 시그널이 와야 ROI 정당화. |
+> | **Phase 3b** (라우터·프로그레시브 스키마 로더) | **사용자 시그널 도달까지 보류** | 토큰 비용 측정 게이트(v0.3.2 대비) 미실행. |
+> | **Phase 4 — Provenance** (PROV-O + DCAT) | **사용자 시그널 도달까지 보류**. 일부는 별도 BPM 프로젝트로 위임 가능 | 액션 audit log는 ontorag보다 Kinetic을 맡는 BPM 레포에 더 자연스러움. |
+>
+> **명명 변경 (필수)**: 본문의 **"Dynamic" 레이어는 "State"로 개명**합니다.
+> 이유: Palantir 3-layer 프레임의 "Dynamic"(확률적·인과적 추론 capability)과
+> 충돌. ontorag의 4-layer reasoning stack에서 "Dynamic"은 v0.7(Bayesian) +
+> v0.8(Causal)를 가리키며, 본 플랜이 정의한 "시계열·State 변화 속도"
+> 레이어와는 *직교*하는 개념입니다.
+>
+> ```
+> 본문 표기                        →  새 명칭 (혼동 회피)
+> urn:ontorag:dynamic              →  urn:ontorag:state
+> 4번째 레이어 "Dynamic (시계열)"   →  "State (시계열)"
+> MCP 툴 record_state/get_state    →  변경 없음 (이미 "state" 어휘 사용)
+> OntologyLayer.dynamic            →  OntologyLayer.state
+> ```
+>
+> 본문 아래의 "Dynamic" 표기는 모두 "State"로 읽어주세요. 추후 본문 일괄
+> 갱신은 v0.7.0 작업 시 동시 수행합니다.
+>
+> **참조 north star**: `.claude/CLAUDE.md`의 "4-layer reasoning stack" 섹션
+> (Layer 0 Storage → Layer 1 Logical → Layer 2 Probabilistic → Layer 3
+> Counterfactual → Layer 4 Learning). 본 플랜은 *Layer 0-1의 *구조적 정돈*에
+> 해당하지, 새 추론 capability를 더하는 것이 아닙니다. Bayesian/Causal/GNN과
+> 직교합니다.
+
 **원 브랜치**: `modular-ontology` (머지·삭제됨)  
 **작성일**: 2026-05-18 (v1) → **개정**: 2026-05-18 (v2)  
-**상태**: 설계 v2 — 전문가 검토 반영. 부분 구현(SHACL/multi-ontology/access), 레이어드 아키텍처 본체는 미착수.
+**상태**: 설계 v2 — 전문가 검토 반영. **Phase 1은 v0.7.0에 구현 완료** (2026-05-28), Phase 2/3a/3b/4는 사용자 시그널 도달까지 보류.
+
+> **Phase 1 구현 노트 (v0.7.0, 2026-05-28):** Named Graph 인프라가 출시됐습니다.
+> 정식 설계는 `docs/design/named-graph-layers.md`를 참조하세요. 본문 §2의
+> 하위호환 매핑(`"schema"` → `urn:ontorag:semantic`)과 **구현이 갈립니다**:
+> 어휘(vocabulary)만 `semantic`/`state`로 개명하고 **물리적 graph URI는 유지**
+> 했습니다 — `semantic` → `urn:ontorag:schema`, `state` → `urn:ontorag:data`.
+> 물리 URI를 바꾸면 영속 TDB2 데이터가 고아가 되고 테스트가 깨지기 때문입니다.
+> `"schema"`/`"data"` 문자열은 `resolve_layer`에서 alias로 계속 수용됩니다.
+> 추론 어셈블러는 본문 §2의 `ja:OntModel` 스케치 대신 `urn:x-arq:UnionGraph`
+> 위 `ja:InfModel`(OWLMicro)로 구현했고, 기본값은 여전히 쿼리 레벨 추론이며
+> 이 어셈블러는 `FUSEKI_CONFIG_TEMPLATE`로 opt-in합니다.
 
 ---
 
