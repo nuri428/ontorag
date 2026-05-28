@@ -2076,6 +2076,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pyshacl" },
     { name = "python-dotenv" },
+    { name = "pyyaml" },
     { name = "rdflib" },
     { name = "typer" },
 ]
@@ -2136,6 +2137,7 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "qdrant-client", marker = "extra == 'vector'", specifier = ">=1.9.0,<1.10.0" },
     { name = "ragas", marker = "extra == 'bench'", specifier = ">=0.2,<0.3" },
     { name = "rdflib", specifier = ">=7.0.0" },
