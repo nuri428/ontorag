@@ -247,7 +247,7 @@ def _fake_store(fail_substrings=None):
 
     fail = fail_substrings or set()
 
-    async def _load_rdf(path, mode="auto", replace=False, ontology=None):
+    async def _load_rdf(path, mode="auto", replace=False, ontology=None, graph=None):
         if any(s in path for s in fail):
             raise RuntimeError("boom")
         return LoadResult(triples_loaded=7, source=path, mode=mode, ontology=ontology)
