@@ -17,7 +17,7 @@ from rdflib import Graph
 
 from ontorag.api.deps import get_store
 from ontorag.chat import store as chat_store
-from ontorag.stores.base import GraphStore, TraversalDirection
+from ontorag.stores.base import AggFunc, GraphStore, TraversalDirection
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ui", tags=["ui"])
@@ -228,6 +228,123 @@ async def entity_detail(
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get("/data/search", response_class=HTMLResponse)
+async def data_search(
+    request: Request,
+    query: str = "",
+    class_uri: str = "",
+    limit: int = 20,
+    store: GraphStore = Depends(get_store),
+) -> HTMLResponse:
+    """BM25 full-text search partial — HTMX target for the search input on the Data tab.
+
+    Returns an HTML table of ranked SearchHit results.  When the backend does
+    not support full-text search a graceful hint is rendered instead of a 5xx.
+    """
+    if not query:
+        return HTMLResponse("")
+
+    fn = getattr(store, "search_text", None)
+    if fn is None:
+        return HTMLResponse(
+            "<p class='text-gray-600 text-xs p-4'>"
+            "Full-text search not supported by this backend.</p>"
+        )
+
+    try:
+        hits = await fn(query, class_uri or None, limit)
+    except Exception as exc:
+        return HTMLResponse(
+            f"<p class='text-red-400 text-xs p-4'>오류: {_html.escape(str(exc))}</p>"
+        )
+
+    return templates.TemplateResponse(
+        request,
+        "partials/search_hits.html",
+        {"hits": hits, "query": query},
+    )
+
+
+@router.get("/data/similar", response_class=HTMLResponse)
+async def data_similar(
+    request: Request,
+    uri: str = "",
+    top_k: int = 10,
+    mode: str = "structural",
+    class_uri: str = "",
+    store: GraphStore = Depends(get_store),
+) -> HTMLResponse:
+    """Graph-embedding nearest-neighbour partial — HTMX target for 'Find Similar'.
+
+    Renders a ranked list of SimilarHit results.  If embeddings have not been
+    built yet the partial renders a hint to run ``ontorag embed``.
+    """
+    if not uri:
+        return HTMLResponse("")
+
+    fn = getattr(store, "find_similar", None)
+    if fn is None:
+        return templates.TemplateResponse(
+            request,
+            "partials/similar_hits.html",
+            {"hits": [], "uri": uri, "mode": mode, "not_supported": True},
+        )
+
+    try:
+        hits = await fn(uri, top_k, mode, class_uri=class_uri or None)
+    except Exception as exc:
+        return HTMLResponse(
+            f"<p class='text-red-400 text-xs p-4'>오류: {_html.escape(str(exc))}</p>"
+        )
+
+    return templates.TemplateResponse(
+        request,
+        "partials/similar_hits.html",
+        {
+            "hits": hits,
+            "uri": uri,
+            "mode": mode,
+            "no_embeddings": len(hits) == 0,
+        },
+    )
+
+
+@router.get("/data/aggregate", response_class=HTMLResponse)
+async def data_aggregate(
+    request: Request,
+    class_uri: str = "",
+    group_by: str = "",
+    agg: str = "count",
+    store: GraphStore = Depends(get_store),
+) -> HTMLResponse:
+    """Group-by aggregation partial — HTMX target for the Aggregate widget on the Data tab.
+
+    Renders a two-column table of group_value / result pairs.
+    """
+    if not class_uri or not group_by:
+        return HTMLResponse("")
+
+    try:
+        agg_func = AggFunc(agg)
+    except ValueError:
+        return HTMLResponse(
+            f"<p class='text-red-400 text-xs p-4'>잘못된 집계 함수: {_html.escape(agg)}</p>"
+        )
+
+    try:
+        rows = await store.aggregate(class_uri, group_by, agg_func)
+    except Exception as exc:
+        return HTMLResponse(
+            f"<p class='text-red-400 text-xs p-4'>오류: {_html.escape(str(exc))}</p>"
+        )
+
+    return templates.TemplateResponse(
+        request,
+        "partials/aggregate_results.html",
+        {"rows": rows, "class_uri": class_uri, "group_by": group_by, "agg": agg},
+    )
 
 
 def _web_suffix(filename: str | None) -> str:

@@ -1,0 +1,51 @@
+{% if hits %}
+<div class="overflow-x-auto">
+    <table class="w-full text-xs">
+        <thead>
+            <tr class="bg-gray-800 text-gray-400 text-left sticky top-0">
+                <th class="px-4 py-2.5 font-medium">Label</th>
+                <th class="px-4 py-2.5 font-medium">URI</th>
+                <th class="px-4 py-2.5 font-medium">Class</th>
+                <th class="px-4 py-2.5 font-medium w-20">Score</th>
+                <th class="px-4 py-2.5 w-16"></th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+            {% for hit in hits %}
+            <tr class="hover:bg-gray-800/60 transition-colors group">
+                <td class="px-4 py-2.5 text-gray-200 font-medium">
+                    {{ hit.label or hit.uri.split('#')[-1].split('/')[-1] }}
+                </td>
+                <td class="px-4 py-2.5 text-gray-600 font-mono max-w-[200px]">
+                    <span class="truncate block" title="{{ hit.uri }}">{{ hit.uri }}</span>
+                </td>
+                <td class="px-4 py-2.5 text-gray-500 max-w-[180px]">
+                    {% if hit.class_uri %}
+                    <span class="truncate block" title="{{ hit.class_uri }}">{{ hit.class_uri.split('#')[-1].split('/')[-1] }}</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-2.5 text-indigo-400 font-mono">
+                    {{ "%.3f"|format(hit.score) }}
+                </td>
+                <td class="px-4 py-2.5 text-right">
+                    <button
+                        data-uri="{{ hit.uri }}"
+                        data-label="{{ hit.label or '' }}"
+                        onclick="window.showEntityDetail && showEntityDetail(this.dataset.uri, this.dataset.label)"
+                        class="text-indigo-500 hover:text-indigo-300 transition-colors opacity-0 group-hover:opacity-100 text-xs"
+                        data-i18n="data.explore">탐색→</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="px-4 py-3 border-t border-gray-800 text-xs text-gray-700">
+    {{ hits | length }}개 결과
+</div>
+{% elif query %}
+<div class="p-8 text-center">
+    <p class="text-gray-700 text-sm">검색 결과 없음: <span class="text-gray-500 font-mono">{{ query }}</span></p>
+    <p class="text-gray-800 text-xs mt-2">BM25 인덱스가 빌드되어 있는지 확인하세요. Fuseki 백엔드는 jena-text 인덱스가 필요합니다.</p>
+</div>
+{% endif %}

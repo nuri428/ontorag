@@ -1,0 +1,32 @@
+{% if rows %}
+<div class="overflow-x-auto">
+    <table class="w-full text-xs">
+        <thead>
+            <tr class="bg-gray-800 text-gray-400 text-left sticky top-0">
+                <th class="px-4 py-2.5 font-medium">{{ group_by.split('#')[-1].split('/')[-1] }}</th>
+                <th class="px-4 py-2.5 font-medium w-28">{{ agg }}</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+            {% for row in rows %}
+            <tr class="hover:bg-gray-800/60 transition-colors">
+                <td class="px-4 py-2.5 text-gray-300">
+                    {{ row.group_value or '(없음)' }}
+                </td>
+                <td class="px-4 py-2.5 text-indigo-400 font-mono font-medium">
+                    {{ row.result }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="px-4 py-3 border-t border-gray-800 text-xs text-gray-700">
+    {{ rows | length }}개 그룹
+</div>
+{% elif class_uri %}
+<div class="p-8 text-center">
+    <p class="text-gray-700 text-sm">집계 결과 없음</p>
+    <p class="text-gray-800 text-xs mt-2">class_uri 또는 group_by 속성을 확인하세요.</p>
+</div>
+{% endif %}
