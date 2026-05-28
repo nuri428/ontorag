@@ -1,0 +1,23 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://example.org/sameas#> .
+@prefix d: <http://example.org/sameas/data#> .
+
+# Direct sameAs pair: Alpha sameAs Beta (asserted one-way)
+d:Alpha a ex:Entity ;
+    rdfs:label "Alpha" ;
+    owl:sameAs d:Beta .
+
+d:Beta a ex:Entity ;
+    rdfs:label "Beta" .
+
+# Transitive chain: Beta sameAs Gamma
+d:Beta owl:sameAs d:Gamma .
+
+d:Gamma a ex:Entity ;
+    rdfs:label "Gamma" .
+
+# Unrelated entity: Delta has no sameAs assertions
+d:Delta a ex:Entity ;
+    rdfs:label "Delta" .

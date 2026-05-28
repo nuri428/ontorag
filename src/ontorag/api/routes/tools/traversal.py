@@ -148,3 +148,55 @@ async def find_related(
         )
     except NotImplementedError:
         raise HTTPException(status_code=501, detail="find_related: Day 6에 구현 예정")
+
+
+class FindAlignedRequest(BaseModel):
+    """Request body for cross-ontology owl:sameAs alignment resolution."""
+
+    uri: str
+    ontology: str | None = None
+
+
+@router.post(
+    "/aligned",
+    operation_id="find_aligned",
+    summary=(
+        "owl:sameAs 동등 엔티티 탐색 — 대칭+전이 closure, 온톨로지 경계 가로지름"
+    ),
+    response_model=list[dict],
+)
+async def find_aligned(
+    body: FindAlignedRequest,
+    store: GraphStore = Depends(get_store),
+) -> list[dict]:
+    """Find all entities owl:sameAs-equivalent to the given URI.
+
+    Resolves the full symmetric and transitive sameAs closure, so both
+    direct assertions (A sameAs B) and chained ones (A sameAs B sameAs C)
+    are returned.  The query crosses ontology scopes by default
+    (``ontology=None``), making it the right tool for cross-ontology
+    entity alignment.
+
+    Args:
+        body.uri: Full entity URI to resolve.
+        body.ontology: Optional ontology id to restrict equivalent nodes to a
+            single ontology; None = union (all ontologies, default).
+
+    Returns:
+        List of ``{"uri": str, "label": str | None}`` dicts, sorted by URI.
+        Empty list when no sameAs equivalents exist.
+
+    Raises:
+        HTTPException: 501 if the active backend does not expose
+            ``sameas_closure``.
+    """
+    fn = getattr(store, "sameas_closure", None)
+    if fn is None:
+        raise HTTPException(
+            status_code=501,
+            detail=(
+                "find_aligned (owl:sameAs closure) is not supported by the "
+                f"active graph store ({type(store).__name__})."
+            ),
+        )
+    return await fn(body.uri, ontology=body.ontology)
