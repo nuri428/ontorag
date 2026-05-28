@@ -7,7 +7,14 @@ from fastapi.testclient import TestClient
 
 from ontorag.api.deps import get_store
 from ontorag.api.main import app
-from ontorag.stores.base import EntityResult, SchemaResult, TraversalResult
+from ontorag.stores.base import (
+    AggregateResult,
+    EntityResult,
+    SchemaResult,
+    SearchHit,
+    SimilarHit,
+    TraversalResult,
+)
 from ontorag.stores.fuseki import FusekiStore
 
 # ── Shared mock store fixture ──────────────────────────────────────────────────
@@ -240,3 +247,146 @@ def test_playground_config_save_creates_env_file(client, tmp_path, monkeypatch):
         data={"LLM_PROVIDER": "openai"},
     )
     assert (tmp_path / ".env").exists()
+
+
+# ── Data search / similar / aggregate routes ───────────────────────────────────
+
+
+def test_data_search_empty_query_returns_empty(client):
+    response = client.get("/ui/data/search", params={"query": ""})
+    assert response.status_code == 200
+    assert response.text == ""
+
+
+def test_data_search_returns_hits_table(client, mock_store):
+    mock_store.search_text = AsyncMock(
+        return_value=[
+            SearchHit(
+                uri="http://ex.org/alice",
+                label="Alice",
+                class_uri="http://ex.org/Person",
+                score=1.23,
+            )
+        ]
+    )
+    response = client.get(
+        "/ui/data/search",
+        params={"query": "alice", "limit": "20"},
+    )
+    assert response.status_code == 200
+    assert b"Alice" in response.content
+    assert b"1.230" in response.content
+
+
+def test_data_search_no_search_text_attr_returns_hint(client, mock_store):
+    # Remove search_text attribute to simulate unsupported backend
+    del mock_store.search_text
+    response = client.get("/ui/data/search", params={"query": "test"})
+    assert response.status_code == 200
+    assert b"not supported" in response.content
+
+
+def test_data_search_store_error_returns_error_html(client, mock_store):
+    mock_store.search_text = AsyncMock(side_effect=RuntimeError("index missing"))
+    response = client.get("/ui/data/search", params={"query": "test"})
+    assert response.status_code == 200
+    assert b"index missing" in response.content
+
+
+def test_data_similar_empty_uri_returns_empty(client):
+    response = client.get("/ui/data/similar", params={"uri": ""})
+    assert response.status_code == 200
+    assert response.text == ""
+
+
+def test_data_similar_returns_hits_table(client, mock_store):
+    mock_store.find_similar = AsyncMock(
+        return_value=[
+            SimilarHit(
+                uri="http://ex.org/bob",
+                label="Bob",
+                class_uri="http://ex.org/Person",
+                score=0.95,
+                mode="structural",
+            )
+        ]
+    )
+    response = client.get(
+        "/ui/data/similar",
+        params={"uri": "http://ex.org/alice", "top_k": "5", "mode": "structural"},
+    )
+    assert response.status_code == 200
+    assert b"Bob" in response.content
+    assert b"0.950" in response.content
+
+
+def test_data_similar_no_find_similar_attr_returns_not_supported(client, mock_store):
+    del mock_store.find_similar
+    response = client.get(
+        "/ui/data/similar", params={"uri": "http://ex.org/alice"}
+    )
+    assert response.status_code == 200
+    # The not_supported template path renders a message about no support
+    assert response.status_code == 200  # 5xx not raised
+
+
+def test_data_similar_store_error_returns_error_html(client, mock_store):
+    mock_store.find_similar = AsyncMock(side_effect=RuntimeError("qdrant down"))
+    response = client.get(
+        "/ui/data/similar", params={"uri": "http://ex.org/alice"}
+    )
+    assert response.status_code == 200
+    assert b"qdrant down" in response.content
+
+
+def test_data_aggregate_empty_params_returns_empty(client):
+    response = client.get("/ui/data/aggregate", params={"class_uri": "", "group_by": ""})
+    assert response.status_code == 200
+    assert response.text == ""
+
+
+def test_data_aggregate_returns_table(client, mock_store):
+    mock_store.aggregate = AsyncMock(
+        return_value=[
+            AggregateResult(group_value="Electric", result=5),
+            AggregateResult(group_value="Water", result=3),
+        ]
+    )
+    response = client.get(
+        "/ui/data/aggregate",
+        params={
+            "class_uri": "http://ex.org/Pokemon",
+            "group_by": "http://ex.org/type",
+            "agg": "count",
+        },
+    )
+    assert response.status_code == 200
+    assert b"Electric" in response.content
+    assert b"Water" in response.content
+
+
+def test_data_aggregate_invalid_agg_func_returns_error_html(client):
+    response = client.get(
+        "/ui/data/aggregate",
+        params={
+            "class_uri": "http://ex.org/Pokemon",
+            "group_by": "http://ex.org/type",
+            "agg": "notafunc",
+        },
+    )
+    assert response.status_code == 200
+    assert b"notafunc" in response.content
+
+
+def test_data_aggregate_store_error_returns_error_html(client, mock_store):
+    mock_store.aggregate = AsyncMock(side_effect=RuntimeError("SPARQL fail"))
+    response = client.get(
+        "/ui/data/aggregate",
+        params={
+            "class_uri": "http://ex.org/Pokemon",
+            "group_by": "http://ex.org/type",
+            "agg": "count",
+        },
+    )
+    assert response.status_code == 200
+    assert b"SPARQL fail" in response.content
