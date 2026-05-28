@@ -493,3 +493,55 @@ LIMIT {limit}"""
                 }
             )
         return out
+
+    async def sameas_closure(
+        self,
+        uri: str,
+        ontology: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Resolve the symmetric+transitive owl:sameAs closure for a URI.
+
+        Returns every entity asserted to be owl:sameAs-equivalent to *uri* —
+        directly or transitively — excluding *uri* itself.  Both directions of
+        the sameAs relation are followed in a single property-path step so
+        asymmetrically asserted triples (A sameAs B without B sameAs A) are
+        still resolved correctly.
+
+        Args:
+            uri: The entity URI to resolve.
+            ontology: Ontology id for scoped query, or None for union.
+
+        Returns:
+            List of ``{"uri": str, "label": str | None}`` ordered by URI.
+        """
+        ontology = validate_ontology_id(ontology)
+        data_g = data_graph_uri(ontology) if ontology is not None else None
+
+        pfx = self._pfx()
+        start = uri_ref(uri)
+
+        inner_body = (
+            f"BIND({start} AS ?start)\n"
+            f"    ?start (owl:sameAs|^owl:sameAs)+ ?other .\n"
+            f"    FILTER(?other != {start})\n"
+            f"    OPTIONAL {{ ?other rdfs:label ?l . }}"
+        )
+        query = f"""{pfx}
+SELECT DISTINCT ?other (SAMPLE(?l) AS ?label)
+WHERE {{
+  {_data_clause(data_g, inner_body)}
+}}
+GROUP BY ?other
+ORDER BY STR(?other)"""
+        result = await self._sparql_select(query)
+        out: list[dict[str, Any]] = []
+        for b in result.get("results", {}).get("bindings", []):
+            if "other" not in b:
+                continue
+            out.append(
+                {
+                    "uri": b["other"]["value"],
+                    "label": b.get("label", {}).get("value"),
+                }
+            )
+        return out

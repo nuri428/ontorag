@@ -381,6 +381,52 @@ class _Neo4jTraversalMixin:
             if row.get("uri")
         ]
 
+    async def sameas_closure(  # type: ignore[override]
+        self: "Neo4jStore",
+        uri: str,
+        ontology: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Resolve the symmetric+transitive owl:sameAs closure via Cypher.
+
+        Follows undirected ``owl__sameAs`` relationships (n10s shortens
+        ``owl:sameAs`` to ``owl__sameAs``) using a variable-length path.
+        Because sameAs is symmetric the path is undirected (``-[...]-``).
+
+        Args:
+            uri: The entity URI to resolve.
+            ontology: Ontology id to post-filter equivalent nodes, or None.
+
+        Returns:
+            List of ``{"uri": str, "label": str | None}`` ordered by URI.
+        """
+        await self._ensure_prefix_map()
+
+        reached_scope_frag, scope_params = ontology_scope_filter(
+            ontology, node_alias="b"
+        )
+        reached_scope_and = f" AND {reached_scope_frag}" if reached_scope_frag else ""
+
+        rows = await self._run(
+            f"""
+            MATCH (a:Resource {{uri: $uri}})
+            -[:owl__sameAs*1..{_MAX_DEPTH_HARD}]-(b:Resource)
+            WHERE b.uri <> $uri{reached_scope_and}
+            RETURN DISTINCT b.uri AS uri, b.rdfs__label AS label
+            ORDER BY b.uri
+            """,
+            uri=uri,
+            **scope_params,
+        )
+
+        return [
+            {
+                "uri": row["uri"],
+                "label": first_scalar(row.get("label")),
+            }
+            for row in rows
+            if row.get("uri")
+        ]
+
     async def find_related(  # type: ignore[override]
         self: "Neo4jStore",
         class_uri_a: str,

@@ -419,6 +419,34 @@ _TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "find_aligned",
+        "description": (
+            "Find entities asserted owl:sameAs-equivalent to a URI — "
+            "transitive + symmetric, across ontologies. Use to resolve "
+            "whether an entity in one ontology is the same individual as "
+            "one in another. Follows the full sameAs closure so chained "
+            "assertions (A sameAs B sameAs C) are resolved in one call. "
+            "Result shape: list[{uri, label}]."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "uri": {
+                    "type": "string",
+                    "description": "Full entity URI to resolve sameAs equivalents for.",
+                },
+                "ontology": {
+                    "type": "string",
+                    "description": (
+                        "Optional ontology id to restrict equivalent nodes to "
+                        "that ontology; omit to search across all ontologies."
+                    ),
+                },
+            },
+            "required": ["uri"],
+        },
+    },
+    {
         "name": "find_similar",
         "description": (
             "Vector similarity search — returns entities most similar to a "
@@ -821,6 +849,20 @@ class AgentLoop:
                 limit=args.get("limit", 100),
             )
             return (await store.query_pattern(query)).model_dump()
+
+        if name == "find_aligned":
+            sameas_fn = getattr(store, "sameas_closure", None)
+            if sameas_fn is None:
+                return {
+                    "error": "find_aligned is not supported by this backend.",
+                    "aligned": [],
+                    "returned": 0,
+                }
+            aligned = await sameas_fn(
+                args["uri"],
+                ontology=args.get("ontology"),
+            )
+            return {"aligned": aligned, "returned": len(aligned)}
 
         if name == "search_text":
             # Capability tool — both v0.5 backends implement it, but guard
