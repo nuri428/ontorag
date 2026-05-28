@@ -1,0 +1,28 @@
+# Causal DAG for the smoking example (v0.8). Quantified by the BN in
+# bayes-network.ttl (causal:basedOn). Genotype is OBSERVED here, so the
+# Smoking -> Cancer effect is identifiable by back-door adjustment over Genotype.
+#
+# For the latent/front-door variant, set sm:Genotype causal:observed false and
+# add a mediator sm:Tar (Smoking -> Tar -> Cancer); then `ontorag causal
+# identify` reports a front-door adjustment set {Tar}.
+#
+# Over-claim guard: this DAG is user-supplied. ontorag computes do /
+# counterfactual queries ASSUMING it is correct; it does not validate causal
+# semantics or discover causation.
+
+@prefix causal: <https://ontorag.dev/causal#> .
+@prefix sm:     <https://ontorag.dev/smoking#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+
+causal:model a causal:CausalModel ;
+    rdfs:label "smoking" ;
+    causal:basedOn <https://ontorag.dev/bn#network> ;
+    causal:hasVariable sm:Genotype, sm:Smoking, sm:Cancer .
+
+sm:Genotype a causal:Variable ; rdfs:label "Genotype" ; causal:observed true .
+sm:Smoking  a causal:Variable ; rdfs:label "Smoking"  ; causal:observed true .
+sm:Cancer   a causal:Variable ; rdfs:label "Cancer"   ; causal:observed true .
+
+sm:Genotype causal:influences sm:Smoking .
+sm:Genotype causal:influences sm:Cancer .
+sm:Smoking  causal:influences sm:Cancer .

@@ -38,6 +38,7 @@ from ontorag.core.loader import detect_mode, parse_rdf
 from ontorag.core.ontology import validate_ontology_id
 from ontorag.core.sparql import STANDARD_PREFIXES
 from ontorag.stores._neo4j_bayes_mixin import _Neo4jBayesMixin
+from ontorag.stores._neo4j_causal_mixin import _Neo4jCausalMixin
 from ontorag.stores._neo4j_embedding_mixin import _Neo4jEmbeddingMixin
 from ontorag.stores._neo4j_entity_mixin import _Neo4jEntityMixin
 from ontorag.stores._neo4j_export import triples_to_ttl, triples_to_xlsx
@@ -82,6 +83,7 @@ class Neo4jStore(
     _Neo4jSearchMixin,
     _Neo4jEmbeddingMixin,
     _Neo4jBayesMixin,
+    _Neo4jCausalMixin,
 ):
     """Apache Neo4j + neosemantics (n10s) graph store adapter.
 

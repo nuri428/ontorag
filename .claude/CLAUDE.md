@@ -499,7 +499,7 @@ Fuseki healthcheck: `GET /$/ping` → 200 OK.
 
 ---
 
-### v0.7 — Probabilistic Foundation (Bayesian) 🎯 current focus
+### v0.7 — Probabilistic Foundation (Bayesian) ✅ shipped
 
 **Goal**: ontorag becomes a probabilistic reasoning system — LLM agents can call `compute_posterior(evidence, query)` and `mpe(evidence)` against a BN layered over the OWL graph. Activates Palantir's Dynamic layer.
 
@@ -517,24 +517,26 @@ Fuseki healthcheck: `GET /$/ping` → 200 OK.
 
 **Library choice**: pgmpy (Python-native, MIT, async-friendly via `asyncio.to_thread`). OpenMarkov rejected (Java GUI focus, no fit). pyAgrum as fallback for scale.
 
-### v0.8 — Causal Layer (Pearl Rung 2 + 3)
+### v0.8 — Causal Layer (Pearl Rung 2 + 3) ✅ shipped
 
-**Goal**: `do_query(intervention, query)` and `counterfactual(observed, intervention, query)` MCP tools — interventional and counterfactual reasoning over the BN.
+**Goal**: `do_query(intervention, query)`, `identify_effect(treatment, outcome)`, and `counterfactual(observed, intervention, query)` MCP tools — interventional and counterfactual reasoning over the BN. Activates Pearl Rung 2-3.
 
-**Decomposition** (~10 weeks):
+**Decomposition**:
 
 | Sub-version | Deliverable |
 |---|---|
-| **v0.8.0** | `causal:` vocabulary + `urn:ontorag:causal` named graph for DAG/intervention metadata. ~1 week. |
-| **v0.8.1** | Pearl Rung 2 — DoWhy integration, `do_query` MCP tool, backdoor/frontdoor adjustment. ~3-4 weeks. |
-| **v0.8.2** | Pearl Rung 3 — counterfactual MCP tool, twin-network construction. ~2-3 weeks. |
-| **v0.8.3** | Structure learning — PC algorithm, score-based DAG discovery from observational data. ~2 weeks. |
+| **v0.8.0** ✅ shipped | `causal:` vocabulary (`core/causal.py`: `CausalModel`/`CausalVariable`, `causal:influences`/`causal:observed`/`causal:basedOn`, acyclicity check) + RDF round-trip + `CausalStore` Protocol (`stores/base.py`); DAG stored in `urn:ontorag:causal` named graph **only**. Fuseki mixin (`_fuseki_causal_mixin.py`, GSP) + Neo4j mixin (`_neo4j_causal_mixin.py`, `:_CausalVariable` nodes + `[:_CAUSES]` edges tagged `_scope`) — full backend parity. |
+| **v0.8.1** ✅ shipped | Pearl Rung 2 — `CausalEngine.do_query` (`causal/engine.py`) via pgmpy `CausalInference.query(do=…)` (graph surgery + automatic back-door adjustment) + `identify` (`get_minimal_adjustment_set` / `get_all_frontdoor_adjustment_sets`) + MCP tools `do_query`, `identify_effect` (`api/routes/tools/causal.py`). |
+| **v0.8.2** ✅ shipped | Pearl Rung 3 — `counterfactual` MCP tool + `CausalEngine.counterfactual` via abduction-action-prediction over the **canonical independent-noise SCM** consistent with the CPTs (response-function enumeration, `_CF_RESPONSE_CAP`). |
+| **v0.8.3** ✅ shipped | Structure learning — `causal/discovery.py` PC algorithm (pgmpy `PC` estimator, reuses `bayes/learn.gather_observations`) → **proposal-only** `CausalModel`; `ontorag causal learn-dag` CLI (`--save` still prints the review warning). Never auto-committed. |
 
-**Quality bar**: synthetic confounder example (smoking → tar → cancer with genotype confounder) — interventional and counterfactual queries match Pearl textbook answers.
+**CLI** (`cli_causal.py`): `ontorag causal load/show/do/identify/counterfactual/clear/learn-dag`.
 
-**Library choice**: DoWhy (Microsoft, MIT) for identification + estimation; pgmpy for underlying BN.
+**Quality bar**: synthetic smoking BN with an **observed genotype confounder** (`examples/smoking/`: Genotype→Smoking, Genotype→Cancer, Smoking→Cancer). Hand-verified: P(Cancer | **see** Smoking=yes) = 0.72 vs P(Cancer | **do** Smoking=yes) = 0.60 (back-door adjusted over Genotype) — `do` ≠ `see`. Counterfactual consistency axiom verified in `tests/test_causal_engine.py`; PC recovers the chain skeleton in `tests/test_causal_discovery.py`. Both backends return identical results.
 
-**Over-claim guard**: README must state explicitly — *"Causal DAG is user-supplied; tool computes interventional/counterfactual queries assuming the DAG is correctly specified. ontorag does not validate causal semantics."*
+**Library choice**: **pgmpy-native** (not DoWhy). We already have a fully-specified BN (DAG + CPTs from the v0.7 layer), so `do` is graph surgery + back-door adjustment via pgmpy's `CausalInference`, and counterfactuals come from a canonical-SCM enumeration over the CPTs. DoWhy was rejected — its identification+estimation pipeline targets *raw data* and would add a heavy dependency for capability we get directly from the quantified BN. pgmpy stays the single probabilistic/causal engine (`[bayes]` extra).
+
+**Over-claim guard** (shipped in README + every tool/CLI docstring): *"The causal DAG is user-supplied. ontorag computes interventional / counterfactual queries assuming the DAG is correctly specified; it does not validate causal semantics or discover causation."* Structure discovery (`learn-dag`) emits proposals only.
 
 ### v0.9 — FalkorDB backend
 

@@ -12,6 +12,7 @@ from ontorag.api.routes import chat, dump, health, load, status
 from ontorag.api.routes.tools import (
     _sparql,
     bayes,
+    causal,
     entities,
     learning,
     pattern,
@@ -78,6 +79,9 @@ app.include_router(similar.router)
 
 # v0.7 Bayesian inference (compute_posterior, mpe) — capability on both backends
 app.include_router(bayes.router)
+
+# v0.8 Causal inference (do_query, identify_effect, counterfactual) — both backends
+app.include_router(causal.router)
 
 # Debug route — Layer 3 (NOT exposed via MCP)
 app.include_router(_sparql.router)

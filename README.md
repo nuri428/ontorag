@@ -47,6 +47,7 @@ Vector RAG handles flat lookups well — the structural advantage of ontorag app
 | **Ontology-first** | RDF/OWL schema (TBox) + instance data (ABox) as primary structure |
 | **Agentic MCP loop** | LLM calls 13 typed tools (L1 intent + L2 DSL + BM25 `search_text` + vector `find_similar` + `aggregate`); tool calls visible in SSE stream |
 | **Full-text + vector retrieval** | BM25 `search_text` (jena-text / Neo4j fulltext) and graph-embedding `find_similar` (structural / textual / hybrid, with subClassOf-aware `class_uri` filter) — both backends |
+| **Probabilistic + causal reasoning** | Bayesian network over the OWL graph: `compute_posterior` / `mpe` (v0.7) + Pearl Rung 2-3 `do_query` / `identify_effect` / `counterfactual` (v0.8) — pgmpy-native, `[bayes]` extra, both backends. Causal DAG is user-supplied (see [note](#causal-reasoning--over-claim-guard)). |
 | **Web UI** | Built-in browser interface — Schema graph, Data browser, Playground chat at `/ui` |
 | **Multi-LLM** | Anthropic Claude · OpenAI · Ollama (local) |
 | **Pluggable backend** | `GRAPH_STORE=fuseki` (default) or `neo4j` (Neo4j + n10s) — same tools, no code change. Neo4j adds native `rdfs:subClassOf` inference. |
@@ -356,9 +357,25 @@ MCP (Model Context Protocol) endpoint. Any MCP-compatible client can connect and
 | `search_text` | Cap | BM25 full-text (jena-text / Neo4j fulltext) — both backends |
 | `find_similar` | Cap | Graph-embedding kNN (structural / textual / hybrid) + subClassOf-aware `class_uri` filter — both backends |
 | `find_aligned` | Cap | `owl:sameAs` closure — entities asserted equivalent across ontologies (transitive + symmetric) |
+| `compute_posterior` | Prob | `P(query \| evidence)` over the Bayesian network (v0.7) |
+| `mpe` | Prob | Most probable explanation — best joint assignment given evidence (v0.7) |
+| `do_query` | Causal | `P(query \| do(X), evidence)` — interventional, graph surgery + back-door adjustment (v0.8, Rung 2) |
+| `identify_effect` | Causal | Back-door / front-door adjustment sets + identifiability for treatment → outcome (v0.8) |
+| `counterfactual` | Causal | `P(query \| observed, had(X))` — canonical-SCM abduction-action-prediction (v0.8, Rung 3) |
 
 "Cap" = backend capability tool, available once the data is loaded
 (`search_text`) or embeddings are built (`find_similar` via `ontorag embed`).
+"Prob" / "Causal" require the `[bayes]` extra and a Bayesian network loaded via
+`ontorag bayes load` (causal tools also use a DAG from `ontorag causal load`).
+
+### Causal reasoning — over-claim guard
+
+The causal DAG is **user-supplied**. ontorag computes interventional /
+counterfactual queries *assuming the DAG is correctly specified*; it does **not**
+validate causal semantics or discover causation. Structure discovery
+(`ontorag causal learn-dag`) recovers a Markov-equivalence class and emits a
+**proposal only** — never auto-committed; a human must review before any causal
+claim. See [`docs/design/causal-layer.md`](docs/design/causal-layer.md).
 
 ---
 
@@ -1043,7 +1060,8 @@ FUSEKI_DATASET=ontorag uv run python scripts/bench_query_speed_4domain.py --n 20
 - **v0.5.x** — agent now wields the full **13-tool set** (BM25 `search_text`, vector `find_similar`, `aggregate` wired into the agent loop, previously MCP-route-only) · `find_similar` subClassOf-aware `class_uri` filter (both backends) · fixes: Neo4j predicate-`traverse` Cypher, `[bench]` extra dependency pins ✅
 - **v0.6** — directory/multi-file loader (`load <DIR>` + `ontorag.yaml` manifest) · agent 14-tool set · `find_similar` `class_uri` filter · CLI backend config (`config set --graph-store/--neo4j-*`) · Web UI search/similar/aggregate panels ✅
 - **v0.6.1** — **per-ontology access control** (config-driven read/write/none via `ONTOLOGY_ACCESS`, GraphStore-boundary wrapper) · **cross-ontology entity alignment** (`owl:sameAs` closure → `find_aligned`) · `load_rdf` pre-parsed-graph fast path ✅
-- **v0.7** (planned) — read-side access guards on capability tools (search/similar/aligned) · multi-file upload REST endpoint
+- **v0.7** — **Probabilistic layer (Bayesian)**: named-graph foundation (`OntologyLayer`, layer/ontology graph URIs) · `bn:` vocabulary + RDF round-trip · `BayesianStore` (Fuseki + Neo4j parity) · `BayesianEngine` (pgmpy) → `compute_posterior` / `mpe` MCP tools · `ontorag bayes` CLI incl. `learn-cpt` (CPT estimation from ABox). pgmpy is the `[bayes]` extra. ✅
+- **v0.8** — **Causal layer (Pearl Rung 2-3)**: `causal:` vocabulary + `urn:ontorag:causal` graph (Fuseki + Neo4j parity) · `CausalEngine` (pgmpy-native, **not DoWhy**) → `do_query` (intervention + back-door adjustment) · `identify_effect` (back-door/front-door sets) · `counterfactual` (canonical-SCM) MCP tools · PC structure discovery (`learn-dag`, proposal-only) · `ontorag causal` CLI · smoking confounder example (`do` 0.60 ≠ `see` 0.72). Causal DAG is user-supplied; ontorag does not validate causal semantics. ✅
 
 ---
 

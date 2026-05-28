@@ -36,6 +36,63 @@ class BayesianEngineError(RuntimeError):
     invalid evidence/query). Carries a user-facing message."""
 
 
+def build_discrete_bn(network: BayesNetwork) -> DiscreteBayesianNetwork:
+    """Build a checked pgmpy DiscreteBayesianNetwork from a BayesNetwork.
+
+    Shared by the Bayesian and causal engines (the causal layer reuses the same
+    quantified model). Lazily imports pgmpy.
+
+    Raises:
+        BayesianEngineError: missing pgmpy, a variable without a CPD, or a model
+            pgmpy rejects in check_model().
+    """
+    try:
+        from pgmpy.factors.discrete import TabularCPD
+        from pgmpy.models import DiscreteBayesianNetwork as _DBN
+    except ImportError as exc:  # pragma: no cover - exercised only without extra
+        raise BayesianEngineError(
+            "Bayesian/causal inference requires pgmpy. Install the optional extra: "
+            "`pip install 'ontorag[bayes]'` (or `uv sync --extra bayes`)."
+        ) from exc
+
+    by_uri = {v.uri: v for v in network.variables}
+    cpd_vars = {c.variable for c in network.cpds}
+    missing = [v.uri for v in network.variables if v.uri not in cpd_vars]
+    if missing:
+        raise BayesianEngineError(
+            "Every variable needs a CPD for inference; missing CPD for: "
+            + ", ".join(sorted(missing))
+        )
+
+    model = _DBN()
+    model.add_nodes_from([v.uri for v in network.variables])
+    model.add_edges_from([(ev, c.variable) for c in network.cpds for ev in c.evidence])
+
+    tabular_cpds = []
+    for c in network.cpds:
+        var = by_uri[c.variable]
+        state_names = {c.variable: list(var.states)}
+        for ev in c.evidence:
+            state_names[ev] = list(by_uri[ev].states)
+        tabular_cpds.append(
+            TabularCPD(
+                variable=c.variable,
+                variable_card=var.cardinality,
+                values=c.values,
+                evidence=list(c.evidence) or None,
+                evidence_card=[by_uri[e].cardinality for e in c.evidence] or None,
+                state_names=state_names,
+            )
+        )
+    model.add_cpds(*tabular_cpds)
+
+    try:
+        model.check_model()
+    except Exception as exc:  # pgmpy raises various error types
+        raise BayesianEngineError(f"Invalid Bayesian network: {exc}") from exc
+    return model
+
+
 class BayesianEngine:
     """Wraps one BayesNetwork for repeated inference queries.
 
@@ -91,59 +148,9 @@ class BayesianEngine:
 
     # ── model construction ──────────────────────────────────────────────────────
 
-    def _build_model(self) -> DiscreteBayesianNetwork:
-        try:
-            from pgmpy.factors.discrete import TabularCPD
-            from pgmpy.models import DiscreteBayesianNetwork
-        except ImportError as exc:  # pragma: no cover - exercised only without extra
-            raise BayesianEngineError(
-                "Bayesian inference requires pgmpy. Install the optional extra: "
-                "`pip install 'ontorag[bayes]'` (or `uv sync --extra bayes`)."
-            ) from exc
-
-        net = self._network
-        cpd_vars = {c.variable for c in net.cpds}
-        missing = [v.uri for v in net.variables if v.uri not in cpd_vars]
-        if missing:
-            raise BayesianEngineError(
-                "Every variable needs a CPD for inference; missing CPD for: "
-                + ", ".join(sorted(missing))
-            )
-
-        model = DiscreteBayesianNetwork()
-        model.add_nodes_from([v.uri for v in net.variables])
-        model.add_edges_from(
-            [(ev, c.variable) for c in net.cpds for ev in c.evidence]
-        )
-
-        tabular_cpds = []
-        for c in net.cpds:
-            var = self._by_uri[c.variable]
-            state_names = {c.variable: list(var.states)}
-            for ev in c.evidence:
-                state_names[ev] = list(self._by_uri[ev].states)
-            tabular_cpds.append(
-                TabularCPD(
-                    variable=c.variable,
-                    variable_card=var.cardinality,
-                    values=c.values,
-                    evidence=list(c.evidence) or None,
-                    evidence_card=[self._by_uri[e].cardinality for e in c.evidence]
-                    or None,
-                    state_names=state_names,
-                )
-            )
-        model.add_cpds(*tabular_cpds)
-
-        try:
-            model.check_model()
-        except Exception as exc:  # pgmpy raises various error types
-            raise BayesianEngineError(f"Invalid Bayesian network: {exc}") from exc
-        return model
-
     def _ensure_model(self) -> DiscreteBayesianNetwork:
         if self._model is None:
-            self._model = self._build_model()
+            self._model = build_discrete_bn(self._network)
         return self._model
 
     # ── resolution helpers ──────────────────────────────────────────────────────

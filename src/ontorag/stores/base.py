@@ -19,6 +19,11 @@ from ontorag.core.bayes import BayesNetwork as BayesNetwork
 from ontorag.core.bayes import BayesVariable as BayesVariable
 from ontorag.core.bayes import CPD as CPD
 
+# Causal-model spec models (v0.8.0). Authoritative definition lives in
+# ontorag.core.causal; re-exported for the CausalStore Protocol + causal routes.
+from ontorag.core.causal import CausalModel as CausalModel
+from ontorag.core.causal import CausalVariable as CausalVariable
+
 if TYPE_CHECKING:
     from rdflib import Graph
 
@@ -768,4 +773,38 @@ class BayesianStore(Protocol):
         Returns:
             How many statements / nodes were removed before deletion.
         """
+        ...
+
+
+# ── CausalStore capability (v0.8.0) ───────────────────────────────────────────
+
+
+@runtime_checkable
+class CausalStore(Protocol):
+    """Optional capability: persist a causal DAG (v0.8.0).
+
+    Like :class:`BayesianStore`, a getattr-guarded capability implemented by
+    both backends. The causal model holds only *metadata* (DAG + latent
+    markers + link to the quantifying BN) in the causal named graph
+    (``urn:ontorag:causal``, or per-ontology scoped) — never in schema/data/
+    probabilistic graphs. One model per (store, ontology) scope; writes replace.
+    """
+
+    async def put_causal_model(
+        self, model: CausalModel, ontology: str | None = None
+    ) -> int:
+        """Replace the stored causal model for this scope.
+
+        Returns the number of stored statements / nodes written.
+        """
+        ...
+
+    async def get_causal_model(
+        self, ontology: str | None = None
+    ) -> CausalModel | None:
+        """Return the stored causal model for this scope, or None if none."""
+        ...
+
+    async def clear_causal_model(self, ontology: str | None = None) -> int:
+        """Drop the stored causal model; return how many statements were removed."""
         ...

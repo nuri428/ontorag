@@ -18,7 +18,7 @@ import asyncio
 from typing import TYPE_CHECKING, Literal
 
 from ontorag.bayes.engine import BayesianEngineError
-from ontorag.core.bayes import BayesNetwork, CPD, StructureSpec
+from ontorag.core.bayes import BayesNetwork, BayesVariable, CPD, StructureSpec
 
 if TYPE_CHECKING:
     from ontorag.stores.base import GraphStore
@@ -59,7 +59,36 @@ async def learn_cpts(
         BayesianEngineError: missing pgmpy/pandas, no usable observations, or a
             variable without a ``bn:represents`` mapping.
     """
-    for var in structure.variables:
+    rows = await gather_observations(
+        store, structure.variables, target_class, ontology=ontology, limit=limit
+    )
+    network = await asyncio.to_thread(_fit_sync, structure, rows, estimator)
+    return network, len(rows)
+
+
+async def gather_observations(
+    store: GraphStore,
+    variables: list[BayesVariable],
+    target_class: str,
+    *,
+    ontology: str | None = None,
+    limit: int = 10_000,
+) -> list[dict[str, str]]:
+    """Pull one observation row per instance of ``target_class``.
+
+    Shared by CPT learning and causal structure discovery. Each variable's
+    ``bn:represents`` property value is read and matched (string-equal) to a
+    declared state; instances missing any variable's value, or whose value is
+    not a declared state, are skipped.
+
+    Returns:
+        Rows as ``{variable_uri: state_label}``.
+
+    Raises:
+        BayesianEngineError: a variable without ``bn:represents``, or no usable
+            observations at all.
+    """
+    for var in variables:
         if not var.represents:
             raise BayesianEngineError(
                 f"Variable {var.uri!r} has no bn:represents property; cannot "
@@ -71,7 +100,7 @@ async def learn_cpts(
     for ent in entities:
         row: dict[str, str] = {}
         usable = True
-        for var in structure.variables:
+        for var in variables:
             raw = ent.properties.get(var.represents)
             if raw is None:
                 usable = False
@@ -90,9 +119,7 @@ async def learn_cpts(
             f"No usable observations: none of the {len(entities)} instances of "
             f"{target_class!r} had a declared state for every variable."
         )
-
-    network = await asyncio.to_thread(_fit_sync, structure, rows, estimator)
-    return network, len(rows)
+    return rows
 
 
 def _fit_sync(

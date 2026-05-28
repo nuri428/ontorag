@@ -1,0 +1,54 @@
+# Synthetic smoking BN (v0.8 causal quality bar) — genotype is an OBSERVED
+# confounder of smoking and cancer:  Genotype -> Smoking, Genotype -> Cancer,
+# Smoking -> Cancer.
+#
+# Load the quantified BN:
+#     ontorag bayes load examples/smoking/bayes-network.ttl
+# Load the causal DAG:
+#     ontorag causal load examples/smoking/causal-model.ttl
+# Then compare seeing vs doing:
+#     ontorag bayes  posterior -q https://ontorag.dev/smoking#Cancer \
+#                    -e https://ontorag.dev/smoking#Smoking=yes      # see  -> 0.72
+#     ontorag causal do        -d https://ontorag.dev/smoking#Smoking=yes \
+#                    -q https://ontorag.dev/smoking#Cancer           # do   -> 0.60
+#
+# Hand-computed (the v0.8 quality bar — see docs/design/causal-layer.md):
+#   P(Cancer=yes | see Smoking=yes) = 0.72   (confounded upward by genotype)
+#   P(Cancer=yes | do  Smoking=yes) = 0.60   (back-door adjusted over Genotype)
+
+@prefix bn:   <https://ontorag.dev/bn#> .
+@prefix sm:   <https://ontorag.dev/smoking#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+bn:network a bn:Network ;
+    rdfs:label "smoking" ;
+    bn:hasVariable sm:Genotype, sm:Smoking, sm:Cancer .
+
+sm:Genotype a bn:Variable ;
+    rdfs:label "Genotype" ;
+    bn:represents sm:hasGenotype ;
+    bn:states ( "g0" "g1" ) .
+
+sm:Smoking a bn:Variable ;
+    rdfs:label "Smoking" ;
+    bn:represents sm:smokes ;
+    bn:states ( "no" "yes" ) .
+
+sm:Cancer a bn:Variable ;
+    rdfs:label "Cancer" ;
+    bn:represents sm:hasCancer ;
+    bn:states ( "no" "yes" ) .
+
+# P(Genotype)
+[] a bn:CPD ; bn:forVariable sm:Genotype ; bn:values "[[0.5], [0.5]]" .
+
+# P(Smoking | Genotype) — columns: g0, g1
+[] a bn:CPD ; bn:forVariable sm:Smoking ;
+   bn:evidence ( sm:Genotype ) ;
+   bn:values "[[0.8, 0.2], [0.2, 0.8]]" .
+
+# P(Cancer | Smoking, Genotype) — columns (last evidence fastest):
+#   (no,g0) (no,g1) (yes,g0) (yes,g1)
+[] a bn:CPD ; bn:forVariable sm:Cancer ;
+   bn:evidence ( sm:Smoking sm:Genotype ) ;
+   bn:values "[[0.9, 0.7, 0.6, 0.2], [0.1, 0.3, 0.4, 0.8]]" .
