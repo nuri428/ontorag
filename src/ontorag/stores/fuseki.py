@@ -330,6 +330,7 @@ class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _Trav
         mode: Literal["schema", "data", "auto"] = "auto",
         replace: bool = False,
         ontology: str | None = None,
+        graph: Graph | None = None,
     ) -> LoadResult:
         """Parse an RDF file and upload it to the appropriate named graph.
 
@@ -359,7 +360,10 @@ class FusekiStore(_EntityMixin, _FusekiEmbeddingMixin, _FusekiSearchMixin, _Trav
         # Validate before any IO to fail fast on bad ids.
         ontology = validate_ontology_id(ontology)
 
-        graph = parse_rdf(path)  # raises FileNotFoundError early if missing
+        # Reuse a pre-parsed graph when given (directory loader avoids a second
+        # parse); otherwise parse the file (raises FileNotFoundError if missing).
+        if graph is None:
+            graph = parse_rdf(path)
         triple_count = len(graph)
         await self._ensure_dataset()
 

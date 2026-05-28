@@ -34,14 +34,23 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from ontorag.core.loader import detect_mode, parse_rdf
 from ontorag.core.manifest import load_manifest
 from ontorag.core.ontology import validate_ontology_id
 from ontorag.stores.base import BatchLoadResult, FileLoadOutcome, GraphStore
 
+if TYPE_CHECKING:
+    from rdflib import Graph
+
 logger = logging.getLogger(__name__)
+
+#: A single load-plan entry: (file path, ontology scope, mode, pre-parsed graph
+#: or None). The default-mapping path parses to detect mode and passes that
+#: graph through to load_rdf (avoiding a re-parse); the manifest path declares
+#: mode explicitly and carries None.
+_PlanEntry = tuple[Path, "str | None", Literal["schema", "data"], "Graph | None"]
 
 #: File extensions recognised as RDF.
 RDF_SUFFIXES: frozenset[str] = frozenset({".ttl", ".jsonld", ".rdf", ".owl", ".n3"})
@@ -108,8 +117,11 @@ def _resolve_scope(file: Path, root: Path, override: str | None) -> str | None:
 
 def _classify_and_order(
     files: list[Path], root: Path, override: str | None
-) -> tuple[list[tuple[Path, str | None, Literal["schema", "data"]]], list[FileLoadOutcome]]:
+) -> tuple[list[_PlanEntry], list[FileLoadOutcome]]:
     """Parse each file, detect its mode, and order schema-before-data per scope.
+
+    The parsed graph is kept in each plan entry so the loader can hand it back
+    to ``store.load_rdf(graph=...)`` and avoid a second parse.
 
     Args:
         files: Collected RDF file paths.
@@ -118,10 +130,10 @@ def _classify_and_order(
 
     Returns:
         ``(load_plan, parse_failures)`` where load_plan is the ordered list of
-        ``(file, scope, mode)`` and parse_failures are ``failed`` outcomes for
-        files that could not be parsed.
+        ``(file, scope, mode, graph)`` and parse_failures are ``failed``
+        outcomes for files that could not be parsed.
     """
-    parsed: list[tuple[Path, str | None, Literal["schema", "data"]]] = []
+    parsed: list[_PlanEntry] = []
     failures: list[FileLoadOutcome] = []
     # Track scope first-seen order for a predictable, stable load sequence.
     scope_order: dict[str | None, int] = {}
@@ -130,7 +142,8 @@ def _classify_and_order(
         scope = _resolve_scope(file, root, override)  # may raise (fail-fast)
         scope_order.setdefault(scope, len(scope_order))
         try:
-            mode = detect_mode(parse_rdf(file))
+            parsed_graph = parse_rdf(file)
+            mode = detect_mode(parsed_graph)
         except Exception as exc:  # noqa: BLE001 — record + continue
             logger.warning("Parse failed for %s: %s", file, exc)
             failures.append(
@@ -142,7 +155,7 @@ def _classify_and_order(
                 )
             )
             continue
-        parsed.append((file, scope, mode))
+        parsed.append((file, scope, mode, parsed_graph))
 
     parsed.sort(key=lambda t: (scope_order[t[1]], _MODE_RANK[t[2]]))
     return parsed, failures
@@ -150,7 +163,7 @@ def _classify_and_order(
 
 def _build_plan_from_manifest(
     root: Path,
-) -> tuple[list[tuple[Path, str | None, Literal["schema", "data"]]], list[str]]:
+) -> tuple[list[_PlanEntry], list[str]]:
     """Return ``(load_plan, extra_ignore)`` derived from a manifest.
 
     The manifest's ``ontologies`` list already separates schema from data and
@@ -175,8 +188,11 @@ def _build_plan_from_manifest(
         # Caller must check manifest_path.exists() before calling — but be safe.
         return [], []
 
-    load_plan: list[tuple[Path, str | None, Literal["schema", "data"]]] = [
-        (entry.path, entry.ontology_id, entry.mode) for entry in plan_obj.entries
+    # Manifest declares mode explicitly, so no pre-parse here — graph is None
+    # and load_rdf will parse each file itself.
+    load_plan: list[_PlanEntry] = [
+        (entry.path, entry.ontology_id, entry.mode, None)
+        for entry in plan_obj.entries
     ]
     return load_plan, plan_obj.extra_ignore
 
@@ -265,7 +281,7 @@ async def load_directory(
     # Scopes whose data graph has already been replaced once (replace policy).
     replaced_scopes: set[str | None] = set()
 
-    for file, scope, mode in load_plan:
+    for file, scope, mode, pre_graph in load_plan:
         rel = str(file.relative_to(root))
 
         if mode == "data" and scope in failed_schema_scopes:
@@ -288,7 +304,11 @@ async def load_directory(
 
         try:
             result = await store.load_rdf(
-                str(file), mode, replace=effective_replace, ontology=scope
+                str(file),
+                mode,
+                replace=effective_replace,
+                ontology=scope,
+                graph=pre_graph,
             )
             outcome = FileLoadOutcome(
                 source=rel,

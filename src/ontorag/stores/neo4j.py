@@ -361,6 +361,7 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
         mode: Literal["schema", "data", "auto"] = "auto",
         replace: bool = False,
         ontology: str | None = None,
+        graph: Graph | None = None,
     ) -> LoadResult:
         """Parse an RDF file and import it into Neo4j via n10s.
 
@@ -390,7 +391,10 @@ class Neo4jStore(_Neo4jSchemaMixin, _Neo4jEntityMixin, _Neo4jTraversalMixin, _Ne
         # Validate the id early so illegal slugs are rejected before any DB work.
         ontology = validate_ontology_id(ontology)
 
-        graph = parse_rdf(path)
+        # Reuse a pre-parsed graph when given (directory loader avoids a second
+        # parse); otherwise parse the file.
+        if graph is None:
+            graph = parse_rdf(path)
         triple_count = len(graph)
 
         await self._ensure_graphconfig()

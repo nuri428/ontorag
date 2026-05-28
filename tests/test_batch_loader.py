@@ -44,9 +44,12 @@ class _SpyStore:
         self._fail = fail_substrings or set()
         self._triples = triples
 
-    async def load_rdf(self, path, mode="auto", replace=False, ontology=None):
+    async def load_rdf(self, path, mode="auto", replace=False, ontology=None, graph=None):
         self.calls.append(
-            {"path": path, "mode": mode, "replace": replace, "ontology": ontology}
+            {
+                "path": path, "mode": mode, "replace": replace,
+                "ontology": ontology, "graph": graph,
+            }
         )
         if any(s in path for s in self._fail):
             raise RuntimeError("simulated load failure")
@@ -123,6 +126,19 @@ async def test_schema_loaded_before_data_per_scope(tmp_path) -> None:
     await load_directory(store, tmp_path)
     modes = [c["mode"] for c in store.calls]
     assert modes == ["schema", "data"]  # schema first despite alpha/file order
+
+
+async def test_default_path_passes_pre_parsed_graph(tmp_path) -> None:
+    """The default mapping parses once (to detect mode) and reuses that graph
+    via load_rdf(graph=...) — no second parse in the store."""
+    from rdflib import Graph
+
+    _write(tmp_path / "foaf" / "schema.ttl", _SCHEMA_TTL)
+    _write(tmp_path / "foaf" / "data.ttl", _DATA_TTL)
+    store = _SpyStore()
+    await load_directory(store, tmp_path)
+    assert store.calls  # sanity
+    assert all(isinstance(c["graph"], Graph) for c in store.calls)
 
 
 # ── ignore patterns (§5) ─────────────────────────────────────────────────────────

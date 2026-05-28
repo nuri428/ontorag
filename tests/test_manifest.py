@@ -53,9 +53,12 @@ class _SpyStore:
         self._fail = fail_substrings or set()
         self._triples = triples
 
-    async def load_rdf(self, path, mode="auto", replace=False, ontology=None):
+    async def load_rdf(self, path, mode="auto", replace=False, ontology=None, graph=None):
         self.calls.append(
-            {"path": path, "mode": mode, "replace": replace, "ontology": ontology}
+            {
+                "path": path, "mode": mode, "replace": replace,
+                "ontology": ontology, "graph": graph,
+            }
         )
         if any(s in path for s in self._fail):
             raise RuntimeError("simulated load failure")

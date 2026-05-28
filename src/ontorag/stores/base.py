@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import re
 from enum import Enum
-from typing import Any, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field, field_validator
+
+if TYPE_CHECKING:
+    from rdflib import Graph
 
 
 # ── Result types ─────────────────────────────────────────────────────────────
@@ -371,8 +374,15 @@ class GraphStore(Protocol):
         mode: Literal["schema", "data", "auto"] = "auto",
         replace: bool = False,
         ontology: str | None = None,
+        graph: Graph | None = None,
     ) -> LoadResult:
         """Load an RDF file (TBox or ABox) into the store.
+
+        When ``graph`` is provided, it is used as the already-parsed RDF graph
+        and ``path`` is treated as metadata only (no file read) — this lets a
+        caller that has already parsed the file (e.g. the directory loader,
+        which parses to detect mode) avoid a second parse. When ``graph`` is
+        None (default), the file at ``path`` is parsed.
 
         Args:
             path: Local file path (TTL, JSON-LD, RDF/XML).
