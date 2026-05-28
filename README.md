@@ -309,6 +309,23 @@ ontorag learn populate-structured nested.json --min-confidence 0.8
 ontorag learn derive-shapes schema.ttl -o shapes.ttl   # OWL → SHACL skeleton (mechanical)
 ontorag learn populate corpus.txt --shapes shapes.ttl  # validate LLM triples before load
 ontorag learn populate-structured data.csv --shapes shapes.ttl
+
+# v0.7 — Probabilistic layer (Bayesian) — needs the [bayes] extra
+ontorag bayes load network.ttl                              # store a bn: Bayesian network
+ontorag bayes posterior -q Outcome -e TypeMatchup=advantage # P(query | evidence)
+ontorag bayes mpe -e Outcome=lose                           # most probable explanation
+ontorag bayes learn-cpt structure.ttl --class pk:Battle --save  # estimate CPTs from ABox data
+ontorag bayes show                                          # print the stored network
+ontorag bayes clear
+
+# v0.8 — Causal layer (Pearl Rung 2-3) — needs the [bayes] extra
+ontorag causal load dag.ttl                                 # store a causal: DAG
+ontorag causal do -d Smoking=yes -q Cancer                  # P(query | do(X)) — intervention
+ontorag causal identify -t Smoking -o Cancer                # back-door / front-door adjustment sets
+ontorag causal counterfactual -O Smoking=yes -O Cancer=yes -i Smoking=no -q Cancer
+ontorag causal learn-dag structure.ttl --class pk:Battle    # PC structure proposal (add --save after review)
+ontorag causal show
+ontorag causal clear
 ```
 
 ---
@@ -357,11 +374,11 @@ MCP (Model Context Protocol) endpoint. Any MCP-compatible client can connect and
 | `search_text` | Cap | BM25 full-text (jena-text / Neo4j fulltext) — both backends |
 | `find_similar` | Cap | Graph-embedding kNN (structural / textual / hybrid) + subClassOf-aware `class_uri` filter — both backends |
 | `find_aligned` | Cap | `owl:sameAs` closure — entities asserted equivalent across ontologies (transitive + symmetric) |
-| `compute_posterior` | Prob | `P(query \| evidence)` over the Bayesian network (v0.7) |
+| `compute_posterior` | Prob | P(query \| evidence) over the Bayesian network (v0.7) |
 | `mpe` | Prob | Most probable explanation — best joint assignment given evidence (v0.7) |
-| `do_query` | Causal | `P(query \| do(X), evidence)` — interventional, graph surgery + back-door adjustment (v0.8, Rung 2) |
+| `do_query` | Causal | P(query \| do(X), evidence) — interventional, graph surgery + back-door adjustment (v0.8, Rung 2) |
 | `identify_effect` | Causal | Back-door / front-door adjustment sets + identifiability for treatment → outcome (v0.8) |
-| `counterfactual` | Causal | `P(query \| observed, had(X))` — canonical-SCM abduction-action-prediction (v0.8, Rung 3) |
+| `counterfactual` | Causal | P(query \| observed, had(X)) — canonical-SCM abduction-action-prediction (v0.8, Rung 3) |
 
 "Cap" = backend capability tool, available once the data is loaded
 (`search_text`) or embeddings are built (`find_similar` via `ontorag embed`).
@@ -584,6 +601,99 @@ Loaded: 38
 
 ---
 
+## Reasoning stack — Probabilistic (v0.7) + Causal (v0.8)
+
+ontorag layers a reasoning stack over the OWL graph. Each tier answers a
+different *kind* of question:
+
+| Layer | Question | Tools |
+|---|---|---|
+| Logical (RDFS+) | *Is X necessarily true?* | `subClassOf*` · `inverseOf` · `TransitiveProperty` (shipped) |
+| **Probabilistic (v0.7)** | *How likely is X?* | `compute_posterior` · `mpe` |
+| **Causal (v0.8)** | *What if we **do** Y? What if Y **had been** different?* | `do_query` · `identify_effect` · `counterfactual` |
+
+Both upper layers are **pgmpy-native** (the `[bayes]` extra), store their models
+in dedicated named graphs (`urn:ontorag:probabilistic` / `urn:ontorag:causal`,
+never the schema/data graphs), and return **identical results on both backends**
+(Fuseki + Neo4j — verified by integration tests). Designs:
+[`bayesian-layer.md`](docs/design/bayesian-layer.md) ·
+[`causal-layer.md`](docs/design/causal-layer.md).
+
+### v0.7 — Probabilistic layer (Bayesian)
+
+A Bayesian network is authored in the `bn:` vocabulary (variables + CPTs as RDF)
+or **learned from ABox data**, then queried for posteriors / most-probable
+explanation.
+
+```bash
+ontorag bayes load examples/pokemon/bayes-network.ttl
+# variables/states accept the full URI or the exact rdfs:label ("Battle outcome")
+ontorag bayes posterior -q https://ontorag.dev/pokemon#Outcome      # P(Outcome=win) → 0.53
+ontorag bayes posterior -q https://ontorag.dev/pokemon#TypeMatchup \
+                        -e https://ontorag.dev/pokemon#Outcome=win  # P(advantage | win) → 0.604
+ontorag bayes mpe                                                   # → (advantage, win)
+```
+
+**Results** — synthetic Pokémon BN (TypeMatchup → Outcome, prior `.4/.3/.3`,
+`P(win | adv/neu/dis) = .8/.5/.2`), hand-computed and asserted in
+`tests/test_bayes_engine.py`:
+
+| Query | Result | Hand-check |
+|---|---|---|
+| `P(Outcome=win)` | **0.53** | `.4·.8 + .3·.5 + .3·.2` |
+| P(TypeMatchup=advantage \| win) | **0.604** | `.32 / .53` |
+| `MPE()` | **(advantage, win)** | joint `.32` is the max |
+
+**CPT learning from data** — feed `pk:Battle` observations (`matchupKind` →
+`battleResult`), then `learn-cpt` estimates the tables (pgmpy BDeu). On 150
+observations (advantage 45/5, neutral 25/25, disadvantage 5/45):
+
+| Learned parameter | Value | Data |
+|---|---|---|
+| P(win \| advantage) | **0.897** | 45/50 (BDeu-smoothed) |
+| P(lose \| disadvantage) | **0.897** | 45/50 |
+
+### v0.8 — Causal layer (Pearl Rung 2-3)
+
+A user-supplied causal DAG (`causal:` vocabulary), optionally with latent
+confounders, sits over the quantified BN. `do` separates *seeing* from *doing*.
+
+```bash
+ontorag bayes  load examples/smoking/bayes-network.ttl       # quantify (CPTs)
+ontorag causal load examples/smoking/causal-model.ttl        # causal DAG
+ontorag bayes  posterior -q Cancer -e Smoking=yes            # see → 0.72
+ontorag causal do        -d Smoking=yes -q Cancer            # do  → 0.60
+ontorag causal counterfactual -O Smoking=yes -O Cancer=yes -i Smoking=no -q Cancer
+```
+
+**Results** — synthetic smoking BN with an **observed genotype confounder**
+(Genotype → Smoking, Genotype → Cancer, Smoking → Cancer), hand-verified in
+`tests/test_causal_engine.py`:
+
+| Query | Result | Reading |
+|---|---|---|
+| P(Cancer=yes \| **see** Smoking=yes) | **0.72** | confounded upward by genotype |
+| P(Cancer=yes \| **do** Smoking=yes) | **0.60** | back-door adjusted over Genotype |
+| `identify` Smoking → Cancer | backdoor **`{Genotype}`** | effect is identifiable |
+| counterfactual: smoked + got cancer, *had not smoked* | **0.28** | between interventional `0.20` and observed `0.72` |
+
+The `0.72 ≠ 0.60` gap is the whole point: plain conditioning over-credits
+smoking because genotype drives both smoking *and* cancer; `do` cuts the
+Genotype → Smoking edge and removes the confounding.
+
+**Structure discovery** — `learn-dag` runs the PC algorithm over ABox
+observations and **proposes** a DAG (never auto-committed — a Markov-equivalence
+class, so some edge directions are undetermined by data). On 150 `pk:Battle`
+observations it recovers `TypeMatchup → Outcome`. PC is a statistical
+independence test: a borderline dependence in a small sample can sit below the
+significance threshold — tune `--significance` and review before `--save`.
+
+> **Over-claim guard.** The causal DAG is **user-supplied**. ontorag computes
+> interventional / counterfactual queries *assuming the DAG is correctly
+> specified*; it does **not** validate causal semantics or discover causation.
+
+---
+
 ## Example: Tech Stack ontology (v0.3 — LLMs4OL)
 
 This example shows what a plain vector-search RAG cannot do.
@@ -683,7 +793,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 | LangChain / LlamaIndex | Minimal | Yes | Code-first RAG, ontology is a plugin |
 | Dify | None | Yes | Visual builder, no OWL support |
 | GraphRAG (Microsoft) | Property graph from text | Yes | No OWL semantics — no `rdfs:subClassOf` inference, no `owl:TransitiveProperty`, no SPARQL; schema not enforced at query time |
-| **ontorag** | **OWL-native** | **Yes** | TBox defines schema; Fuseki enforces OWL reasoning; v0.3 adds LLMs4OL (text → ontology extension) |
+| **ontorag** | **OWL-native** | **Yes** | TBox defines schema; Fuseki enforces OWL reasoning; v0.3 LLMs4OL (text → ontology extension); **v0.7-0.8 probabilistic + causal reasoning** (Bayesian posteriors, Pearl Rung 2-3 `do` / counterfactual) over the graph |
 
 ---
 
