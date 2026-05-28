@@ -8,6 +8,11 @@ gets directory loading with zero adapter changes.
 
 Behaviour (see ``docs/design/directory-loader.md``):
 
+* **Manifest override (§3-2 / §8).** When ``<root>/ontorag.yaml`` is present
+  it overrides the default sub-directory mapping.  Providing ``ontology=``
+  together with a manifest is a conflict and raises :class:`ValueError` before
+  any load begins.  Manifest parsing and validation is in
+  :mod:`ontorag.core.manifest`.
 * **Scope mapping (§3).** ``ontology=`` given → flat-merge every file into
   that one scope. Otherwise each 1-depth sub-directory name becomes an
   ontology id (validated by ``validate_ontology_id``); files directly under
@@ -20,8 +25,8 @@ Behaviour (see ``docs/design/directory-loader.md``):
   pure append.
 * **continue-and-report (§13).** A per-file load error is recorded as
   ``failed`` and the run continues; a schema-file failure skips that scope's
-  remaining data files. Only configuration errors (bad slug) fail fast,
-  before any load begins.
+  remaining data files. Only configuration errors (bad slug, manifest issues)
+  fail fast, before any load begins.
 """
 
 from __future__ import annotations
@@ -32,6 +37,7 @@ from pathlib import Path
 from typing import Literal
 
 from ontorag.core.loader import detect_mode, parse_rdf
+from ontorag.core.manifest import load_manifest
 from ontorag.core.ontology import validate_ontology_id
 from ontorag.stores.base import BatchLoadResult, FileLoadOutcome, GraphStore
 
@@ -142,6 +148,39 @@ def _classify_and_order(
     return parsed, failures
 
 
+def _build_plan_from_manifest(
+    root: Path,
+) -> tuple[list[tuple[Path, str | None, Literal["schema", "data"]]], list[str]]:
+    """Return ``(load_plan, extra_ignore)`` derived from a manifest.
+
+    The manifest's ``ontologies`` list already separates schema from data and
+    specifies listed order; this function flattens it to the same
+    ``(file, scope, mode)`` tuple list that ``_classify_and_order`` would
+    produce, preserving manifest-defined ordering exactly.
+
+    Args:
+        root: Scan root (manifest is at ``<root>/ontorag.yaml``).
+
+    Returns:
+        ``(load_plan, extra_ignore)`` — an ordered list of
+        ``(absolute_path, ontology_id, mode)`` triples, and the raw extra
+        ignore patterns from the manifest (may be empty).
+
+    Raises:
+        ValueError: If the manifest is present but structurally invalid,
+            references a missing file, or contains an invalid ontology id.
+    """
+    plan_obj = load_manifest(root)
+    if plan_obj is None:
+        # Caller must check manifest_path.exists() before calling — but be safe.
+        return [], []
+
+    load_plan: list[tuple[Path, str | None, Literal["schema", "data"]]] = [
+        (entry.path, entry.ontology_id, entry.mode) for entry in plan_obj.entries
+    ]
+    return load_plan, plan_obj.extra_ignore
+
+
 async def load_directory(
     store: GraphStore,
     root: str | Path,
@@ -170,8 +209,11 @@ async def load_directory(
 
     Raises:
         NotADirectoryError: If *root* is not a directory.
-        ValueError: If ``ontology`` or a sub-directory name is an invalid slug
-            (raised before any load — fail-fast on configuration).
+        ValueError: If a manifest exists and ``ontology`` is also provided
+            (conflict, §3-2); or if a manifest is present but invalid; or if
+            ``ontology`` or a sub-directory name is an invalid slug.  All
+            :class:`ValueError` cases abort before any load — fail-fast on
+            configuration.
     """
     root = Path(root)
     if not root.is_dir():
@@ -181,10 +223,36 @@ async def load_directory(
     if ontology is not None:
         ontology = validate_ontology_id(ontology)
 
-    files = _collect_files(root, recursive, ignore)
-    # _classify_and_order may raise ValueError on a bad sub-dir slug — that is
-    # a configuration error and must abort before any load (fail-fast).
-    load_plan, outcomes = _classify_and_order(files, root, ontology)
+    # ── Manifest path (§3-2 / §8) ────────────────────────────────────────────
+    manifest_path = root / "ontorag.yaml"
+    use_manifest = manifest_path.exists()
+
+    if use_manifest and ontology is not None:
+        raise ValueError(
+            "Cannot use both a manifest (ontorag.yaml) and --ontology at the "
+            "same time — they specify conflicting scope mappings (§3-2).  "
+            "Either remove ontorag.yaml or omit --ontology."
+        )
+
+    outcomes: list[FileLoadOutcome] = []
+
+    if use_manifest:
+        logger.debug("Manifest found at %s — overriding default sub-dir mapping", manifest_path)
+        manifest_load_plan, extra_ignore = _build_plan_from_manifest(root)
+        # Merge manifest's extra_ignore into the active ignore set.
+        effective_ignore = ignore | frozenset(extra_ignore)
+        load_plan = manifest_load_plan
+        logger.debug(
+            "Manifest load plan: %d file entries, extra_ignore=%r",
+            len(load_plan),
+            extra_ignore,
+        )
+    else:
+        effective_ignore = ignore
+        files = _collect_files(root, recursive, effective_ignore)
+        # _classify_and_order may raise ValueError on a bad sub-dir slug — that
+        # is a configuration error and must abort before any load (fail-fast).
+        load_plan, outcomes = _classify_and_order(files, root, ontology)
 
     # Report parse-stage failures through the callback too, so a caller's
     # progress counter advances for every collected file (not just loaded ones).
