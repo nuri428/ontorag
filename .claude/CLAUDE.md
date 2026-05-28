@@ -77,8 +77,10 @@ Out of scope for v0.3:
 - **Reasoning, full-text, and vector similarity have full backend parity** (Fuseki ⇄ Neo4j); each uses its native tech.
 - **Multi-ontology per instance** (shipped): one instance hosts many ontologies; every read tool + `load` + `embed`/`find_similar` takes an optional `ontology` scope (`None` = union/all, backward-compatible). Fuseki = per-ontology named graphs (`urn:ontorag:{id}:schema/data`); Neo4j = node `_ontology` list tag. Embeddings are scoped too — Qdrant points carry an `ontology` payload (un-tagged, not deleted, when shared across ontologies); Neo4j post-filters kNN by `_ontology`. `docs/design/multi-ontology.md`.
 
-### v0.5+ (still planned)
-- Per-ontology access control / cross-ontology entity alignment (owl:sameAs)
+### v0.6.1 (shipped)
+- **Per-ontology access control** — config-driven read/write/none via `ONTOLOGY_ACCESS` env (`core/access.py` + `stores/access_wrapper.py`, factory-wired). Scope-lock at the GraphStore boundary; unset = fully open (backward-compatible). Write methods (load/clear) fully guarded; capability reads (search/similar/aligned) pass through (v0.7 follow-up).
+- **Cross-ontology entity alignment** — `owl:sameAs` transitive+symmetric closure via `sameas_closure` (both backends) → `find_aligned` tool/route.
+- **`load_rdf` pre-parsed-graph fast path** — optional `graph=` kwarg avoids the directory loader's double-parse.
 
 ## Architecture
 
@@ -160,7 +162,8 @@ Ontology-aware tools exposed via MCP, embedded in FastAPI process. Each tool ret
 | operation_id | 엔드포인트 | Fuseki | Neo4j | 설명 |
 |---|---|---|---|---|
 | `search_text` | POST /tools/search/text | jena-text (Lucene) | fulltext 인덱스 | BM25 풀텍스트 → ranked `SearchHit`. `class_uri` 주면 subClassOf 포함. |
-| `find_similar` | POST /tools/similar | FastRP(`core/fastrp.py`)+EmbeddingProvider → **Qdrant** | GDS FastRP+EmbeddingProvider → native vector index | 그래프 임베딩 kNN. `mode=structural\|textual\|hybrid`(RRF) → `SimilarHit`. `ontorag embed`로 사전 생성. |
+| `find_similar` | POST /tools/similar | FastRP(`core/fastrp.py`)+EmbeddingProvider → **Qdrant** | GDS FastRP+EmbeddingProvider → native vector index | 그래프 임베딩 kNN. `mode=structural\|textual\|hybrid`(RRF) → `SimilarHit`. `class_uri`로 subClassOf-aware 제한. `ontorag embed`로 사전 생성. |
+| `find_aligned` | POST /tools/aligned | `(owl:sameAs\|^owl:sameAs)+` 프로퍼티 패스 | `[:owl__sameAs*1..]` 무방향 | owl:sameAs 전이+대칭 폐포 → 교차-온톨로지 동치 엔티티 `list[{uri,label}]`. v0.6.1. |
 
 추론(subClassOf): **양 백엔드 모두 구현** — Neo4j는 Cypher `[:rdfs__subClassOf*]`, Fuseki는 쿼리 레벨 `?inst a/rdfs:subClassOf*`(SCHEMA·DATA named graph 조인, config 변경 없음). `find_entities(Animal)`이 양쪽에서 Dog/Cat 인스턴스를 포함.
 
@@ -470,7 +473,8 @@ Fuseki healthcheck: `GET /$/ping` → 200 OK.
 - Multi-ontology per instance (`ontology` scope on all read tools + `load`).
 
 ### v0.6+ (planned)
-- Per-ontology access control; cross-ontology entity alignment (owl:sameAs)
+- ✅ Per-ontology access control + cross-ontology entity alignment (owl:sameAs) — shipped in v0.6.1 (see above).
+- Read-side access guards on capability tools (search_text/find_similar/find_aligned); multi-file upload REST endpoint.
 
 ## What NOT to do (anti-patterns)
 
@@ -491,7 +495,7 @@ Fuseki healthcheck: `GET /$/ping` → 200 OK.
 - ✅ **subClassOf 추론 백엔드 divergence 해소**: 이제 양 백엔드 모두 추론 ON. Neo4j는 Cypher `[:rdfs__subClassOf*]`, Fuseki는 쿼리 레벨 `?inst a/rdfs:subClassOf*`(SCHEMA·DATA named graph 조인 + 직접매치 UNION). `ja:OntModelSpec` reasoner 없이 쿼리 레벨로 수렴 — `find_entities`/`count_entities` 결과 일치.
 - ✅ Vector similarity: **별도 L1 툴 `find_similar`** 채택 — Neo4j는 native vector index, Fuseki는 Qdrant. `ontorag embed`로 사전 생성.
 - ✅ **Multi-ontology per instance 해소**: named-graph 스코핑(Fuseki) + 노드 `_ontology` 태깅(Neo4j), 모든 read 툴 + `load`에 `ontology` 파라미터. 단일 온톨로지 가정 제거(`ontology=None`이 하위호환).
-- Auth/multi-tenant: not in v0.1. Single-user assumption.
+- Auth/multi-tenant: still single-user (no user identity). v0.6.1 adds a config-driven per-ontology **scope lock** (`ONTOLOGY_ACCESS`, read/write/none at the GraphStore boundary) — not authentication; protects against accidental cross-ontology writes/reads, not malicious actors.
 
 ## How to work with Claude Code on this repo
 

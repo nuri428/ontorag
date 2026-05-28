@@ -255,6 +255,7 @@ Settings are written to `.env` in the current directory.
 | `NEO4J_DATABASE` | `neo4j` | Neo4j database name |
 | `QDRANT_URL` | `http://localhost:6333` | Vector store for Fuseki `find_similar` |
 | `EMBEDDING_PROVIDER` | `openai` | Textual embeddings: `openai` · `ollama` |
+| `ONTOLOGY_ACCESS` | — | Per-ontology access lock, e.g. `poke:rw,shop:r,secret:none`; unset = fully open (default) |
 
 All of the above can be written to `.env` via `ontorag config set`
 (`--graph-store`, `--neo4j-url/-user/-password`, `--qdrant-url`, …) and
@@ -354,6 +355,7 @@ MCP (Model Context Protocol) endpoint. Any MCP-compatible client can connect and
 | `query_pattern` | L2 | JSON triple-pattern DSL → safe SPARQL translation |
 | `search_text` | Cap | BM25 full-text (jena-text / Neo4j fulltext) — both backends |
 | `find_similar` | Cap | Graph-embedding kNN (structural / textual / hybrid) + subClassOf-aware `class_uri` filter — both backends |
+| `find_aligned` | Cap | `owl:sameAs` closure — entities asserted equivalent across ontologies (transitive + symmetric) |
 
 "Cap" = backend capability tool, available once the data is loaded
 (`search_text`) or embeddings are built (`find_similar` via `ontorag embed`).
@@ -1039,7 +1041,9 @@ FUSEKI_DATASET=ontorag uv run python scripts/bench_query_speed_4domain.py --n 20
 - **v0.4** — Evaluation harness: 4 benchmark domains (Pure Land 50q · Commerce 20q · ODS 20q · Pokemon 20q · Techstack 20q) · Goldset JSONL + Pydantic loader · 4 deterministic metrics + RAGAS wrapper · LangChain + ontorag_native baselines · `ontorag eval` CLI (validate/run/bench/compare/report) · GitHub Actions matrix CI · `BenchRunner` orchestrator · 4-domain `gpt-4o` agent + `gpt-4o` judge results · 2×2 OWL-richness × contamination decision grid · standardized `## Disclaimer` policy across all example READMEs ✅
 - **v0.5** — Neo4j + n10s adapter · `GRAPH_STORE=fuseki|neo4j` · **full backend parity** (OWL `rdfs:subClassOf` reasoning · BM25 `search_text` · graph-embedding `find_similar`, each backend's native tech) · L2 `query_pattern` → Cypher · multi-ontology per instance (`ontology` scope, named-graphs / node tags) · per-ontology embedding scoping ✅
 - **v0.5.x** — agent now wields the full **13-tool set** (BM25 `search_text`, vector `find_similar`, `aggregate` wired into the agent loop, previously MCP-route-only) · `find_similar` subClassOf-aware `class_uri` filter (both backends) · fixes: Neo4j predicate-`traverse` Cypher, `[bench]` extra dependency pins ✅
-- **v0.6** (planned) — per-ontology access control · cross-ontology entity alignment (`owl:sameAs`)
+- **v0.6** — directory/multi-file loader (`load <DIR>` + `ontorag.yaml` manifest) · agent 14-tool set · `find_similar` `class_uri` filter · CLI backend config (`config set --graph-store/--neo4j-*`) · Web UI search/similar/aggregate panels ✅
+- **v0.6.1** — **per-ontology access control** (config-driven read/write/none via `ONTOLOGY_ACCESS`, GraphStore-boundary wrapper) · **cross-ontology entity alignment** (`owl:sameAs` closure → `find_aligned`) · `load_rdf` pre-parsed-graph fast path ✅
+- **v0.7** (planned) — read-side access guards on capability tools (search/similar/aligned) · multi-file upload REST endpoint
 
 ---
 

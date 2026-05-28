@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.1 — 2026-05-28
+
+### Added — completes the v0.6 roadmap
+
+- **Cross-ontology entity alignment (`owl:sameAs`)** — `sameas_closure` resolves
+  the transitive + symmetric `owl:sameAs` closure of an entity across ontology
+  scopes (Fuseki: `(owl:sameAs|^owl:sameAs)+` property path; Neo4j: undirected
+  `[:owl__sameAs*1..]`). Exposed as the `find_aligned` MCP tool / agent tool
+  (POST `/tools/aligned`) — the agent's 14th tool.
+- **Per-ontology access control** (config-driven) — `ONTOLOGY_ACCESS`
+  (e.g. `poke:rw,shop:r,secret:none`) defines read/write/none per ontology,
+  enforced by an `AccessControlledStore` wrapper at the GraphStore boundary
+  (`core/access.py` + `stores/access_wrapper.py`, factory-wired). Unset = fully
+  open (backward-compatible). A scope-lock against accidental cross-ontology
+  writes/reads — **not** authentication (no user identity). Write methods
+  (`load_rdf`/`clear_graph`) and ontology-scoped L1 reads are guarded; capability
+  reads (`search_text`/`find_similar`/`find_aligned`) pass through (v0.7 item).
+
+### Performance
+
+- **`load_rdf` pre-parsed-graph fast path** — optional `graph=` kwarg (Protocol
+  + both backends) lets the directory loader hand back the graph it already
+  parsed for mode detection, eliminating a second parse per file
+  (directory-loader.md §3).
+
 ## v0.6.0 — 2026-05-28
 
 ### Added — agent retrieval tools, directory loader, backend config
