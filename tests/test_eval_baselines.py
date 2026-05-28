@@ -160,8 +160,21 @@ class TestLangChainVectorBaseline:
         assert LangChainVectorBaseline.name == "langchain_vector"
         assert LangChainVectorBaseline.version == "0.1.0"
 
+    @pytest.mark.integration
     def test_live_answer_on_commerce(self):
-        """End-to-end smoke test (only runs when OpenAI key + bench extras present)."""
+        """End-to-end smoke test — requires explicit opt-in via RUN_LIVE_LLM_TESTS=1.
+
+        Guarded by two conditions so a default ``pytest`` run never fires a
+        billable, non-deterministic live LLM call:
+
+        1. ``RUN_LIVE_LLM_TESTS=1`` must be set (explicit opt-in).
+        2. ``OPENAI_API_KEY`` must be present (credential available).
+
+        Use ``pytest -m integration`` together with ``RUN_LIVE_LLM_TESTS=1``
+        to run this test deliberately.
+        """
+        if not os.environ.get("RUN_LIVE_LLM_TESTS"):
+            pytest.skip("set RUN_LIVE_LLM_TESTS=1 to run live LLM tests")
         if not os.environ.get("OPENAI_API_KEY"):
             pytest.skip("OPENAI_API_KEY not set")
         try:
