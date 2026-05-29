@@ -5,9 +5,11 @@ import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi_mcp import FastApiMCP
 
+from ontorag import __version__
 from ontorag.api.routes import chat, dump, health, load, status
 from ontorag.api.routes.tools import (
     _sparql,
@@ -51,9 +53,28 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="ontorag",
     description="Ontology-aware RAG framework — ontology as the source of truth.",
-    version="0.1.0",
+    version=__version__,
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Return a structured 500 for any unhandled exception.
+
+    Route-level guards still raise HTTPException (404/501/400) and are handled by
+    FastAPI's own handler — this only catches the *unexpected* (DB timeout,
+    network error, bugs). The raw message is logged server-side, never leaked to
+    the client, to avoid information disclosure.
+    """
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error.",
+            "type": exc.__class__.__name__,
+        },
+    )
 
 # System routes
 app.include_router(health.router)
