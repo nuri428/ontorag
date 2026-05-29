@@ -538,6 +538,8 @@ Fuseki healthcheck: `GET /$/ping` → 200 OK.
 
 **Over-claim guard** (shipped in README + every tool/CLI docstring): *"The causal DAG is user-supplied. ontorag computes interventional / counterfactual queries assuming the DAG is correctly specified; it does not validate causal semantics or discover causation."* Structure discovery (`learn-dag`) emits proposals only.
 
+**v0.8.4** ✅ shipped — **Reasoning WebUI**: a single `🧮 Reasoning` tab (`web/templates/reasoning.html`) with Bayesian / Causal sub-tabs over the existing HTMX-partial pattern. Bayesian: evidence/query builders → `compute_posterior` / `mpe`. Causal: do / observed / query builders → `do_query` / `counterfactual` / `identify_effect`, plus the DAG edge list and a "do(X)로 비교 →" cross-link that seeds the Causal tab from the posterior evidence (the see≠do demo). Shared renderer `partials/dist_bars.html`; capability-guarded (`partials/reasoning_error.html` amber hint when no backend / no BN / no pgmpy). Routes in `web/router.py` (`/ui/reasoning` + `/ui/reasoning/posterior|mpe|causal/do|causal/identify|causal/counterfactual`), all reusing `BayesianEngine` / `CausalEngine`. Tests: `tests/test_web_reasoning.py` (10, guards run without pgmpy; happy-path asserts see 0.72 ≠ do 0.60).
+
 ### v0.9 — FalkorDB backend
 
 **Goal**: third graph backend (Cypher-compatible, GraphBLAS-accelerated, LLM/RAG-positioned). Validates the parity story across all capability layers.

@@ -550,3 +550,276 @@ async def playground_session_messages(session_id: str) -> dict:
     history = await chat_store.get_history(session_id)
     messages = chat_store.extract_display_messages(history)
     return {"session_id": session_id, "messages": messages}
+
+
+# ── Reasoning tab (v0.8.4) — probabilistic + causal inference UI ────────────────
+
+
+def _parse_kv(pairs: list[str]) -> dict[str, str]:
+    """Parse ``["Var=state", ...]`` form fields into ``{var: state}``."""
+    out: dict[str, str] = {}
+    for p in pairs:
+        if "=" in p:
+            k, _, v = p.partition("=")
+            if k.strip():
+                out[k.strip()] = v.strip()
+    return out
+
+
+def _short(uri: str) -> str:
+    return uri.split("#")[-1].split("/")[-1] or uri
+
+
+def _var_view(variables) -> list[dict]:
+    """Project Bayes/Causal variables to template-friendly dicts."""
+    out = []
+    for v in variables:
+        out.append(
+            {
+                "uri": v.uri,
+                "label": getattr(v, "label", None) or _short(v.uri),
+                "states": list(getattr(v, "states", []) or []),
+                "observed": getattr(v, "observed", True),
+            }
+        )
+    return out
+
+
+async def _get_bn(store: GraphStore, ontology: str | None = None):
+    """Return (network, error_hint). Mirrors the capability-guard pattern."""
+    getter = getattr(store, "get_bayes_network", None)
+    if getter is None:
+        return None, (
+            f"이 백엔드({type(store).__name__})는 추론을 지원하지 않습니다."
+        )
+    try:
+        bn = await getter(ontology=ontology)
+    except Exception as exc:  # noqa: BLE001
+        return None, f"네트워크 조회 실패: {exc}"
+    if bn is None:
+        return None, (
+            "저장된 베이지안 네트워크가 없습니다 — "
+            "`ontorag bayes load <network.ttl>`로 먼저 로드하세요."
+        )
+    return bn, None
+
+
+def _err_partial(request: Request, message: str):
+    return templates.TemplateResponse(
+        request, "partials/reasoning_error.html", {"message": message}
+    )
+
+
+@router.get("/reasoning", response_class=HTMLResponse)
+async def ui_reasoning(
+    request: Request, store: GraphStore = Depends(get_store)
+) -> HTMLResponse:
+    """Reasoning page: probabilistic (Bayesian) + causal sub-tabs."""
+    bn, hint = await _get_bn(store)
+    bn_vars = _var_view(bn.variables) if bn else []
+    bn_name = bn.name if bn else None
+
+    causal_vars: list[dict] = []
+    causal_edges: list[list[str]] = []
+    causal_name = None
+    if bn is not None:
+        cgetter = getattr(store, "get_causal_model", None)
+        if cgetter is not None:
+            try:
+                causal = await cgetter(ontology=None)
+            except Exception:  # noqa: BLE001
+                causal = None
+            if causal is not None:
+                causal_vars = _var_view(causal.variables)
+                causal_edges = [[c, e] for c, e in causal.edges]
+                causal_name = causal.name
+
+    return templates.TemplateResponse(
+        request,
+        "reasoning.html",
+        {
+            "active_tab": "reasoning",
+            "has_bn": bn is not None,
+            "hint": hint,
+            "bn_name": bn_name,
+            "bn_vars": bn_vars,
+            "causal_name": causal_name,
+            "causal_vars": causal_vars,
+            "causal_edges": causal_edges,
+            "has_causal": bool(causal_vars),
+        },
+    )
+
+
+@router.post("/reasoning/posterior", response_class=HTMLResponse)
+async def reasoning_posterior(
+    request: Request,
+    query: Annotated[list[str], Form()] = [],  # noqa: B006
+    evidence: Annotated[list[str], Form()] = [],  # noqa: B006
+    store: GraphStore = Depends(get_store),
+) -> HTMLResponse:
+    """P(query | evidence) over the stored BN → distribution-bar partial."""
+    if not query:
+        return _err_partial(request, "질의(query) 변수를 1개 이상 선택하세요.")
+    bn, hint = await _get_bn(store)
+    if hint:
+        return _err_partial(request, hint)
+    try:
+        from ontorag.bayes.engine import BayesianEngine, BayesianEngineError
+
+        engine = BayesianEngine(bn)
+        dist = await engine.compute_posterior(_parse_kv(evidence), list(query))
+    except BayesianEngineError as exc:
+        return _err_partial(request, str(exc))
+    except Exception as exc:  # noqa: BLE001
+        return _err_partial(request, f"추론 실패: {exc}")
+    return templates.TemplateResponse(
+        request,
+        "partials/dist_bars.html",
+        {"dist": dist, "caption": "P(query | evidence) — 관측(see)"},
+    )
+
+
+@router.post("/reasoning/mpe", response_class=HTMLResponse)
+async def reasoning_mpe(
+    request: Request,
+    evidence: Annotated[list[str], Form()] = [],  # noqa: B006
+    store: GraphStore = Depends(get_store),
+) -> HTMLResponse:
+    """Most probable explanation given evidence → assignment-table partial."""
+    bn, hint = await _get_bn(store)
+    if hint:
+        return _err_partial(request, hint)
+    try:
+        from ontorag.bayes.engine import BayesianEngine, BayesianEngineError
+
+        engine = BayesianEngine(bn)
+        assignment = await engine.mpe(_parse_kv(evidence))
+    except BayesianEngineError as exc:
+        return _err_partial(request, str(exc))
+    except Exception as exc:  # noqa: BLE001
+        return _err_partial(request, f"MPE 실패: {exc}")
+    rows = [{"var": _short(k), "state": v} for k, v in assignment.items()]
+    return templates.TemplateResponse(
+        request, "partials/mpe_result.html", {"rows": rows}
+    )
+
+
+async def _causal_engine(store: GraphStore, ontology: str | None = None):
+    """Build a CausalEngine (BN + optional DAG). Returns (engine, error_hint)."""
+    bn, hint = await _get_bn(store, ontology)
+    if hint:
+        return None, hint
+    causal = None
+    cgetter = getattr(store, "get_causal_model", None)
+    if cgetter is not None:
+        try:
+            causal = await cgetter(ontology=ontology)
+        except Exception:  # noqa: BLE001
+            causal = None
+    try:
+        from ontorag.causal.engine import CausalEngine
+
+        return CausalEngine(bn, causal), None
+    except Exception as exc:  # noqa: BLE001
+        return None, f"인과 엔진 초기화 실패: {exc}"
+
+
+@router.post("/reasoning/causal/do", response_class=HTMLResponse)
+async def reasoning_do(
+    request: Request,
+    query: Annotated[list[str], Form()] = [],  # noqa: B006
+    do: Annotated[list[str], Form()] = [],  # noqa: B006
+    evidence: Annotated[list[str], Form()] = [],  # noqa: B006
+    store: GraphStore = Depends(get_store),
+) -> HTMLResponse:
+    """P(query | do(intervention), evidence) → distribution-bar partial."""
+    if not query:
+        return _err_partial(request, "질의(query) 변수를 1개 이상 선택하세요.")
+    if not do:
+        return _err_partial(request, "개입(do) 변수를 1개 이상 지정하세요.")
+    engine, hint = await _causal_engine(store)
+    if hint:
+        return _err_partial(request, hint)
+    try:
+        from ontorag.causal.engine import CausalEngineError
+
+        dist = await engine.do_query(
+            _parse_kv(do), list(query), _parse_kv(evidence)
+        )
+    except CausalEngineError as exc:
+        return _err_partial(request, str(exc))
+    except Exception as exc:  # noqa: BLE001
+        return _err_partial(request, f"do-query 실패: {exc}")
+    return templates.TemplateResponse(
+        request,
+        "partials/dist_bars.html",
+        {"dist": dist, "caption": "P(query | do(X)) — 개입(do)"},
+    )
+
+
+@router.post("/reasoning/causal/identify", response_class=HTMLResponse)
+async def reasoning_identify(
+    request: Request,
+    treatment: Annotated[str, Form()] = "",
+    outcome: Annotated[str, Form()] = "",
+    store: GraphStore = Depends(get_store),
+) -> HTMLResponse:
+    """Back-door / front-door adjustment sets for treatment → outcome."""
+    if not treatment or not outcome:
+        return _err_partial(request, "treatment과 outcome을 모두 선택하세요.")
+    engine, hint = await _causal_engine(store)
+    if hint:
+        return _err_partial(request, hint)
+    try:
+        from ontorag.causal.engine import CausalEngineError
+
+        info = await engine.identify(treatment, outcome)
+    except CausalEngineError as exc:
+        return _err_partial(request, str(exc))
+    except Exception as exc:  # noqa: BLE001
+        return _err_partial(request, f"identify 실패: {exc}")
+    return templates.TemplateResponse(
+        request,
+        "partials/identify_result.html",
+        {
+            "identifiable": info["identifiable"],
+            "treatment": _short(info["treatment"]),
+            "outcome": _short(info["outcome"]),
+            "backdoor": [_short(u) for u in info["backdoor_adjustment_set"]],
+            "frontdoor": [[_short(u) for u in s] for s in info["frontdoor_adjustment_sets"]],
+        },
+    )
+
+
+@router.post("/reasoning/causal/counterfactual", response_class=HTMLResponse)
+async def reasoning_counterfactual(
+    request: Request,
+    query: Annotated[list[str], Form()] = [],  # noqa: B006
+    observed: Annotated[list[str], Form()] = [],  # noqa: B006
+    intervention: Annotated[list[str], Form()] = [],  # noqa: B006
+    store: GraphStore = Depends(get_store),
+) -> HTMLResponse:
+    """P(query | observed, had intervention) → distribution-bar partial."""
+    if not query:
+        return _err_partial(request, "질의(query) 변수를 1개 이상 선택하세요.")
+    if not intervention:
+        return _err_partial(request, "반사실 전제(intervention)를 1개 이상 지정하세요.")
+    engine, hint = await _causal_engine(store)
+    if hint:
+        return _err_partial(request, hint)
+    try:
+        from ontorag.causal.engine import CausalEngineError
+
+        dist = await engine.counterfactual(
+            _parse_kv(observed), _parse_kv(intervention), list(query)
+        )
+    except CausalEngineError as exc:
+        return _err_partial(request, str(exc))
+    except Exception as exc:  # noqa: BLE001
+        return _err_partial(request, f"counterfactual 실패: {exc}")
+    return templates.TemplateResponse(
+        request,
+        "partials/dist_bars.html",
+        {"dist": dist, "caption": "P(query | observed, had X) — 반사실"},
+    )

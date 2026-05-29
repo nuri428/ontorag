@@ -1,0 +1,14 @@
+{# MPE assignment table (v0.8.4). rows = [{var, state}]. #}
+<div class="text-xs text-gray-500 mb-2 font-bold uppercase tracking-wider">
+    MPE — 가장 가능성 높은 결합 상태
+</div>
+<table class="w-full text-sm">
+    <tbody>
+        {% for r in rows %}
+        <tr class="border-b border-gray-800">
+            <td class="py-1.5 pr-3 text-gray-400 break-all">{{ r.var }}</td>
+            <td class="py-1.5 text-indigo-300 font-bold">{{ r.state }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

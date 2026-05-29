@@ -1,0 +1,18 @@
+{# Shared distribution renderer (v0.8.4). dist = {var_uri: {state: prob}}. #}
+{% if caption %}
+<div class="text-xs text-gray-500 mb-2 font-bold uppercase tracking-wider">{{ caption }}</div>
+{% endif %}
+{% for var, states in dist.items() %}
+<div class="mb-4">
+    <div class="text-xs text-indigo-300 font-bold mb-1.5 break-all">{{ var.split('#')[-1].split('/')[-1] }}</div>
+    {% for state, p in states.items() %}
+    <div class="flex items-center gap-2 mb-1">
+        <span class="text-xs text-gray-400 w-28 truncate" title="{{ state }}">{{ state }}</span>
+        <div class="flex-1 bg-gray-800 rounded h-4 overflow-hidden">
+            <div class="bg-indigo-500 h-4 transition-all" style="width: {{ (p * 100) | round(2) }}%"></div>
+        </div>
+        <span class="text-xs text-gray-200 w-16 text-right tabular-nums">{{ (p * 100) | round(2) }}%</span>
+    </div>
+    {% endfor %}
+</div>
+{% endfor %}

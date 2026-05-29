@@ -33,7 +33,7 @@
         </a>
         <div class="w-px h-5 bg-gray-700 mx-1"></div>
         <div class="flex gap-1">
-            {% set tabs = [('schema', '📐 Schema'), ('data', '📊 Data'), ('playground', '🛝 Playground')] %}
+            {% set tabs = [('schema', '📐 Schema'), ('data', '📊 Data'), ('playground', '🛝 Playground'), ('reasoning', '🧮 Reasoning')] %}
             {% for tab_id, tab_label in tabs %}
             <a href="/ui/{{ tab_id }}"
                class="px-4 py-1.5 rounded text-sm font-medium transition-colors
@@ -53,7 +53,7 @@
                 <span class="text-gray-600">·</span>
                 <span id="lang-en" class="text-gray-500">EN</span>
             </button>
-            <span class="text-xs text-gray-700 font-mono">v0.1.0</span>
+            <span class="text-xs text-gray-700 font-mono">v0.8.4</span>
         </div>
     </nav>
 

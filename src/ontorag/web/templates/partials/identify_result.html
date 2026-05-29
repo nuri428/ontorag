@@ -1,0 +1,33 @@
+{# Identifiability + adjustment sets (v0.8.4). #}
+<div class="text-xs text-gray-500 mb-3 font-bold uppercase tracking-wider">
+    식별 가능성 — {{ treatment }} → {{ outcome }}
+</div>
+<div class="flex items-center gap-2 mb-3">
+    <span class="text-sm text-gray-400">identifiable:</span>
+    {% if identifiable %}
+    <span class="text-sm font-bold text-emerald-400">✓ True</span>
+    {% else %}
+    <span class="text-sm font-bold text-red-400">✗ False</span>
+    {% endif %}
+</div>
+<div class="space-y-2 text-sm">
+    <div class="flex gap-2">
+        <span class="text-gray-500 w-28 shrink-0">back-door:</span>
+        {% if backdoor %}
+        <span class="text-indigo-300 font-mono">{ {{ backdoor | join(', ') }} }</span>
+        {% else %}
+        <span class="text-gray-600">—</span>
+        {% endif %}
+    </div>
+    <div class="flex gap-2">
+        <span class="text-gray-500 w-28 shrink-0">front-door:</span>
+        {% if frontdoor %}
+        <span class="text-indigo-300 font-mono">{% for s in frontdoor %}{ {{ s | join(', ') }} }{% if not loop.last %}, {% endif %}{% endfor %}</span>
+        {% else %}
+        <span class="text-gray-600">—</span>
+        {% endif %}
+    </div>
+</div>
+<p class="text-xs text-gray-700 mt-3">
+    조정집합이 비어있고({}) identifiable이면 confounder가 없어 do = see 입니다.
+</p>

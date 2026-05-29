@@ -157,6 +157,23 @@ Chat with the LLM agent. Tool calls (`find_entities`, `traverse_graph`, …) are
 
 ![Playground tab](assets/playground.png)
 
+### Reasoning tab (v0.8.4)
+
+Run the probabilistic and causal layers interactively (needs the `[bayes]` extra
+and a Bayesian network loaded via `ontorag bayes load`). Two sub-tabs:
+
+- **Bayesian** — build evidence (variable = state) and pick query variables, then
+  compute `P(query | evidence)` (rendered as distribution bars) or the most
+  probable explanation (`mpe`).
+- **Causal** — with a DAG loaded (`ontorag causal load`), run `do(X)`
+  interventions, `counterfactual` queries, and `identify` (back-door / front-door
+  adjustment sets). The DAG edges are listed, and a **"do(X)로 비교 →"** link on a
+  posterior result seeds the Causal tab with the same evidence as an intervention —
+  the see ≠ do contrast in two clicks.
+
+When no backend / network / `pgmpy` is available the tab renders an actionable
+hint instead of an error.
+
 ---
 
 ## Architecture

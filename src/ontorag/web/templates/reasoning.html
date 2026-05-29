@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+{% block title %}Reasoning{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-5">
+    <h1 class="text-indigo-400 font-bold text-lg">🧮 Reasoning</h1>
+    <span class="text-gray-600 text-sm">Probabilistic (Bayesian) + Causal (Pearl Rung 2-3)</span>
+</div>
+
+{% if not has_bn %}
+<!-- No network loaded -->
+<div class="bg-amber-950/40 border border-amber-800/50 rounded-xl px-6 py-5 text-sm text-amber-200">
+    <p class="font-bold mb-2">베이지안 네트워크가 없습니다.</p>
+    <p class="text-amber-300/80 mb-3">{{ hint }}</p>
+    <p class="text-xs text-amber-300/70">추론은 BN으로 정량화됩니다. 먼저 네트워크를 로드하세요 (<code class="text-amber-200">[bayes]</code> extra 필요):</p>
+    <pre class="mt-2 bg-gray-950 rounded-lg p-3 text-xs text-gray-300 overflow-x-auto">uv sync --extra bayes
+ontorag bayes  load examples/smoking/bayes-network.ttl
+ontorag causal load examples/smoking/causal-model.ttl   # 인과 추론용 DAG
+# 새로고침</pre>
+</div>
+{% else %}
+
+<!-- Network status -->
+<div class="bg-gray-900 rounded-xl border border-gray-800 px-5 py-3 mb-4 flex items-center gap-3 flex-wrap">
+    <span class="text-xs text-gray-500 font-bold uppercase tracking-wider shrink-0">Network</span>
+    <span class="text-sm text-indigo-300 font-bold">{{ bn_name or "(이름 없음)" }}</span>
+    <span class="text-xs text-gray-600">·</span>
+    <span class="text-xs text-gray-500">변수 {{ bn_vars | length }}개</span>
+    <div class="flex gap-1.5 flex-wrap">
+        {% for v in bn_vars %}
+        <span class="text-xs bg-gray-800 text-gray-400 rounded px-2 py-0.5" title="{{ v.uri }}">{{ v.label }}</span>
+        {% endfor %}
+    </div>
+    {% if has_causal %}
+    <span class="ml-auto text-xs text-emerald-400">✓ causal DAG 로드됨 ({{ causal_edges | length }} edges)</span>
+    {% else %}
+    <span class="ml-auto text-xs text-gray-600">causal DAG 없음 — `ontorag causal load`</span>
+    {% endif %}
+</div>
+
+<!-- Sub-tabs -->
+<div class="flex gap-1 mb-4 border-b border-gray-800">
+    <button id="subtab-bayes-btn" onclick="showSub('bayes')"
+            class="px-4 py-2 text-sm font-medium border-b-2 border-indigo-500 text-white transition-colors">
+        🎲 Bayesian
+    </button>
+    <button id="subtab-causal-btn" onclick="showSub('causal')"
+            class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white transition-colors">
+        🔀 Causal
+    </button>
+</div>
+
+<!-- ── Bayesian sub-tab ────────────────────────────────────────────────────── -->
+<div id="subtab-bayes" class="flex gap-4">
+    <!-- Controls -->
+    <div class="w-96 shrink-0 space-y-4">
+        <!-- Evidence builder -->
+        <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">증거 (evidence)</span>
+                <button onclick="addEvidenceRow()" class="text-xs text-indigo-400 hover:text-indigo-300">+ 추가</button>
+            </div>
+            <div id="evidence-rows" class="space-y-2"></div>
+            <p class="text-xs text-gray-700 mt-2">관측된 변수=상태. 비우면 사전확률.</p>
+        </div>
+
+        <!-- Query builder -->
+        <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+            <div class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-3">질의 (query)</div>
+            <div class="space-y-1.5">
+                {% for v in bn_vars %}
+                <label class="flex items-center gap-2 cursor-pointer text-sm">
+                    <input type="checkbox" class="query-check accent-indigo-500" value="{{ v.uri }}">
+                    <span class="text-gray-300">{{ v.label }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="flex gap-2">
+            <button onclick="runPosterior()"
+                    class="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded transition-colors">
+                posterior 계산
+            </button>
+            <button onclick="runMpe()"
+                    class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-medium rounded transition-colors border border-gray-700">
+                MPE
+            </button>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div class="flex-1 bg-gray-900 rounded-xl border border-gray-800 p-5 min-h-[300px]">
+        <div id="bayes-results">
+            <p class="text-gray-700 text-sm text-center py-10">증거/질의를 설정하고 계산하세요.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ── Causal sub-tab ───────────────────────────────────────────────────────── -->
+<div id="subtab-causal" class="hidden">
+    {% if not has_causal %}
+    <div class="bg-amber-950/40 border border-amber-800/50 rounded-xl px-6 py-5 text-sm text-amber-200">
+        <p class="font-bold mb-2">인과 DAG가 없습니다.</p>
+        <p class="text-amber-300/80 mb-2">인과 추론은 사용자 제공 DAG가 필요합니다. 로드하세요:</p>
+        <pre class="bg-gray-950 rounded-lg p-3 text-xs text-gray-300 overflow-x-auto">ontorag causal load examples/smoking/causal-model.ttl
+# 새로고침</pre>
+    </div>
+    {% else %}
+    <div class="flex gap-4">
+        <!-- Controls -->
+        <div class="w-96 shrink-0 space-y-4">
+            <!-- DAG edges -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+                <div class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-2">인과 DAG (cause → effect)</div>
+                <div class="space-y-1">
+                    {% for c, e in causal_edges %}
+                    <div class="text-xs text-gray-300 font-mono">
+                        {{ c.split('#')[-1].split('/')[-1] }} <span class="text-indigo-400">→</span> {{ e.split('#')[-1].split('/')[-1] }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Intervention (do) builder -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">개입 do(X) / 반사실 전제</span>
+                    <button onclick="addCausalRow('do')" class="text-xs text-indigo-400 hover:text-indigo-300">+ 추가</button>
+                </div>
+                <div id="do-rows" class="space-y-2"></div>
+            </div>
+
+            <!-- Observed builder (for counterfactual) -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">관측 (반사실용 observed)</span>
+                    <button onclick="addCausalRow('obs')" class="text-xs text-indigo-400 hover:text-indigo-300">+ 추가</button>
+                </div>
+                <div id="obs-rows" class="space-y-2"></div>
+            </div>
+
+            <!-- Query -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+                <div class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-3">질의 (query)</div>
+                <div class="space-y-1.5">
+                    {% for v in causal_vars %}
+                    {% if v.observed %}
+                    <label class="flex items-center gap-2 cursor-pointer text-sm">
+                        <input type="checkbox" class="cq-check accent-indigo-500" value="{{ v.uri }}">
+                        <span class="text-gray-300">{{ v.label }}</span>
+                    </label>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2">
+                <button onclick="runDo()"
+                        class="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded transition-colors">
+                    do(X)
+                </button>
+                <button onclick="runCounterfactual()"
+                        class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium rounded transition-colors border border-gray-700">
+                    반사실
+                </button>
+                <button onclick="runIdentify()"
+                        class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium rounded transition-colors border border-gray-700">
+                    identify
+                </button>
+            </div>
+
+            <!-- Identify treatment/outcome -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+                <div class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-2">identify: treatment → outcome</div>
+                <div class="flex items-center gap-1.5">
+                    <select id="id-treatment" class="flex-1 bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+                        {% for v in causal_vars %}<option value="{{ v.uri }}">{{ v.label }}</option>{% endfor %}
+                    </select>
+                    <span class="text-indigo-400 text-xs">→</span>
+                    <select id="id-outcome" class="flex-1 bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+                        {% for v in causal_vars %}<option value="{{ v.uri }}">{{ v.label }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="flex-1 bg-gray-900 rounded-xl border border-gray-800 p-5 min-h-[300px]">
+            <div id="causal-results">
+                <p class="text-gray-700 text-sm text-center py-10">개입/관측/질의를 설정하고 계산하세요. <br>
+                    <span class="text-xs">do(X)는 그래프 수술로 confounding을 제거 — see와 다를 수 있습니다.</span></p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const BN_VARS = {{ bn_vars | tojson }};
+const CAUSAL_VARS = {{ causal_vars | tojson }};
+// only observed causal variables have states / can be assigned
+const CAUSAL_OBS = CAUSAL_VARS.filter(v => v.observed && v.states && v.states.length);
+
+function showSub(which) {
+    const isB = which === 'bayes';
+    document.getElementById('subtab-bayes').classList.toggle('hidden', !isB);
+    document.getElementById('subtab-causal').classList.toggle('hidden', isB);
+    const bBtn = document.getElementById('subtab-bayes-btn');
+    const cBtn = document.getElementById('subtab-causal-btn');
+    bBtn.className = 'px-4 py-2 text-sm font-medium border-b-2 transition-colors ' +
+        (isB ? 'border-indigo-500 text-white' : 'border-transparent text-gray-400 hover:text-white');
+    cBtn.className = 'px-4 py-2 text-sm font-medium border-b-2 transition-colors ' +
+        (!isB ? 'border-indigo-500 text-white' : 'border-transparent text-gray-400 hover:text-white');
+}
+
+// ── evidence rows (variable=state) ──────────────────────────────────────────
+function _stateOptions(stateList) {
+    return stateList.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
+}
+
+function addEvidenceRow() {
+    if (!BN_VARS.length) return;
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-1.5 evidence-row';
+    const varOpts = BN_VARS.map(v => `<option value="${escHtml(v.uri)}">${escHtml(v.label)}</option>`).join('');
+    row.innerHTML = `
+        <select class="ev-var flex-1 bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-indigo-500" onchange="onEvVarChange(this)">
+            ${varOpts}
+        </select>
+        <span class="text-gray-600 text-xs">=</span>
+        <select class="ev-state w-28 bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+            ${_stateOptions(BN_VARS[0].states)}
+        </select>
+        <button onclick="this.parentElement.remove()" class="text-gray-600 hover:text-red-400 text-sm px-1">✕</button>
+    `;
+    document.getElementById('evidence-rows').appendChild(row);
+}
+
+function onEvVarChange(selectEl) {
+    const v = BN_VARS.find(x => x.uri === selectEl.value);
+    const stateSel = selectEl.parentElement.querySelector('.ev-state');
+    if (v && stateSel) stateSel.innerHTML = _stateOptions(v.states);
+}
+
+function _collectEvidence() {
+    const params = new URLSearchParams();
+    document.querySelectorAll('.evidence-row').forEach(row => {
+        const uri = row.querySelector('.ev-var').value;
+        const state = row.querySelector('.ev-state').value;
+        if (uri && state) params.append('evidence', `${uri}=${state}`);
+    });
+    return params;
+}
+
+async function _post(url, params, targetId) {
+    const target = document.getElementById(targetId);
+    target.innerHTML = '<p class="text-gray-600 text-sm py-6 text-center">계산 중...</p>';
+    try {
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params,
+        });
+        target.innerHTML = await resp.text();
+        applyLang(_lang);
+    } catch (err) {
+        target.innerHTML = `<p class="text-red-400 text-sm">${t('common.error')}: ${escHtml(err.message)}</p>`;
+    }
+}
+
+async function runPosterior() {
+    const params = _collectEvidence();
+    document.querySelectorAll('.query-check:checked').forEach(c => params.append('query', c.value));
+    await _post('/ui/reasoning/posterior', params, 'bayes-results');
+    // see↔do cross-link: if a causal DAG exists, offer to re-run as do(evidence)
+    if (CAUSAL_VARS.length && (params.getAll('evidence').length || params.getAll('query').length)) {
+        const link = document.createElement('button');
+        link.className = 'mt-4 text-xs text-indigo-400 hover:text-indigo-300 underline';
+        link.textContent = 'do(X)로 비교 → Causal 탭에서 같은 증거를 개입으로';
+        link.onclick = () => {
+            showSub('causal');
+            // seed do-rows from the evidence, and queries from checked
+            document.getElementById('do-rows').innerHTML = '';
+            params.getAll('evidence').forEach(ev => {
+                addCausalRow('do');
+                const row = document.querySelector('#do-rows .do-row:last-child');
+                const [uri, state] = ev.split('=');
+                row.querySelector('.c-var').value = uri;
+                onCausalVarChange(row.querySelector('.c-var'));
+                row.querySelector('.c-state').value = state;
+            });
+            document.querySelectorAll('.cq-check').forEach(c => {
+                c.checked = params.getAll('query').includes(c.value);
+            });
+        };
+        document.getElementById('bayes-results').appendChild(link);
+    }
+}
+
+function runMpe() {
+    _post('/ui/reasoning/mpe', _collectEvidence(), 'bayes-results');
+}
+
+// ── causal rows (do / observed) — states come from the BN ───────────────────
+function addCausalRow(kind) {
+    if (!BN_VARS.length) return;
+    const containerId = kind === 'do' ? 'do-rows' : 'obs-rows';
+    const rowClass = kind === 'do' ? 'do-row' : 'obs-row';
+    const row = document.createElement('div');
+    row.className = `flex items-center gap-1.5 ${rowClass}`;
+    const varOpts = BN_VARS.map(v => `<option value="${escHtml(v.uri)}">${escHtml(v.label)}</option>`).join('');
+    row.innerHTML = `
+        <select class="c-var flex-1 bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-indigo-500" onchange="onCausalVarChange(this)">
+            ${varOpts}
+        </select>
+        <span class="text-gray-600 text-xs">=</span>
+        <select class="c-state w-24 bg-gray-800 border border-gray-700 text-gray-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+            ${_stateOptions(BN_VARS[0].states)}
+        </select>
+        <button onclick="this.parentElement.remove()" class="text-gray-600 hover:text-red-400 text-sm px-1">✕</button>
+    `;
+    document.getElementById(containerId).appendChild(row);
+}
+
+function onCausalVarChange(selectEl) {
+    const v = BN_VARS.find(x => x.uri === selectEl.value);
+    const stateSel = selectEl.parentElement.querySelector('.c-state');
+    if (v && stateSel) stateSel.innerHTML = _stateOptions(v.states);
+}
+
+function _collectRows(rowClass, field, params) {
+    document.querySelectorAll(`.${rowClass}`).forEach(row => {
+        const uri = row.querySelector('.c-var').value;
+        const state = row.querySelector('.c-state').value;
+        if (uri && state) params.append(field, `${uri}=${state}`);
+    });
+}
+
+function _causalQuery(params) {
+    document.querySelectorAll('.cq-check:checked').forEach(c => params.append('query', c.value));
+}
+
+function runDo() {
+    const params = new URLSearchParams();
+    _collectRows('do-row', 'do', params);
+    _causalQuery(params);
+    _post('/ui/reasoning/causal/do', params, 'causal-results');
+}
+
+function runCounterfactual() {
+    const params = new URLSearchParams();
+    _collectRows('do-row', 'intervention', params);
+    _collectRows('obs-row', 'observed', params);
+    _causalQuery(params);
+    _post('/ui/reasoning/causal/counterfactual', params, 'causal-results');
+}
+
+function runIdentify() {
+    const params = new URLSearchParams();
+    params.append('treatment', document.getElementById('id-treatment').value);
+    params.append('outcome', document.getElementById('id-outcome').value);
+    _post('/ui/reasoning/causal/identify', params, 'causal-results');
+}
+
+window.showSub = showSub;
+window.addEvidenceRow = addEvidenceRow;
+window.onEvVarChange = onEvVarChange;
+window.runPosterior = runPosterior;
+window.runMpe = runMpe;
+window.addCausalRow = addCausalRow;
+window.onCausalVarChange = onCausalVarChange;
+window.runDo = runDo;
+window.runCounterfactual = runCounterfactual;
+window.runIdentify = runIdentify;
+</script>
+{% endblock %}
