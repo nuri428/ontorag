@@ -2320,7 +2320,7 @@ wheels = [
 
 [[package]]
 name = "ontorag"
-version = "0.9.1"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },

@@ -26,7 +26,7 @@ One-line: "OWL-native reasoning framework — ontology as source of truth, exten
 ontorag's long-term architecture is a 4-layer reasoning stack, accumulated one layer per major release:
 
 ```
-Layer 4 — Learning              ← v1.0+ (GNN: R-GCN link prediction, neural CPT, structure learning)
+Layer 4 — Learning              ← v1.1+ (GNN: R-GCN link prediction, neural CPT, structure learning)
 Layer 3 — Counterfactual        ← v0.8 (Pearl Rung 2+3: do-calculus, counterfactuals)
 Layer 2 — Probabilistic         ← v0.7 (Bayesian network inference: posterior, MPE)
 Layer 1 — Logical (RDFS+)       ← shipped (subClassOf*, inverseOf, Transitive)
@@ -555,11 +555,29 @@ Fuseki healthcheck: `GET /$/ping` → 200 OK.
 
 **License note**: FalkorDB is **RSAL (Redis Source Available License)**, *not* OSI-approved open source. README documents this honestly alongside Fuseki (Apache 2.0) and Neo4j (GPL/AGPL).
 
-### v1.0+ — Learning Layer (GNN)
+### v1.0 — Production-Ready & Proven ✅ shipped
+
+**Goal**: the 0.x→1.0 maturity jump — not a new capability but *trust*. GNN was
+deliberately deferred (it's the v1.1+ paradigm shift). Two pillars, both
+evidence-backed by a pre-implementation two-agent audit:
+
+| Pillar | Deliverable |
+|---|---|
+| **Production hardening** | Configurable query/LLM timeouts on **all** backends (`NEO4J_QUERY_TIMEOUT`/`FALKORDB_QUERY_TIMEOUT`/`FUSEKI_TIMEOUT`/`LLM_TIMEOUT` via `core/config.py:env_timeout`; Neo4j `session.run(timeout=)`, FalkorDB `graph.query(timeout=ms)`, Fuseki httpx, anthropic/openai/ollama clients) — closes the "a hung query blocks the worker" gap. Global `@app.exception_handler(Exception)` → structured `{detail,type}` 500 with server-side logging (no raw-traceback leak). **New CI `test.yml`**: ruff + `pytest -m "not integration"` (910) hard-gates every push/PR; an informative integration job runs Neo4j+FalkorDB service containers. (The pre-existing `eval.yml` only ran eval-module tests behind a path filter — main code reached `main` with no CI.) |
+| **Proof** | `docs/BENCHMARK_v1.md` — key-free, reproducible: goldset quality (5 domains / 130 q, 0 `gold_sparql` failures) + **3-backend deterministic parity** (7/7 protocol metrics identical across Fuseki/Neo4j/FalkorDB → `full_parity=True`). README leads with the parity headline. |
+
+**Known sharp edge (documented, not a blocker)**: on Neo4j/FalkorDB a double
+`replace=True` (schema then data) can drop property-type nodes since schema+data
+share one physical graph; the normal `clear → schema → data` path is unaffected.
+
+**Out of scope (→ v1.1+)**: connection-pool tuning, startup health-check,
+JSON/JSONL typed-literal fidelity (TTL already preserves datatypes), RAGAS in CI.
+
+### v1.1+ — Learning Layer (GNN)
 
 **Goal**: GNN integration as the 4th reasoning layer — R-GCN for link prediction over OWL graphs, neural CPT (Pyro) for Bayesian, structure learning for Causal (DECI).
 
-**Out of scope until v1.0**: GPU/training infrastructure, PyTorch Geometric dependency, neural-symbolic loss for OWL constraint preservation. This is the first paradigm shift — ontorag becomes a "training-capable" framework.
+**Out of scope until v1.1**: GPU/training infrastructure, PyTorch Geometric dependency, neural-symbolic loss for OWL constraint preservation. This is the first paradigm shift — ontorag becomes a "training-capable" framework.
 
 ### Deferred — layered-ontology-plan Phase 2/3
 
