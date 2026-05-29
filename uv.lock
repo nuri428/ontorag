@@ -2364,6 +2364,9 @@ dev = [
 falkordb = [
     { name = "falkordb" },
 ]
+mcp = [
+    { name = "mcp" },
+]
 neo4j = [
     { name = "neo4j" },
 ]
@@ -2394,6 +2397,7 @@ requires-dist = [
     { name = "langchain-community", marker = "extra == 'bench'", specifier = ">=0.3,<0.4" },
     { name = "langchain-core", marker = "extra == 'bench'", specifier = ">=0.3,<0.4" },
     { name = "langchain-openai", marker = "extra == 'bench'", specifier = ">=0.2,<0.3" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0.0" },
     { name = "neo4j", specifier = ">=5.14.0" },
     { name = "neo4j", marker = "extra == 'neo4j'", specifier = ">=5.14.0" },
     { name = "openai", specifier = ">=1.0.0" },
@@ -2413,7 +2417,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
     { name = "typer", extras = ["all"], specifier = ">=0.12.0" },
 ]
-provides-extras = ["dev", "bench", "neo4j", "vector", "falkordb", "bayes"]
+provides-extras = ["dev", "bench", "neo4j", "vector", "falkordb", "mcp", "bayes"]
 
 [package.metadata.requires-dev]
 dev = [

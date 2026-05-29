@@ -94,6 +94,13 @@ falkordb = [
     # client lives in falkordb.asyncio (built on redis.asyncio).
     "falkordb>=1.0.0",
 ]
+mcp = [
+    # Standalone stdio MCP server (v1.1) — lets ontorag tools drop into any MCP
+    # client (Claude Desktop, Cursor, Claude Code) via a one-line stdio config.
+    # The HTTP /mcp endpoint (fastapi-mcp) needs none of this; this is the
+    # client-spawned stdio transport using the official MCP Python SDK.
+    "mcp>=1.0.0",
+]
 bayes = [
     # Probabilistic layer (v0.7) — pgmpy powers compute_posterior / mpe and
     # CPT learning (ontorag bayes learn-cpt). Python-native, MIT; pulls
@@ -111,6 +118,7 @@ Changelog = "https://github.com/nuri428/ontorag/blob/main/CHANGELOG.md"
 
 [project.scripts]
 ontorag = "ontorag.cli:app"
+ontorag-mcp = "ontorag.mcp_stdio:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -262,6 +262,7 @@ uv sync                      # core dependencies (Fuseki backend)
 uv sync --extra bayes        # v0.7/v0.8 probabilistic + causal reasoning (pgmpy + pandas)
 uv sync --extra neo4j        # Neo4j + n10s backend driver (GRAPH_STORE=neo4j)
 uv sync --extra falkordb     # FalkorDB backend client (GRAPH_STORE=falkordb, v0.9)
+uv sync --extra mcp          # standalone stdio MCP server (Claude Desktop / Cursor)
 uv sync --extra vector       # Qdrant vector store (Fuseki find_similar)
 ```
 
@@ -400,7 +401,30 @@ data: {"type": "done"}
 
 ### `GET /mcp`
 
-MCP (Model Context Protocol) endpoint. Any MCP-compatible client can connect and call the 18 ontology / reasoning tools directly (see [MCP tools](#mcp-tools)).
+MCP (Model Context Protocol) endpoint of the **running API** — any MCP client
+that speaks HTTP can connect and call the 18 ontology / reasoning tools directly
+(see [MCP tools](#mcp-tools)).
+
+### Standalone stdio MCP server (Claude Desktop / Cursor / Claude Code)
+
+No running server needed — the client spawns `ontorag-mcp` over stdio. Install
+the extra (`uv sync --extra mcp`), then add to your MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "ontorag": {
+      "command": "ontorag-mcp",
+      "env": { "GRAPH_STORE": "fuseki", "FUSEKI_URL": "http://localhost:3030" }
+    }
+  }
+}
+```
+
+`GRAPH_STORE` selects the backend (fuseki / neo4j / falkordb) just like the CLI.
+Exposes the high-value read tools (`get_schema`, `find_entities`, `describe_entity`,
+`count_entities`, `aggregate`, `traverse_graph`, `find_path`, `get_class_detail`)
+plus reasoning (`compute_posterior`, `do_query`); raw SPARQL is never exposed.
 
 ---
 
