@@ -41,10 +41,19 @@ class DoQueryRequest(BaseModel):
 
 
 class DoQueryResponse(BaseModel):
-    """P(query | do(intervention)): per-variable distribution over states."""
+    """P(query | do(intervention)): per-variable distribution + a back-door
+    explanation of why the interventional result differs from observing."""
 
     result: dict[str, dict[str, float]] = Field(
         description="{variable_uri: {state: probability}} under the intervention."
+    )
+    adjustment: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="Back-door adjustment set per 'do_var → query_var' pair.",
+    )
+    explanation: str | None = Field(
+        default=None,
+        description="One-line human summary of the back-door adjustment (why do ≠ see).",
     )
 
 
@@ -145,10 +154,14 @@ async def do_query(
     """
     engine = await _load_engine(store, body.ontology)
     try:
-        result = await engine.do_query(body.do, body.query, body.evidence)
+        info = await engine.explain_do(body.do, body.query, body.evidence)
     except CausalEngineError as exc:
         raise HTTPException(status_code=_status(exc), detail=str(exc))
-    return DoQueryResponse(result=result)
+    return DoQueryResponse(
+        result=info["distribution"],
+        adjustment=info["adjustment"],
+        explanation=info["explanation"],
+    )
 
 
 @router.post(

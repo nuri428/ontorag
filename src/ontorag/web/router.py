@@ -744,7 +744,7 @@ async def reasoning_do(
     try:
         from ontorag.causal.engine import CausalEngineError
 
-        dist = await engine.do_query(
+        info = await engine.explain_do(
             _parse_kv(do), list(query), _parse_kv(evidence)
         )
     except CausalEngineError as exc:
@@ -754,7 +754,11 @@ async def reasoning_do(
     return templates.TemplateResponse(
         request,
         "partials/dist_bars.html",
-        {"dist": dist, "caption": "P(query | do(X)) — 개입(do)"},
+        {
+            "dist": info["distribution"],
+            "caption": "P(query | do(X)) — 개입(do)",
+            "explanation": info["explanation"],
+        },
     )
 
 

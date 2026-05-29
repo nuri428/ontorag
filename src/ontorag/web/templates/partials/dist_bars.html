@@ -16,3 +16,8 @@
     {% endfor %}
 </div>
 {% endfor %}
+{% if explanation %}
+<div class="mt-3 text-xs text-emerald-300/80 bg-emerald-950/30 border border-emerald-800/40 rounded-lg px-3 py-2">
+    <span class="font-bold">why:</span> {{ explanation }}
+</div>
+{% endif %}

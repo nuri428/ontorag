@@ -80,6 +80,28 @@ async def test_do_query_resolves_labels():
     assert abs(res[C]["yes"] - 0.60) < 1e-6
 
 
+async def test_explain_do_reports_backdoor_adjustment():
+    # explain_do returns the same distribution PLUS the back-door set used.
+    eng = CausalEngine(_bn_gsc(), _causal_gsc(genotype_observed=True))
+    info = await eng.explain_do(do={S: "yes"}, query=[C])
+    assert abs(info["distribution"][C]["yes"] - 0.60) < 1e-6
+    assert info["adjustment"][f"{S} → {C}"] == [G]  # adjusts over Genotype
+    assert "back-door" in info["explanation"].lower()
+
+
+async def test_explain_do_no_confounder_says_do_equals_see():
+    # With no edges into Smoking, no adjustment is needed → explanation says so.
+    bn = _bn_gsc()
+    cm = CausalModel(
+        name="s",
+        variables=[CausalVariable(uri=S), CausalVariable(uri=C)],
+        edges=[(S, C)],
+    )
+    info = await CausalEngine(bn, cm).explain_do(do={S: "yes"}, query=[C])
+    assert info["adjustment"][f"{S} → {C}"] == []
+    assert "do equals see" in info["explanation"].lower()
+
+
 # ── identification ────────────────────────────────────────────────────────────
 
 

@@ -92,6 +92,23 @@ class CausalEngine:
             raise CausalEngineError("query must name at least one variable.")
         return await asyncio.to_thread(self._do_sync, do, query, evidence or {})
 
+    async def explain_do(
+        self, do: dict[str, str], query: list[str], evidence: dict[str, str] | None = None
+    ) -> dict[str, Any]:
+        """``do_query`` plus a back-door explanation of *why* it differs from
+        observing — the adjustment set(s) used per (intervention → query) pair.
+
+        Returns ``{distribution, adjustment, explanation}`` where ``adjustment``
+        maps ``"do_var → query_var"`` to the back-door set the surgery adjusts
+        over, and ``explanation`` is a one-line human summary. Pure read; reuses
+        ``_do_sync`` and ``get_minimal_adjustment_set`` (no new inference path).
+        """
+        if not do:
+            raise CausalEngineError("do must name at least one intervention.")
+        if not query:
+            raise CausalEngineError("query must name at least one variable.")
+        return await asyncio.to_thread(self._explain_do_sync, do, query, evidence or {})
+
     async def identify(self, treatment: str, outcome: str) -> dict[str, Any]:
         """Report adjustment sets / identifiability for treatment → outcome,
         using the causal DAG (latent confounders respected)."""
@@ -213,6 +230,47 @@ class CausalEngine:
             states = marg.state_names[var]
             out[var] = {str(s): float(p) for s, p in zip(states, marg.values)}
         return out
+
+    def _explain_do_sync(
+        self, do: dict[str, str], query: list[str], evidence: dict[str, str]
+    ) -> dict[str, Any]:
+        from pgmpy.inference import CausalInference
+
+        distribution = self._do_sync(do, query, evidence)
+        do_r = self._resolve_assignment(do)
+        q = [self._resolve_var(v) for v in query]
+        ci = CausalInference(self._causal_dag())
+
+        adjustment: dict[str, list[str]] = {}
+        adjusted_vars: set[str] = set()
+        for dv in do_r:
+            for qv in q:
+                try:
+                    bset = ci.get_minimal_adjustment_set(dv, qv)
+                except Exception:  # noqa: BLE001 — pair may be trivially unconfounded
+                    bset = set()
+                cols = sorted(bset) if bset else []
+                adjustment[f"{dv} → {qv}"] = cols
+                adjusted_vars.update(cols)
+
+        if adjusted_vars:
+            short = ", ".join(sorted(v.split("#")[-1].split("/")[-1] for v in adjusted_vars))
+            explanation = (
+                f"do(X) cuts incoming edges to the intervened variable(s) and "
+                f"back-door adjusts over {{{short}}}, so the result removes the "
+                f"confounding that plain observation (see) would include — this is "
+                f"why do ≠ see."
+            )
+        else:
+            explanation = (
+                "No back-door adjustment was needed (no confounders between the "
+                "intervention and query in the DAG), so do equals see here."
+            )
+        return {
+            "distribution": distribution,
+            "adjustment": adjustment,
+            "explanation": explanation,
+        }
 
     def _identify_sync(self, treatment: str, outcome: str) -> dict[str, Any]:
         from pgmpy.inference import CausalInference
