@@ -401,8 +401,29 @@ class _Neo4jEntityMixin:
         scope_where = f"WHERE {scope_frag}" if scope_frag else ""
 
         # Validate the shortened identifier before any backtick interpolation
-        # (used both as a relationship type and as a property key below).
-        short_prop = _safe_rel(self._shorten_prefixed(group_by))
+        # (used both as a relationship type and as a property key below). A
+        # group_by URI in a namespace not registered in the ontology can't be
+        # shortened to a safe identifier — that property simply doesn't exist
+        # here, so return empty (parity with Fuseki, which yields [] rather than
+        # raising a 500).
+        try:
+            short_prop = _safe_rel(self._shorten_prefixed(group_by))
+        except ValueError as safe_err:
+            # A clean but unregistered-namespace URI names no property in this
+            # ontology → return [] (parity with Fuseki, which yields empty). A
+            # malformed / injection-shaped identifier still fails loudly.
+            from ontorag.core.sparql import uri_ref  # noqa: PLC0415
+
+            try:
+                uri_ref(group_by)
+            except ValueError:
+                raise safe_err from None
+            logger.warning(
+                "aggregate: group_by %r is not a known property (unregistered "
+                "namespace); returning [].",
+                group_by,
+            )
+            return []
         agg_expr = _AGG_CYPHER[agg]
 
         # Try relationship-based grouping first (object property)
@@ -480,8 +501,20 @@ def _build_filter_cypher(
     params: dict[str, Any] = {}
 
     for i, f in enumerate(filters):
-        # Validate the shortened property key before backtick interpolation.
-        short_prop = _safe_rel(shorten_fn(f.property))
+        # Validate the shortened property key before backtick interpolation. A
+        # filter on a property whose namespace isn't registered can't shorten to
+        # a safe identifier — it matches nothing, so emit a false predicate
+        # (parity with Fuseki: empty result, not a 500).
+        try:
+            short_prop = _safe_rel(shorten_fn(f.property))
+        except ValueError:
+            # Clean but unregistered property → matches nothing (parity with
+            # Fuseki). Malformed / injection-shaped identifier → fail loudly.
+            from ontorag.core.sparql import uri_ref  # noqa: PLC0415
+
+            uri_ref(f.property)  # raises ValueError on an unsafe identifier
+            parts.append("false")
+            continue
         param_key = f"fv{i}"
         params[param_key] = f.value
 

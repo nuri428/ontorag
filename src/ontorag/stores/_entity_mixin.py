@@ -222,6 +222,7 @@ WHERE {{
         class_uri: str | None = None
         properties: dict[str, Any] = {}
         rdf_type = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+        rdfs_label = "http://www.w3.org/2000/01/rdf-schema#label"
 
         for b in bindings:
             pred = b["pred"]["value"]
@@ -229,6 +230,10 @@ WHERE {{
             obj_value = obj_term["value"]
             if pred == rdf_type:
                 class_uri = obj_value
+                continue
+            if pred == rdfs_label:
+                # Already captured in the dedicated `label` field; don't also
+                # duplicate it in properties (parity with Neo4j / FalkorDB).
                 continue
             if obj_term.get("type") == "uri":
                 obj: Any = {

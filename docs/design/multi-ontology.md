@@ -64,6 +64,21 @@ Neo4j/n10s has no named graphs, so isolation is node-level:
 - Injection: `ontology` id validated against `^[a-zA-Z0-9_-]+$` before any
   interpolation into a graph URI / Cypher.
 
+## Caveat: `query_pattern` (L2 DSL) + scoped data on Fuseki
+
+`query_pattern` is the scope-*less* L2 escape hatch — it has no `ontology`
+parameter and queries the default graph. On **Neo4j / FalkorDB** scoped data
+shares one physical graph (tagged `_ontology`), so `query_pattern` sees it
+regardless of scope. On **Fuseki**, scoped data lives in named graphs, so
+`query_pattern` only sees it when the dataset has **`tdb2:unionDefaultGraph
+true`** (the default graph then unions all named graphs). A bare `--mem` dev
+dataset without that flag returns **0** for `query_pattern` against named-graph-
+scoped data — verified in the cross-backend health check. Production Fuseki
+config sets the union flag; the in-memory dev container may not. Scope-aware
+tools (`find_entities`, `count_entities`, …) are unaffected — they wrap the
+explicit `GRAPH <urn:ontorag:{id}:…>`. Unscoped data (the common case) is in the
+default graph and works on all three backends.
+
 ## Out of scope
 - Per-ontology access control / quotas.
 - Cross-ontology entity alignment / owl:sameAs resolution.
