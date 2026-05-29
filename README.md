@@ -38,6 +38,12 @@ Vector RAG handles flat lookups well — the structural advantage of ontorag app
 
 **Speed:** the graph layer adds only ~1.5% of wall time — query latency is LLM-bound. See [Performance — agent latency profile](#performance--agent-latency-profile).
 
+**Backend parity (v1.0):** the same protocol tools return **identical** results
+across all three backends (Fuseki / Neo4j / FalkorDB) — schema, subclass-inferred
+counts, aggregation, traversal, and the probabilistic/causal layers all match.
+Measured, key-free, reproducible: [docs/BENCHMARK_v1.md](docs/BENCHMARK_v1.md)
+(130-question goldset, 0 failures; 7/7 deterministic metrics at full parity).
+
 ---
 
 ## Key features
