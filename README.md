@@ -51,7 +51,7 @@ Measured, key-free, reproducible: [docs/BENCHMARK_v1.md](docs/BENCHMARK_v1.md)
 | Feature | Detail |
 |---|---|
 | **Ontology-first** | RDF/OWL schema (TBox) + instance data (ABox) as primary structure |
-| **Agentic MCP loop** | LLM calls 13 typed tools (L1 intent + L2 DSL + BM25 `search_text` + vector `find_similar` + `aggregate`); tool calls visible in SSE stream |
+| **Agentic MCP loop** | LLM calls 18 typed MCP tools (L1 intent + L2 DSL + capability search/similar/aligned + probabilistic + causal); tool calls visible in SSE stream |
 | **Full-text + vector retrieval** | BM25 `search_text` (jena-text / Neo4j fulltext) and graph-embedding `find_similar` (structural / textual / hybrid, with subClassOf-aware `class_uri` filter) — both backends |
 | **Probabilistic + causal reasoning** | Bayesian network over the OWL graph: `compute_posterior` / `mpe` (v0.7) + Pearl Rung 2-3 `do_query` / `identify_effect` / `counterfactual` (v0.8) — pgmpy-native, `[bayes]` extra, both backends. Causal DAG is user-supplied (see [note](#causal-reasoning--over-claim-guard)). |
 | **Web UI** | Built-in browser interface — Schema graph, Data browser, Playground chat at `/ui` |
@@ -222,6 +222,7 @@ User  (CLI / browser)
                    ▼
    Apache Jena Fuseki  (SPARQL)  ← default, GRAPH_STORE=fuseki
    Neo4j + n10s        (Cypher)  ← v0.5, GRAPH_STORE=neo4j
+   FalkorDB            (Cypher)  ← v0.9, GRAPH_STORE=falkordb
 ```
 
 The diagram shows the L1/L2 core. The full MCP surface also includes the v0.5
@@ -311,6 +312,10 @@ Settings are written to `.env` in the current directory.
 | `QDRANT_URL` | `http://localhost:6333` | Vector store for Fuseki `find_similar` |
 | `EMBEDDING_PROVIDER` | `openai` | Textual embeddings: `openai` · `ollama` |
 | `ONTOLOGY_ACCESS` | — | Per-ontology access lock, e.g. `poke:rw,shop:r,secret:none`; unset = fully open (default) |
+| `FUSEKI_TIMEOUT` | `60` | Fuseki HTTP request timeout (s); `0`/empty = unbounded (v1.0) |
+| `NEO4J_QUERY_TIMEOUT` | `30` | Neo4j per-query transaction timeout (s); `0`/empty = unbounded (v1.0) |
+| `FALKORDB_QUERY_TIMEOUT` | `30` | FalkorDB per-query timeout (s); `0`/empty = unbounded (v1.0) |
+| `LLM_TIMEOUT` | `60` | LLM request timeout (s) for all providers; `0`/empty = unbounded (v1.0) |
 
 All of the above can be written to `.env` via `ontorag config set`
 (`--graph-store`, `--neo4j-url/-user/-password`, `--qdrant-url`, …) and
@@ -338,13 +343,19 @@ ontorag clear schema                     # Drop TBox graph
 ontorag clear data                       # Drop ABox graph
 ontorag clear all                        # Drop both graphs
 
+ontorag dump schema|data|all [-f ttl|json|jsonl|xlsx] [-o FILE]  # export graph
+
+ontorag embed [--mode structural|textual|both] [--ontology X]    # build graph embeddings (find_similar)
+
 ontorag serve [--host HOST] [--port PORT] [--reload]
 
 ontorag chat                    # Interactive REPL
 
+ontorag history list|show <id>|delete <id>|clear   # chat conversation history
+
 ontorag status                  # Graph store connection + triple counts
 
-ontorag config set [OPTIONS]
+ontorag config set [OPTIONS]    # incl. --falkordb-*, --neo4j-*, --*-timeout via env
 ontorag config show
 
 # v0.3 — Ontology learning from text
@@ -386,6 +397,12 @@ ontorag causal clear
 
 ## REST API
 
+System endpoints: `GET /health` (liveness), `GET /status` (backend connection +
+triple counts), `POST /load` (upload RDF), `GET /dump?target=…&format=…` (export
+TTL/JSON/JSONL/XLSX). All tool routes under `/tools/*` are also plain REST and
+auto-exposed as MCP tools at `/mcp`. Any unhandled error returns a structured
+`{detail, type}` 500 (v1.0).
+
 ### `POST /chat`
 
 ```bash
@@ -406,7 +423,7 @@ data: {"type": "done"}
 
 ### `GET /mcp`
 
-MCP (Model Context Protocol) endpoint. Any MCP-compatible client can connect and call the 9 ontology tools directly.
+MCP (Model Context Protocol) endpoint. Any MCP-compatible client can connect and call the 18 ontology / reasoning tools directly (see [MCP tools](#mcp-tools)).
 
 ---
 
@@ -420,9 +437,8 @@ MCP (Model Context Protocol) endpoint. Any MCP-compatible client can connect and
 | `describe_entity` | L1 | All properties and relationships of one entity |
 | `count_entities` | L1 | Instance count for a class |
 | `aggregate` | L1 | Group instances by a property → count / sum / avg / min / max |
-| `traverse_graph` | L1 | BFS from a node (outgoing / incoming / both) |
+| `traverse_graph` | L1 | BFS from a node (outgoing / incoming / both); follows `owl:TransitiveProperty` closure when a predicate is given |
 | `find_path` | L1 | Shortest path between two entities |
-| `property_path_query` | L1 | `owl:TransitiveProperty` closure (`predicate+`) — instance / label / class-wide |
 | `find_related` | L1 | Cross-class join via a predicate |
 | `query_pattern` | L2 | JSON triple-pattern DSL → safe SPARQL translation |
 | `search_text` | Cap | BM25 full-text (jena-text / Neo4j fulltext) — both backends |
@@ -1228,6 +1244,7 @@ FUSEKI_DATASET=ontorag uv run python scripts/bench_query_speed_4domain.py --n 20
 - **v0.8** — **Causal layer (Pearl Rung 2-3)**: `causal:` vocabulary + `urn:ontorag:causal` graph (Fuseki + Neo4j parity) · `CausalEngine` (pgmpy-native, **not DoWhy**) → `do_query` (intervention + back-door adjustment) · `identify_effect` (back-door/front-door sets) · `counterfactual` (canonical-SCM) MCP tools · PC structure discovery (`learn-dag`, proposal-only) · `ontorag causal` CLI · smoking confounder example (`do` 0.60 ≠ `see` 0.72). Causal DAG is user-supplied; ontorag does not validate causal semantics. ✅
 - **v0.8.4** — **Reasoning WebUI**: single `🧮 Reasoning` tab with Bayesian / Causal sub-tabs (HTMX) · evidence/query → posterior/mpe · do / observed / query → do_query / counterfactual / identify_effect · DAG view + "do(X) vs see" cross-link · Playwright E2E 16/16. ✅
 - **v0.9** — **FalkorDB backend** (3rd, Cypher/GraphBLAS): `stores/falkordb.py` reuses the Neo4j L1 + reasoning mixins; **custom rdflib→Cypher loader** (no n10s) reproducing SHORTEN/LABELS_AND_NODES/ARRAY · native `db.idx.fulltext` (`_fulltext` scalar shadow) + native vector index (pure-Python FastRP) · full protocol + capability parity (schema/entities/traversal/search/similar/bayes/causal), 11 live integration tests identical to Fuseki/Neo4j. **RSAL-licensed** (not OSI open source). ✅
+- **v1.0** — **Production-Ready & Proven**: configurable query/LLM timeouts on all backends (`*_TIMEOUT` env) · global structured-500 exception handler (no traceback leak) · CI gate runs ruff + the full unit suite (910) on every push/PR + a Neo4j/FalkorDB integration job · **3-backend deterministic benchmark** ([docs/BENCHMARK_v1.md](docs/BENCHMARK_v1.md): 130-q goldset 0 failures, 7/7 protocol metrics at full parity). GNN/learning layer deferred to v1.1+. ✅
 
 ---
 
