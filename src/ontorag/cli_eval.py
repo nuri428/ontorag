@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rdflib import Graph
@@ -525,3 +526,95 @@ def _print_run_summary(
             )
             for row in preview:
                 console.print(f"      {row}")
+
+
+# ── reasoning (probabilistic + causal goldset) ────────────────────────────────
+
+
+@eval_app.command("reasoning")
+def eval_reasoning(
+    goldset: Path = typer.Argument(  # noqa: B008
+        ...,
+        exists=True,
+        dir_okay=False,
+        readable=True,
+        help="추론 goldset JSONL (posterior/do/counterfactual/identify).",
+    ),
+    output: Optional[Path] = typer.Option(  # noqa: B008
+        None, "--output", "-o", help="JSON 리포트를 저장할 경로."
+    ),
+) -> None:
+    """추론 레이어(베이지안/인과) goldset을 활성 백엔드에 대해 평가합니다.
+
+    백엔드에 저장된 베이지안 네트워크(+선택적 인과 DAG)를 로드하여 각 질문의
+    posterior / do / counterfactual / identify 결과를 expected 값과 tolerance
+    내에서 비교합니다. `GRAPH_STORE`로 백엔드를 선택합니다 ([bayes] extra 필요).
+    먼저 `ontorag bayes load`(+ `ontorag causal load`)로 모델을 적재하세요.
+    """
+    import asyncio
+    import json as _json
+
+    from ontorag.eval.reasoning_goldset import ReasoningGoldset, evaluate
+    from ontorag.stores.factory import create_store
+
+    gs = ReasoningGoldset.load(goldset)
+
+    async def _go() -> dict:
+        store = create_store()
+        try:
+            getter = getattr(store, "get_bayes_network", None)
+            if getter is None:
+                err_console.print(
+                    f"[red]Error:[/] 활성 백엔드({type(store).__name__})는 추론을 "
+                    "지원하지 않습니다."
+                )
+                raise typer.Exit(1)
+            bn = await getter(ontology=None)
+            if bn is None:
+                err_console.print(
+                    "[red]Error:[/] 저장된 베이지안 네트워크가 없습니다 — "
+                    "`ontorag bayes load <network.ttl>`로 먼저 적재하세요."
+                )
+                raise typer.Exit(1)
+            cgetter = getattr(store, "get_causal_model", None)
+            causal = await cgetter(ontology=None) if cgetter else None
+            return await evaluate(gs, bn, causal)
+        finally:
+            await store.aclose()
+
+    report = asyncio.run(_go())
+
+    table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
+    table.add_column("ID", style="cyan")
+    table.add_column("kind")
+    table.add_column("결과")
+    table.add_column("상세", style="dim")
+    for r in report["results"]:
+        ok = r["passed"]
+        mark = "[green]✓[/]" if ok else "[red]✗[/]"
+        if r["kind"] == "identify":
+            extra = f"backdoor={r.get('got_backdoor')}"
+        elif "error" in r:
+            extra = r["error"]
+        else:
+            extra = f"got={r.get('got')} (±{r.get('max_deviation')})"
+        table.add_row(r["id"], r["kind"], mark, extra)
+    console.print(table)
+
+    if report["failures"]:
+        console.print(
+            f"[red]✗ {report['failures']}/{report['total']} reasoning checks failed[/]"
+        )
+    else:
+        console.print(
+            f"[green]✓ all {report['total']} reasoning checks passed[/]"
+        )
+
+    if output is not None:
+        output.write_text(
+            _json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        console.print(f"[dim]JSON report → {output}[/]")
+
+    if report["failures"]:
+        raise typer.Exit(1)

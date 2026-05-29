@@ -346,7 +346,7 @@ for full options.
 | `history` | `list` · `show` · `delete` · `clear` | Manage saved chat conversations |
 | `config` | `set` · `show` | Read/write `.env` (LLM, backend, `--*-timeout`) |
 | `learn` | `type-term` · `taxonomy` · `extract` · `populate` · `populate-structured` · `derive-shapes` | LLMs4OL: text/CSV/JSON → RDF triples; OWL→SHACL skeleton |
-| `eval` | `validate` · `run` · `report` · `bench` · `compare` | Goldset + RAGAS evaluation harness |
+| `eval` | `validate` · `run` · `report` · `bench` · `compare` · `reasoning` | Goldset + RAGAS harness; `reasoning` checks the Bayesian/causal layer against expected values |
 | `bayes` | `load` · `show` · `posterior` · `mpe` · `learn-cpt` · `clear` | Probabilistic layer (needs `[bayes]`) |
 | `causal` | `load` · `show` · `do` · `identify` · `counterfactual` · `learn-dag` · `clear` | Causal layer, Pearl Rung 2-3 (needs `[bayes]`) |
 

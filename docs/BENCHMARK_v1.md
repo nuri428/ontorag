@@ -61,8 +61,11 @@ backends (P(Cancer|see)=0.72, P(Cancer|do)=0.60, counterfactual=0.28) — see
   `ontorag eval bench --with-ragas` but are *not* part of this key-free v1.0
   evidence. Prior real RAGAS runs (Fuseki, gpt-4o-mini) live in
   `BENCHMARK_RESULTS.md`.
-- **Reasoning layers** have no goldset questions yet; their parity is shown by
-  the engine tests, not by `eval`.
+- **Reasoning layers** now have a goldset too: `examples/smoking/reasoning_goldset.jsonl`
+  (6 hand-verified posterior / do / counterfactual / identify checks) runs via
+  `ontorag eval reasoning <goldset>` against the stored BN + causal DAG on any
+  backend — e.g. P(Cancer|see)=0.72, P(Cancer|do)=0.60, counterfactual=0.28,
+  back-door set {Genotype}. All 6 pass.
 - **Known sharp edge (not a v1.0 blocker):** on Neo4j/FalkorDB, re-loading with
   `replace=True` for *both* schema and data in succession can drop property-type
   declarations (schema and data share one physical graph). The normal load order
