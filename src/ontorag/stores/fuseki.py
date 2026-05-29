@@ -77,6 +77,7 @@ class FusekiStore(
         dataset: str,
         user: str,
         password: str,
+        timeout: float | None = 60.0,
     ) -> None:
         """Initialize the Fuseki store adapter.
 
@@ -85,11 +86,15 @@ class FusekiStore(
             dataset: Dataset name (e.g. "ontology").
             user: HTTP Basic auth username.
             password: HTTP Basic auth password.
+            timeout: HTTP request timeout in seconds for the SPARQL client.
+                ``None`` disables the bound. Prevents a slow/hung Fuseki from
+                blocking the worker indefinitely.
         """
         # Extra namespace prefixes captured from loaded RDF files
         self._namespaces: dict[str, str] = {}
         self._base = url.rstrip("/")
         self._dataset = dataset
+        self._timeout = timeout
         self._auth = httpx.BasicAuth(user, password)
         self._client: httpx.AsyncClient | None = None
         self._dataset_ensured: bool = False
@@ -100,21 +105,25 @@ class FusekiStore(
     def from_env(cls) -> FusekiStore:
         """Create a FusekiStore from environment variables.
 
-        Reads: FUSEKI_URL, FUSEKI_DATASET, FUSEKI_USER, FUSEKI_PASSWORD.
+        Reads: FUSEKI_URL, FUSEKI_DATASET, FUSEKI_USER, FUSEKI_PASSWORD,
+        FUSEKI_TIMEOUT.
 
         Returns:
             Configured FusekiStore instance.
         """
+        from ontorag.core.config import env_timeout  # noqa: PLC0415
+
         return cls(
             url=os.environ.get("FUSEKI_URL", "http://localhost:3030"),
             dataset=os.environ.get("FUSEKI_DATASET", "ontorag"),
             user=os.environ.get("FUSEKI_USER", "admin"),
             password=os.environ.get("FUSEKI_PASSWORD", "admin"),
+            timeout=env_timeout("FUSEKI_TIMEOUT", 60.0),
         )
 
     async def _http(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(auth=self._auth, timeout=60.0)
+            self._client = httpx.AsyncClient(auth=self._auth, timeout=self._timeout)
         return self._client
 
     async def aclose(self) -> None:

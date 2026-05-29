@@ -23,20 +23,27 @@ class AnthropicProvider:
         api_key: str | None = None,
         model: str = "claude-sonnet-4-6",
         max_tokens: int = 1024,
+        timeout: float | None = 60.0,
     ) -> None:
         key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
         if not key:
             raise ValueError("ANTHROPIC_API_KEY is required")
-        self._client = anthropic.AsyncAnthropic(api_key=key, max_retries=0)
+        self._client = anthropic.AsyncAnthropic(
+            api_key=key, max_retries=0, timeout=timeout
+        )
         self._model = model
         self._max_tokens = max_tokens
 
     @classmethod
     def from_env(cls) -> AnthropicProvider:
-        """Create from environment variables: ANTHROPIC_API_KEY, LLM_MODEL."""
+        """Create from environment variables: ANTHROPIC_API_KEY, LLM_MODEL,
+        LLM_TIMEOUT (request timeout in seconds; default 60)."""
+        from ontorag.core.config import env_timeout  # noqa: PLC0415
+
         return cls(
             api_key=os.environ.get("ANTHROPIC_API_KEY"),
             model=os.environ.get("LLM_MODEL", "claude-sonnet-4-6"),
+            timeout=env_timeout("LLM_TIMEOUT", 60.0),
         )
 
     async def complete(

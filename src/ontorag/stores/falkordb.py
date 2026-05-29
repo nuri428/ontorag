@@ -78,6 +78,7 @@ class FalkorDBStore(
         port: int = 6379,
         password: str | None = None,
         graph_name: str = "ontorag",
+        query_timeout: float | None = 30.0,
     ) -> None:
         """Initialize the FalkorDB adapter.
 
@@ -86,6 +87,10 @@ class FalkorDBStore(
             port: FalkorDB (Redis) port.
             password: Optional Redis AUTH password.
             graph_name: Logical graph key within FalkorDB.
+            query_timeout: Per-query timeout in seconds. ``None`` disables the
+                bound. FalkorDB's ``graph.query`` takes a timeout in
+                milliseconds, so this is converted on use. Prevents a
+                pathological query from hanging the worker indefinitely.
         """
         try:
             from falkordb.asyncio import FalkorDB  # noqa: PLC0415
@@ -98,6 +103,10 @@ class FalkorDBStore(
         self._host = host
         self._port = port
         self._graph_name = graph_name
+        # FalkorDB query() timeout is in milliseconds; None = unbounded.
+        self._timeout_ms: int | None = (
+            int(query_timeout * 1000) if query_timeout else None
+        )
         self._db = FalkorDB(host=host, port=port, password=password)
         self._graph = self._db.select_graph(graph_name)
         # prefix ↔ namespace maps (persisted in :_OntoragMeta, rebuilt per process)
@@ -111,9 +120,12 @@ class FalkorDBStore(
     def from_env(cls) -> FalkorDBStore:
         """Create a FalkorDBStore from environment variables.
 
-        Reads: FALKORDB_HOST, FALKORDB_PORT, FALKORDB_PASSWORD, FALKORDB_GRAPH.
-        Defaults: localhost, 6379, (none), ontorag.
+        Reads: FALKORDB_HOST, FALKORDB_PORT, FALKORDB_PASSWORD, FALKORDB_GRAPH,
+        FALKORDB_QUERY_TIMEOUT.
+        Defaults: localhost, 6379, (none), ontorag, 30 (seconds).
         """
+        from ontorag.core.config import env_timeout  # noqa: PLC0415
+
         port_raw = os.environ.get("FALKORDB_PORT", "6379")
         try:
             port = int(port_raw)
@@ -124,6 +136,7 @@ class FalkorDBStore(
             port=port,
             password=os.environ.get("FALKORDB_PASSWORD") or None,
             graph_name=os.environ.get("FALKORDB_GRAPH", "ontorag"),
+            query_timeout=env_timeout("FALKORDB_QUERY_TIMEOUT", 30.0),
         )
 
     # ── Driver helpers ────────────────────────────────────────────────────────
@@ -151,17 +164,17 @@ class FalkorDBStore(
 
     async def _run(self, cypher: str, **params: Any) -> list[dict[str, Any]]:
         """Execute a read query, returning Neo4j-shaped record dicts."""
-        result = await self._graph.query(cypher, params or None)
+        result = await self._graph.query(cypher, params or None, timeout=self._timeout_ms)
         return self._normalize(result)
 
     async def _run_write(self, cypher: str, **params: Any) -> list[dict[str, Any]]:
         """Execute a write query, returning Neo4j-shaped record dicts."""
-        result = await self._graph.query(cypher, params or None)
+        result = await self._graph.query(cypher, params or None, timeout=self._timeout_ms)
         return self._normalize(result)
 
     async def _run_query(self, cypher: str, params: dict[str, Any]) -> list[dict[str, Any]]:
         """Execute a query with an explicit params dict (pattern_to_cypher path)."""
-        result = await self._graph.query(cypher, params or None)
+        result = await self._graph.query(cypher, params or None, timeout=self._timeout_ms)
         return self._normalize(result)
 
     # ── Prefix map (n10s _NsPrefDef analogue, persisted in :_OntoragMeta) ──────

@@ -34,6 +34,7 @@ from typing import Any, Literal
 
 from rdflib import Graph, URIRef
 
+from ontorag.core.config import env_timeout as _env_timeout
 from ontorag.core.loader import detect_mode, parse_rdf
 from ontorag.core.ontology import validate_ontology_id
 from ontorag.core.sparql import STANDARD_PREFIXES
@@ -106,6 +107,7 @@ class Neo4jStore(
         user: str,
         password: str,
         database: str = "neo4j",
+        query_timeout: float | None = 30.0,
     ) -> None:
         """Initialize the Neo4j store adapter.
 
@@ -114,6 +116,10 @@ class Neo4jStore(
             user: Authentication username.
             password: Authentication password.
             database: Target database name (default: "neo4j").
+            query_timeout: Per-query transaction timeout in seconds (passed to
+                ``session.run(..., timeout=…)``). ``None`` disables the bound
+                (server default). Prevents a pathological query from hanging
+                the worker indefinitely.
         """
         try:
             from neo4j import AsyncGraphDatabase  # noqa: PLC0415
@@ -125,6 +131,7 @@ class Neo4jStore(
 
         self._uri = uri
         self._database = database
+        self._query_timeout = query_timeout
         self._driver = AsyncGraphDatabase.driver(uri, auth=(user, password))
         # prefix → namespace mapping (populated from _NsPrefDef after each load)
         self._prefix_to_ns: dict[str, str] = {}
@@ -141,8 +148,9 @@ class Neo4jStore(
     def from_env(cls) -> Neo4jStore:
         """Create a Neo4jStore from environment variables.
 
-        Reads: NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, NEO4J_DATABASE.
-        Defaults: bolt://localhost:7687, neo4j, neo4j, neo4j.
+        Reads: NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, NEO4J_DATABASE,
+        NEO4J_QUERY_TIMEOUT.
+        Defaults: bolt://localhost:7687, neo4j, neo4j, neo4j, 30 (seconds).
 
         Returns:
             Configured Neo4jStore instance.
@@ -152,6 +160,7 @@ class Neo4jStore(
             user=os.environ.get("NEO4J_USER", "neo4j"),
             password=os.environ.get("NEO4J_PASSWORD", "neo4j"),
             database=os.environ.get("NEO4J_DATABASE", "neo4j"),
+            query_timeout=_env_timeout("NEO4J_QUERY_TIMEOUT", 30.0),
         )
 
     # ── Driver helpers ────────────────────────────────────────────────────────
@@ -167,7 +176,7 @@ class Neo4jStore(
             List of record dicts (key = result column name).
         """
         async with self._driver.session(database=self._database) as session:
-            result = await session.run(cypher, **params)
+            result = await session.run(cypher, timeout=self._query_timeout, **params)
             records = await result.data()
             return records
 
@@ -182,7 +191,7 @@ class Neo4jStore(
             List of record dicts.
         """
         async with self._driver.session(database=self._database) as session:
-            result = await session.run(cypher, **params)
+            result = await session.run(cypher, timeout=self._query_timeout, **params)
             records = await result.data()
             return records
 
@@ -197,7 +206,7 @@ class Neo4jStore(
             List of record dicts.
         """
         async with self._driver.session(database=self._database) as session:
-            result = await session.run(cypher, **params)
+            result = await session.run(cypher, timeout=self._query_timeout, **params)
             return await result.data()
 
     # ── Prefix map ────────────────────────────────────────────────────────────

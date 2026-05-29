@@ -98,6 +98,7 @@ class OpenAIProvider:
         model: str = "gpt-4o",
         base_url: str | None = None,
         max_tokens: int = 1024,
+        timeout: float | None = 60.0,
     ) -> None:
         try:
             from openai import AsyncOpenAI
@@ -113,6 +114,8 @@ class OpenAIProvider:
         kwargs: dict[str, Any] = {"api_key": key or "ollama", "max_retries": 0}
         if base_url:
             kwargs["base_url"] = base_url
+        if timeout is not None:
+            kwargs["timeout"] = timeout
 
         self._client = AsyncOpenAI(**kwargs)
         self._model = model
@@ -120,9 +123,12 @@ class OpenAIProvider:
 
     @classmethod
     def from_env(cls) -> OpenAIProvider:
+        from ontorag.core.config import env_timeout  # noqa: PLC0415
+
         return cls(
             api_key=os.environ.get("OPENAI_API_KEY"),
             model=os.environ.get("LLM_MODEL", "gpt-4o"),
+            timeout=env_timeout("LLM_TIMEOUT", 60.0),
         )
 
     async def complete(
