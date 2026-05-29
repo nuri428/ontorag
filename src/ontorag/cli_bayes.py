@@ -38,6 +38,17 @@ def _get_store():
     return store
 
 
+def _parse_ttl(file) -> Graph:
+    """Parse a Turtle file, exiting with a clean error on malformed input."""
+    g = Graph()
+    try:
+        g.parse(str(file), format="turtle")
+    except Exception as exc:  # rdflib raises BadSyntax / various parse errors
+        console.print(f"[red]Error:[/] {file} 파싱 실패 — {exc}")
+        raise typer.Exit(1)
+    return g
+
+
 def _parse_evidence(pairs: list[str]) -> dict[str, str]:
     evidence: dict[str, str] = {}
     for pair in pairs:
@@ -57,8 +68,7 @@ def bayes_load(
     """Store a full Bayesian network (structure + CPTs) from a bn: TTL file."""
     from ontorag.core.bayes import graph_to_network
 
-    g = Graph()
-    g.parse(str(file), format="turtle")
+    g = _parse_ttl(file)
     network = graph_to_network(g)
     if network is None:
         console.print(f"[red]Error:[/] {file} 에 bn:Variable 이 없습니다.")
@@ -241,8 +251,7 @@ def bayes_learn_cpt(
         console.print("[red]Error:[/] --estimator 는 bayes 또는 mle 여야 합니다.")
         raise typer.Exit(1)
 
-    g = Graph()
-    g.parse(str(file), format="turtle")
+    g = _parse_ttl(file)
     structure = graph_to_structure(g)
     if structure is None:
         console.print(f"[red]Error:[/] {file} 에 bn:Variable 이 없습니다.")

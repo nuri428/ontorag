@@ -36,6 +36,17 @@ def _store(require_bn: bool = False):
     return store
 
 
+def _parse_ttl(file) -> Graph:
+    """Parse a Turtle file, exiting with a clean error on malformed input."""
+    g = Graph()
+    try:
+        g.parse(str(file), format="turtle")
+    except Exception as exc:  # rdflib raises BadSyntax / various parse errors
+        console.print(f"[red]Error:[/] {file} 파싱 실패 — {exc}")
+        raise typer.Exit(1)
+    return g
+
+
 def _kv(pairs: list[str]) -> dict[str, str]:
     out: dict[str, str] = {}
     for p in pairs:
@@ -78,8 +89,7 @@ def causal_load(
     """Store a causal DAG (causal: TTL) into the causal named graph."""
     from ontorag.core.causal import graph_to_model
 
-    g = Graph()
-    g.parse(str(file), format="turtle")
+    g = _parse_ttl(file)
     model = graph_to_model(g)
     if model is None:
         console.print(f"[red]Error:[/] {file} 에 causal:Variable 이 없습니다.")
@@ -241,8 +251,7 @@ def causal_learn_dag(
     from ontorag.causal.discovery import discover_dag
     from ontorag.core.bayes import graph_to_structure
 
-    g = Graph()
-    g.parse(str(file), format="turtle")
+    g = _parse_ttl(file)
     structure = graph_to_structure(g)
     if structure is None:
         console.print(f"[red]Error:[/] {file} 에 변수가 없습니다.")

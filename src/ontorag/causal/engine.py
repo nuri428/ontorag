@@ -221,14 +221,18 @@ class CausalEngine:
         o = self._resolve_var(outcome)
         ci = CausalInference(self._causal_dag())
 
+        # pgmpy returns an (possibly empty) set when no covariate adjustment is
+        # needed, and None when the effect is not back-door identifiable — both
+        # are valid answers, not errors. Only a genuine computation failure (e.g.
+        # a malformed DAG) raises; surface that instead of masking it as
+        # "not identifiable". treatment/outcome are pre-validated by _resolve_var.
         try:
             backdoor = ci.get_minimal_adjustment_set(t, o)
-        except Exception:
-            backdoor = None
-        try:
             frontdoor = ci.get_all_frontdoor_adjustment_sets(t, o)
-        except Exception:
-            frontdoor = set()
+        except Exception as exc:  # pragma: no cover - pgmpy internal failure
+            raise CausalEngineError(
+                f"Identification of {t!r} → {o!r} failed: {exc}"
+            ) from exc
 
         backdoor_set = sorted(backdoor) if backdoor else []
         frontdoor_sets = [sorted(s) for s in frontdoor] if frontdoor else []

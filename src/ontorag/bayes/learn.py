@@ -15,6 +15,7 @@ estimation runs in a worker thread (``asyncio.to_thread``).
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import TYPE_CHECKING, Literal
 
 from ontorag.bayes.engine import BayesianEngineError
@@ -22,6 +23,8 @@ from ontorag.core.bayes import BayesNetwork, BayesVariable, CPD, StructureSpec
 
 if TYPE_CHECKING:
     from ontorag.stores.base import GraphStore
+
+logger = logging.getLogger(__name__)
 
 EstimatorName = Literal["bayes", "mle"]
 
@@ -96,28 +99,69 @@ async def gather_observations(
             )
 
     entities = await store.find_entities(target_class, limit=limit, ontology=ontology)
+    if len(entities) == limit:
+        logger.warning(
+            "gather_observations: hit the instance limit (%d) for %s — CPTs are "
+            "learned from a non-random first-%d slice. Raise `limit` to use the "
+            "full population.",
+            limit,
+            target_class,
+            limit,
+        )
     rows: list[dict[str, str]] = []
+    missing_count: dict[str, int] = {}  # var.uri → instances missing its value
+    undeclared: dict[str, set[str]] = {}  # var.uri → observed values not in states
     for ent in entities:
         row: dict[str, str] = {}
         usable = True
         for var in variables:
             raw = ent.properties.get(var.represents)
             if raw is None:
+                missing_count[var.uri] = missing_count.get(var.uri, 0) + 1
                 usable = False
                 break
             value = raw[0] if isinstance(raw, list) else raw
             state = str(value)
             if state not in var.states:
+                undeclared.setdefault(var.uri, set()).add(state)
                 usable = False
                 break
             row[var.uri] = state
         if usable:
             rows.append(row)
 
+    skipped = len(entities) - len(rows)
+    if skipped:
+        logger.warning(
+            "gather_observations: skipped %d/%d instances of %s. "
+            "Missing values per variable: %s. Undeclared values (likely a "
+            "bn:represents pointing at a URI/object property, or a state-label "
+            "mismatch): %s",
+            skipped,
+            len(entities),
+            target_class,
+            missing_count or "none",
+            {k: sorted(v)[:5] for k, v in undeclared.items()} or "none",
+        )
+
     if not rows:
+        detail = ""
+        if undeclared:
+            sample = {k: sorted(v)[:3] for k, v in undeclared.items()}
+            detail = (
+                f" Observed values not matching any declared state: {sample} — "
+                "check that bn:represents maps to a label/datatype property whose "
+                "values equal the declared bn:states (object-property URIs will "
+                "not match state labels)."
+            )
+        elif missing_count:
+            detail = (
+                f" Instances missing a value per variable: {missing_count} — "
+                "check the bn:represents property URIs."
+            )
         raise BayesianEngineError(
             f"No usable observations: none of the {len(entities)} instances of "
-            f"{target_class!r} had a declared state for every variable."
+            f"{target_class!r} had a declared state for every variable.{detail}"
         )
     return rows
 
