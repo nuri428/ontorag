@@ -86,6 +86,10 @@ Example session:
 
 ![Pokemon chat demo](assets/pokemon_chat_en.png)
 
+> Next: pick a backend (below) · [Installation](#installation) ·
+> [Configuration](#configuration) · [CLI reference](#cli-reference) ·
+> [Web UI](#web-ui) · [MCP tools](#mcp-tools).
+
 ### Choosing a backend (Fuseki ⇄ Neo4j ⇄ FalkorDB — full parity)
 
 `GRAPH_STORE` selects the backend. **All three expose the same CLI and MCP tools**,
@@ -176,7 +180,7 @@ Chat with the LLM agent. Tool calls (`find_entities`, `traverse_graph`, …) are
 
 ![Playground tab](assets/playground.png)
 
-### Reasoning tab (v0.8.4)
+### Reasoning tab
 
 Run the probabilistic and causal layers interactively (needs the `[bayes]` extra
 and a Bayesian network loaded via `ontorag bayes load`). Two sub-tabs:
@@ -231,7 +235,7 @@ v0.7/v0.8 **reasoning tools** (`compute_posterior`, `mpe`, `do_query`,
 `identify_effect`, `counterfactual`) — the latter compute over a Bayesian network
 / causal DAG held in dedicated named graphs (`urn:ontorag:probabilistic` /
 `urn:ontorag:causal`). See [MCP tools](#mcp-tools) and
-[Reasoning stack](#reasoning-stack--probabilistic-v07--causal-v08).
+[Reasoning stack](#reasoning-stack--probabilistic--causal).
 
 ### SSE event types
 
@@ -325,72 +329,45 @@ inspected with `ontorag config show`.
 
 ## CLI reference
 
+`ontorag <group> <command>` — 14 command groups. Run `ontorag <group> --help`
+for full options.
+
+| Group | Commands | What it does |
+|---|---|---|
+| `init` | — | Scaffold a project (docker-compose, .env.example, examples) |
+| `load` | `schema` · `data` · `<FILE\|DIR>` (auto) | Load RDF (TBox/ABox); directory loader maps sub-dir = ontology id |
+| `clear` | `schema` · `data` · `all` | Drop the TBox / ABox / both graphs |
+| `dump` | `schema` · `data` · `all` | Export a graph (`-f ttl\|json\|jsonl\|xlsx`, `-o FILE`) |
+| `embed` | — | Build graph embeddings for `find_similar` (`--mode structural\|textual\|both`) |
+| `status` | — | Backend connection + triple counts |
+| `serve` | — | Start the API + Web UI (`--host` `--port` `--reload`) |
+| `chat` | — | Interactive ontology Q&A REPL |
+| `history` | `list` · `show` · `delete` · `clear` | Manage saved chat conversations |
+| `config` | `set` · `show` | Read/write `.env` (LLM, backend, `--*-timeout`) |
+| `learn` | `type-term` · `taxonomy` · `extract` · `populate` · `populate-structured` · `derive-shapes` | LLMs4OL: text/CSV/JSON → RDF triples; OWL→SHACL skeleton |
+| `eval` | `validate` · `run` · `report` · `bench` · `compare` | Goldset + RAGAS evaluation harness |
+| `bayes` | `load` · `show` · `posterior` · `mpe` · `learn-cpt` · `clear` | Probabilistic layer (needs `[bayes]`) |
+| `causal` | `load` · `show` · `do` · `identify` · `counterfactual` · `learn-dag` · `clear` | Causal layer, Pearl Rung 2-3 (needs `[bayes]`) |
+
 ```bash
-ontorag init [DIR]              # Scaffold project files (docker-compose, .env.example, examples)
+# Load + inspect
+ontorag load schema examples/pokemon/schema.ttl   # TBox
+ontorag load data   examples/pokemon/data.ttl     # ABox (append; --replace to swap)
+ontorag load        ./ontologies/                 # directory → one ontology per sub-dir
+ontorag status
 
-ontorag load schema <FILE>               # Load TBox (class / property definitions)
-ontorag load data   <FILE>               # Load ABox — appends to existing data
-ontorag load data   <FILE> --replace     # Load ABox — replaces existing data
-ontorag load        <FILE>               # Auto-detect TBox vs ABox
+# Ontology learning from text (LLMs4OL)
+ontorag learn populate corpus.txt --shapes shapes.ttl   # A+B+C pipeline + SHACL gate
+ontorag learn populate-structured data.csv --class-uri pk:Pokemon --id-column name
 
-ontorag load        <DIR>                # Load a directory — each sub-dir name = ontology id,
-                                         #   schema files load before data (per scope)
-ontorag load        <DIR> --ontology X   # Flat-merge every file under one ontology id
-ontorag load        <DIR> --replace      # Replace each scope's data graph once, then append
-ontorag load        <DIR> --no-recursive # Top-level files only (no sub-dir walk)
-
-ontorag clear schema                     # Drop TBox graph
-ontorag clear data                       # Drop ABox graph
-ontorag clear all                        # Drop both graphs
-
-ontorag dump schema|data|all [-f ttl|json|jsonl|xlsx] [-o FILE]  # export graph
-
-ontorag embed [--mode structural|textual|both] [--ontology X]    # build graph embeddings (find_similar)
-
-ontorag serve [--host HOST] [--port PORT] [--reload]
-
-ontorag chat                    # Interactive REPL
-
-ontorag history list|show <id>|delete <id>|clear   # chat conversation history
-
-ontorag status                  # Graph store connection + triple counts
-
-ontorag config set [OPTIONS]    # incl. --falkordb-*, --neo4j-*, --*-timeout via env
-ontorag config show
-
-# v0.3 — Ontology learning from text
-ontorag learn type-term "React"                        # Task A — map term to TBox class
-ontorag learn taxonomy corpus.txt                      # Task B — propose rdfs:subClassOf
-ontorag learn extract corpus.txt                       # Task C — extract RDF triples
-ontorag learn populate corpus.txt [--yes]              # A+B+C pipeline → Fuseki
-
-# v0.3.1 — Structured ABox population (CSV / JSON / JSONL)
-ontorag learn populate-structured data.csv \
-    --class-uri pk:Pokemon --id-column name [--yes]
-ontorag learn populate-structured data.jsonl --batch-size 100 --yes
-ontorag learn populate-structured nested.json --min-confidence 0.8
-
-# v0.4.1 — SHACL validation gate
-ontorag learn derive-shapes schema.ttl -o shapes.ttl   # OWL → SHACL skeleton (mechanical)
-ontorag learn populate corpus.txt --shapes shapes.ttl  # validate LLM triples before load
-ontorag learn populate-structured data.csv --shapes shapes.ttl
-
-# v0.7 — Probabilistic layer (Bayesian) — needs the [bayes] extra
-ontorag bayes load network.ttl                              # store a bn: Bayesian network
-ontorag bayes posterior -q Outcome -e TypeMatchup=advantage # P(query | evidence)
-ontorag bayes mpe -e Outcome=lose                           # most probable explanation
-ontorag bayes learn-cpt structure.ttl --class pk:Battle --save  # estimate CPTs from ABox data
-ontorag bayes show                                          # print the stored network
-ontorag bayes clear
-
-# v0.8 — Causal layer (Pearl Rung 2-3) — needs the [bayes] extra
-ontorag causal load dag.ttl                                 # store a causal: DAG
-ontorag causal do -d Smoking=yes -q Cancer                  # P(query | do(X)) — intervention
-ontorag causal identify -t Smoking -o Cancer                # back-door / front-door adjustment sets
+# Probabilistic + causal reasoning  (uv sync --extra bayes)
+ontorag bayes  posterior -q Cancer -e Smoking=yes       # P(query | see)  → 0.72
+ontorag causal do        -d Smoking=yes -q Cancer       # P(query | do)   → 0.60
 ontorag causal counterfactual -O Smoking=yes -O Cancer=yes -i Smoking=no -q Cancer
-ontorag causal learn-dag structure.ttl --class pk:Battle    # PC structure proposal (add --save after review)
-ontorag causal show
-ontorag causal clear
+
+# Retrieval extras
+ontorag embed --mode both                               # then find_similar via /tools/similar
+ontorag dump all -f ttl -o export.ttl
 ```
 
 ---
@@ -466,7 +443,7 @@ claim. See [`docs/design/causal-layer.md`](docs/design/causal-layer.md).
 
 ---
 
-## v0.3 — LLMs4OL: Ontology Learning from Text
+## Ontology learning from text (LLMs4OL)
 
 v0.3 adds the **LLMs4OL pipeline** — an LLM reads plain text and proposes RDF triples that extend the live ontology. No manual authoring required.
 
@@ -495,7 +472,7 @@ ontorag learn populate examples/techstack/corpus.txt
 
 ![learn populate output](assets/learn_populate.png)
 
-### Structured ABox Population (`populate-structured`) — v0.3.1
+### Structured ABox Population (`populate-structured`)
 
 Reads a **CSV / JSON / JSONL** file, maps columns to TBox property URIs via LLM, and converts each row into RDF triples. The column mapping is cached in a sidecar `.mapping.json` file — subsequent runs reuse it without any LLM call.
 
@@ -521,7 +498,7 @@ ontorag learn populate-structured pokedex.jsonl --batch-size 100 --yes
 | `--min-confidence` | 0.7 | Minimum column-mapping confidence threshold |
 | `--yes` | false | Skip Fuseki load confirmation prompt |
 
-### v0.4.1 — SHACL validation gate
+### SHACL validation gate
 
 LLM-generated triples can be *syntactically* valid yet *semantically* wrong: HP=99999, six types on one Pokémon, ISO currency = "dollar". v0.5 adds an optional **SHACL validation step** between LLM output and Fuseki load — violating triples are filtered out and surfaced as `PopulationResult.violations`.
 
@@ -665,13 +642,18 @@ Loaded: 38
 | `examples/pure_land/shapes.ttl`  | vowNumber ∈ [1, 48], contemplationOrder ∈ [1, 16] |
 | `examples/commerce/shapes.ttl`   | ISO currency code = `^[A-Z]{3}$`, foundedYear ∈ [1000, 2100], non-negative employeeCount |
 
-### Test suite — v0.3.1 (264 tests)
+### Test suite
 
-![v0.3.1 test results](assets/learn_tests.png)
+As of v1.0 the suite is **910 unit tests** (deselect-`integration`) plus live
+integration tests per backend — all gated in CI on every push/PR (see
+`.github/workflows/test.yml`). The screenshot below is the v0.3.1 learning-module
+run.
+
+![learning-module test results](assets/learn_tests.png)
 
 ---
 
-## Reasoning stack — Probabilistic (v0.7) + Causal (v0.8)
+## Reasoning stack — Probabilistic + Causal
 
 ontorag layers a reasoning stack over the OWL graph. Each tier answers a
 different *kind* of question:
@@ -689,7 +671,7 @@ never the schema/data graphs), and return **identical results on both backends**
 [`bayesian-layer.md`](docs/design/bayesian-layer.md) ·
 [`causal-layer.md`](docs/design/causal-layer.md).
 
-### v0.7 — Probabilistic layer (Bayesian)
+### Probabilistic layer (Bayesian)
 
 A Bayesian network is authored in the `bn:` vocabulary (variables + CPTs as RDF)
 or **learned from ABox data**, then queried for posteriors / most-probable
@@ -723,7 +705,7 @@ observations (advantage 45/5, neutral 25/25, disadvantage 5/45):
 | P(win \| advantage) | **0.897** | 45/50 (BDeu-smoothed) |
 | P(lose \| disadvantage) | **0.897** | 45/50 |
 
-### v0.8 — Causal layer (Pearl Rung 2-3)
+### Causal layer (Pearl Rung 2-3)
 
 A user-supplied causal DAG (`causal:` vocabulary), optionally with latent
 confounders, sits over the quantified BN. `do` separates *seeing* from *doing*.
@@ -764,7 +746,7 @@ significance threshold — tune `--significance` and review before `--save`.
 
 ---
 
-## Example: Tech Stack ontology (v0.3 — LLMs4OL)
+## Example: Tech Stack ontology (LLMs4OL)
 
 This example shows what a plain vector-search RAG cannot do.
 
@@ -1138,7 +1120,7 @@ Full per-question breakdown and the v2→v9 iteration history are in
 [`BENCHMARK_RESULTS.md`](BENCHMARK_RESULTS.md). Per-domain analyses
 live in each `examples/<domain>/README.md`.
 
-### v0.5.x re-run — the expanded 13-tool agent (2026-05)
+### Re-run with the expanded agent tool-set (2026-05)
 
 The benchmark above was produced with the **9-tool** agent. v0.5.x wired
 three more tools into the agent loop — BM25 `search_text`, vector
