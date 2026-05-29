@@ -25,7 +25,11 @@
                     <span class="truncate block">
                         {% for k, v in entity.properties.items() %}
                         {% if not loop.first %}<span class="text-gray-700">, </span>{% endif %}
-                        <span class="text-gray-500">{{ k.split('#')[-1] }}</span>=<span class="text-gray-400">{{ v }}</span>
+                        <span class="text-gray-500">{{ k.split('#')[-1] }}</span>=<span class="text-gray-400">
+                            {%- if v is mapping -%}{{ v.label or v.uri.split('#')[-1].split('/')[-1] }}
+                            {%- elif v is sequence and v is not string -%}{{ v | length }} refs
+                            {%- else -%}{{ v }}{%- endif -%}
+                        </span>
                         {% endfor %}
                     </span>
                 </td>

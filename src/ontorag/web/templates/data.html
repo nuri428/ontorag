@@ -311,11 +311,21 @@ async function showEntityDetail(uri, label) {
         const shortLabel = data.label || label || uri.split('#').pop() || uri.split('/').pop();
         const props = data.properties || {};
 
+        // Format a property value: object-property targets are {uri, label}
+        // (or a list of them) — render the label / local name, not [object Object].
+        const fmtVal = (v) => {
+            if (Array.isArray(v)) return v.map(fmtVal).join(', ');
+            if (v && typeof v === 'object') {
+                return v.label || (v.uri ? (v.uri.split('#').pop() || v.uri.split('/').pop() || v.uri) : JSON.stringify(v));
+            }
+            return String(v);
+        };
+
         // Properties from describe_entity — actual entity attributes
         const propLines = Object.entries(props).map(([k, v]) => `
             <div class="flex gap-2 items-start">
                 <span class="text-gray-600 shrink-0 w-24 truncate">${escHtml(k.split('#').pop() || k)}:</span>
-                <span class="text-gray-300 break-all">${escHtml(String(v))}</span>
+                <span class="text-gray-300 break-all">${escHtml(fmtVal(v))}</span>
             </div>`);
 
         content.innerHTML = `
