@@ -1,0 +1,70 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  unit:
+    name: unit + lint (no live backends)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+      - name: Install dependencies (with bayes extra)
+        run: uv sync --extra dev --extra bayes
+      - name: Ruff lint
+        run: uv run ruff check src/ tests/
+      - name: Run unit suite (deselect integration)
+        run: uv run pytest -m "not integration" -q
+
+  integration:
+    name: integration (Neo4j + FalkorDB service containers)
+    runs-on: ubuntu-latest
+    # Integration is informative but must not block the PR if a service
+    # container flakes — the unit job above is the hard gate.
+    continue-on-error: true
+    services:
+      neo4j:
+        image: neo4j:5.26-community
+        env:
+          NEO4J_AUTH: neo4j/ontorag123
+          NEO4J_PLUGINS: '["apoc","n10s","graph-data-science"]'
+          NEO4J_dbms_security_procedures_unrestricted: "n10s.*,apoc.*,gds.*"
+          NEO4J_dbms_security_procedures_allowlist: "n10s.*,apoc.*,gds.*"
+        ports:
+          - "7687:7687"
+        options: >-
+          --health-cmd "cypher-shell -u neo4j -p ontorag123 'RETURN 1' || exit 1"
+          --health-interval 10s --health-timeout 10s --health-retries 20
+          --health-start-period 60s
+      falkordb:
+        image: falkordb/falkordb:latest
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping | grep -q PONG || exit 1"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      NEO4J_URI: bolt://localhost:7687
+      NEO4J_PASSWORD: ontorag123
+      FALKORDB_HOST: localhost
+      FALKORDB_PORT: "6379"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+      - name: Install dependencies (all extras)
+        run: uv sync --extra dev --extra bayes --extra neo4j --extra falkordb
+      - name: Run integration suite (Neo4j + FalkorDB)
+        run: uv run pytest -m integration -q
