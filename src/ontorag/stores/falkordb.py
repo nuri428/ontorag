@@ -202,10 +202,19 @@ class FalkorDBStore(
     async def _register_prefixes(self, graph: Graph) -> None:
         """Build a complete prefix map for *graph* and persist it.
 
-        Starts from rdflib's bound prefixes, then assigns a generated ``nsN``
+        Starts from any already-persisted prefixes (so a fresh process reuses
+        them), then rdflib's bound prefixes, then assigns a generated ``nsN``
         prefix to every namespace that appears in a URI but is unbound — so
         ``_shorten`` always yields a valid ``prefix__local`` for ``_safe_rel``.
+
+        Unbound namespaces are assigned ``nsN`` in **sorted order** so the
+        mapping is deterministic across reloads: the same namespace always gets
+        the same prefix, and therefore the same persisted ``prefix__local``
+        property/rel/label keys (otherwise rdflib's non-deterministic triple
+        order could split one predicate across two keys on re-load).
         """
+        # Reuse persisted prefixes first (deterministic + cross-process stable).
+        await self._reload_prefix_map()
         p2n = dict(self._prefix_to_ns)
         n2p = dict(self._ns_to_prefix)
 
@@ -223,15 +232,22 @@ class FalkorDBStore(
         for prefix, ns_ref in graph.namespaces():
             _add(str(prefix), str(ns_ref))
 
+        # Deterministic nsN assignment: collect unbound namespaces, sort, assign.
+        unbound = sorted(
+            {
+                self._namespace_of(str(term))
+                for triple in graph
+                for term in triple
+                if isinstance(term, URIRef)
+            }
+        )
         gen = 0
-        for triple in graph:
-            for term in triple:
-                if isinstance(term, URIRef):
-                    ns = self._namespace_of(str(term))
-                    if ns and ns.startswith("http") and ns not in n2p:
-                        while f"ns{gen}" in p2n:
-                            gen += 1
-                        _add(f"ns{gen}", ns)
+        for ns in unbound:
+            if not ns or not ns.startswith("http") or ns in n2p:
+                continue
+            while f"ns{gen}" in p2n:
+                gen += 1
+            _add(f"ns{gen}", ns)
 
         # Persist as flat properties on the single meta node.
         await self._run_write(
@@ -606,15 +622,15 @@ class FalkorDBStore(
                 f"WHERE t.uri IN $tbox{scope} RETURN DISTINCT n AS n"
             )
         elif target == "data":
-            node_q = (
-                "MATCH (n:Resource) "
-                "OPTIONAL MATCH (n)-[:rdf__type]->(t:Resource) WHERE t.uri IN $tbox "
-                f"WITH n, count(t) AS tc WHERE tc = 0{scope.replace('AND', 'AND') if ontology else ''} "
-                "RETURN n AS n"
-            )
             if ontology is not None:
                 node_q = (
                     "MATCH (n:Resource) WHERE $oid IN n._ontology "
+                    "OPTIONAL MATCH (n)-[:rdf__type]->(t:Resource) WHERE t.uri IN $tbox "
+                    "WITH n, count(t) AS tc WHERE tc = 0 RETURN n AS n"
+                )
+            else:
+                node_q = (
+                    "MATCH (n:Resource) "
                     "OPTIONAL MATCH (n)-[:rdf__type]->(t:Resource) WHERE t.uri IN $tbox "
                     "WITH n, count(t) AS tc WHERE tc = 0 RETURN n AS n"
                 )

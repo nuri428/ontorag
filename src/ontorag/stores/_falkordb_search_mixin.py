@@ -27,6 +27,12 @@ logger = logging.getLogger(__name__)
 
 _MAX_DEPTH_HARD = 6
 
+# Cap on the full-graph scan that rebuilds the _fulltext shadow. A load with
+# more :Resource nodes than this leaves the overflow un-indexed; we warn so the
+# truncation is never silent. (Acceptable at ontology-ABox scale — see
+# docs/design/falkordb.md; page the rebuild if this becomes a real ceiling.)
+_FT_SCAN_LIMIT = 50000
+
 
 class _FalkorDBSearchMixin:
     """Native full-text search capability for FalkorDBStore."""
@@ -35,9 +41,6 @@ class _FalkorDBSearchMixin:
     _run_write: Any
     _ensure_prefix_map: Any
     _tbox_type_list: Any
-
-    # Whether the _fulltext scalar shadow index has been built this process.
-    _ft_ready: bool = False
 
     async def _ensure_fulltext_index(self: "FalkorDBStore") -> None:
         """Build the scalar ``_fulltext`` shadow property + its full-text index.
@@ -51,7 +54,15 @@ class _FalkorDBSearchMixin:
         Synchronous + best effort: a failure here never breaks load_rdf.
         """
         try:
-            rows = await self._run("MATCH (n:Resource) RETURN n AS n LIMIT 50000")
+            rows = await self._run(
+                f"MATCH (n:Resource) RETURN n AS n LIMIT {_FT_SCAN_LIMIT}"
+            )
+            if len(rows) >= _FT_SCAN_LIMIT:
+                logger.warning(
+                    "FalkorDB full-text rebuild hit the %d-node scan cap; nodes "
+                    "beyond it are not searchable. Page the rebuild if needed.",
+                    _FT_SCAN_LIMIT,
+                )
             updates: list[dict[str, str]] = []
             for r in rows:
                 node = r.get("n")
@@ -85,10 +96,8 @@ class _FalkorDBSearchMixin:
             await self._run_write(
                 "CALL db.idx.fulltext.createNodeIndex('Resource', '_fulltext')"
             )
-            self._ft_ready = True
             logger.info("FalkorDB full-text index built on _fulltext (%d nodes).", len(updates))
         except Exception as exc:  # noqa: BLE001
-            self._ft_ready = False
             logger.warning("Failed to ensure FalkorDB full-text index: %s", exc)
 
     async def search_text(  # type: ignore[override]

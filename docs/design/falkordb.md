@@ -94,6 +94,26 @@ Reused verbatim from the Neo4j mixins: `:_BayesVariable` / `:_BayesCPD` and
 `:_CausalVariable` + `[:_CAUSES]` nodes tagged with `_scope`. These carry distinct
 labels (never `:Resource`), so they never pollute the `:Resource` graph queries.
 
+## Known limitations (surfaced by the v0.9 skeptic-code + pre-mortem review)
+
+These are deliberately deferred (out of v0.9.0 scope / would touch all backends);
+tracked here so they are not silent:
+
+- **Typed-literal fidelity** — `_literal_to_value` stores int/float/bool natively
+  but drops the `xsd:` datatype; `dump_graph` re-emits literals as plain/lang
+  strings. So an `xsd:date` / `xsd:integer` round-trips as `xsd:string`. Numeric
+  aggregation still works (`toFloat`), but TTL fidelity diverges from Fuseki.
+  Fix needs a parallel datatype map + a cross-backend dump→reload fidelity test.
+- **No query timeout** — `_run`/`_run_write` don't pass a timeout (identical to
+  the Neo4j adapter — a pre-existing repo-wide pattern). A pathological query can
+  block; under concurrent `/chat` the single graph handle is a scaling ceiling.
+  A timeout + connection pool is a cross-backend follow-up.
+- **Full-text rebuild cost** — `_ensure_fulltext_index` rebuilds the `_fulltext`
+  shadow for the whole graph on every `load_rdf` (O(N) writes), capped at
+  `_FT_SCAN_LIMIT` (50 000) nodes with a warning past the cap. Fine at ontology-
+  ABox scale; delta-only rebuild + pagination is the eventual fix.
+- **Blank nodes** — skipped by the loader (documented v0.9.0 simplification).
+
 ## Anti-patterns honored (CLAUDE.md)
 
 - GraphStore Protocol preserved — `create_store()` selects the backend by env var;
