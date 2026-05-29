@@ -540,18 +540,20 @@ Fuseki healthcheck: `GET /$/ping` → 200 OK.
 
 **v0.8.4** ✅ shipped — **Reasoning WebUI**: a single `🧮 Reasoning` tab (`web/templates/reasoning.html`) with Bayesian / Causal sub-tabs over the existing HTMX-partial pattern. Bayesian: evidence/query builders → `compute_posterior` / `mpe`. Causal: do / observed / query builders → `do_query` / `counterfactual` / `identify_effect`, plus the DAG edge list and a "do(X)로 비교 →" cross-link that seeds the Causal tab from the posterior evidence (the see≠do demo). Shared renderer `partials/dist_bars.html`; capability-guarded (`partials/reasoning_error.html` amber hint when no backend / no BN / no pgmpy). Routes in `web/router.py` (`/ui/reasoning` + `/ui/reasoning/posterior|mpe|causal/do|causal/identify|causal/counterfactual`), all reusing `BayesianEngine` / `CausalEngine`. Tests: `tests/test_web_reasoning.py` (10, guards run without pgmpy; happy-path asserts see 0.72 ≠ do 0.60).
 
-### v0.9 — FalkorDB backend
+### v0.9 — FalkorDB backend ✅ shipped
 
 **Goal**: third graph backend (Cypher-compatible, GraphBLAS-accelerated, LLM/RAG-positioned). Validates the parity story across all capability layers.
 
-**Decomposition** (~3-4 weeks):
+**Decomposition**:
 
 | Sub-version | Deliverable |
 |---|---|
-| **v0.9.0** | `stores/falkordb.py` + Cypher dialect adaptation; core protocol (schema/entities/traversal). ~2 weeks. |
-| **v0.9.1** | Capability parity — full-text (Redis Search), vector (built-in), Bayesian + Causal CPT/DAG storage. ~1-2 weeks. |
+| **v0.9.0** ✅ shipped | `stores/falkordb.py` (async `falkordb` client, `[falkordb]` extra) — **reuses the Neo4j L1 + reasoning mixins** (schema/entity/traversal/bayes/causal) since FalkorDB is OpenCypher. `_run` normalises Node→property-dict so the shared mixins work unchanged. **Custom rdflib→Cypher loader** replaces n10s (FalkorDB has none): reproduces SHORTEN (`prefix__local`), LABELS_AND_NODES (type-as-extra-label — FalkorDB supports multi-label), ARRAY (every literal a LIST), prefixes persisted in a `:_OntoragMeta` node. TBox/ABox classify + status + dump rewritten without `EXISTS{}` / `n10s.export`. |
+| **v0.9.1** ✅ shipped | Capability parity — full-text via FalkorDB native `db.idx.fulltext` (**`_fulltext` scalar shadow** property worked around FalkorDB only indexing scalars, not the ARRAY props); vector via native `CREATE VECTOR INDEX` + `db.idx.vector.queryNodes` with **pure-Python FastRP** (`core/fastrp.py`, no GDS — the Fuseki path) for structural embeddings + EmbeddingProvider textual + RRF hybrid; Bayesian + Causal CPT/DAG storage reused from the Neo4j mixins (distinct labels, not `:Resource`). |
 
-**License note**: FalkorDB is **RSAL (Redis Source Available License)**, *not* OSI-approved open source. README will document this honestly alongside Fuseki (Apache 2.0) and Neo4j (GPL/AGPL).
+**Dialect notes** (vs Neo4j, all live-verified against `falkordb/falkordb:latest`): `db.idx.*` not `db.index.*`; no `EXISTS{}` subqueries (use OPTIONAL MATCH + count); no `CONTAINS()` function (operator form only — fixed in shared `_build_filter_cypher`); full-text indexes scalars only; multi-label + `*0..N` paths + array props + `vecf32()` all supported. **Quality bar**: `tests/test_falkordb_integration.py` (11 tests) — full protocol + search + similar + bayes + causal + dump, identical results to Fuseki/Neo4j.
+
+**License note**: FalkorDB is **RSAL (Redis Source Available License)**, *not* OSI-approved open source. README documents this honestly alongside Fuseki (Apache 2.0) and Neo4j (GPL/AGPL).
 
 ### v1.0+ — Learning Layer (GNN)
 

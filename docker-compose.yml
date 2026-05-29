@@ -37,6 +37,23 @@ services:
       retries: 10
       start_period: 60s
 
+  # FalkorDB backend (v0.9) — Cypher-compatible, GraphBLAS-accelerated.
+  # Opt-in only:  docker compose --profile falkordb up -d falkordb
+  # RSAL-licensed (Redis Source Available License — not OSI open source).
+  # The browser UI is on :3001 (mapped from the image's :3000).
+  falkordb:
+    image: falkordb/falkordb:latest
+    profiles: ["falkordb"]
+    ports:
+      - "6379:6379"
+      - "3001:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
   # Qdrant vector store — used by the Fuseki backend for find_similar.
   # Opt-in:  docker compose --profile qdrant up -d qdrant
   # The Fuseki embedding mixin reads QDRANT_URL (default http://localhost:6333).
@@ -72,6 +89,10 @@ services:
       NEO4J_USER: ${NEO4J_USER:-neo4j}
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-ontorag123}
       NEO4J_DATABASE: ${NEO4J_DATABASE:-neo4j}
+      # FalkorDB backend — used when GRAPH_STORE=falkordb (start the falkordb profile too).
+      FALKORDB_HOST: ${FALKORDB_HOST:-falkordb}
+      FALKORDB_PORT: ${FALKORDB_PORT:-6379}
+      FALKORDB_GRAPH: ${FALKORDB_GRAPH:-ontorag}
       LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}

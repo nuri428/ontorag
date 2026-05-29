@@ -1,6 +1,6 @@
 [project]
 name = "ontorag"
-version = "0.8.4"
+version = "0.9.0"
 description = "Ontology-aware RAG framework. Ontology as the source of truth."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -87,6 +87,12 @@ vector = [
     # build_embeddings. Install when GRAPH_STORE=fuseki and you want
     # structural / textual / hybrid similarity search.
     "qdrant-client>=1.9.0,<1.10.0",
+]
+falkordb = [
+    # FalkorDB backend (v0.9) — Cypher-compatible, GraphBLAS-accelerated graph
+    # store. Install only when running with GRAPH_STORE=falkordb. The async
+    # client lives in falkordb.asyncio (built on redis.asyncio).
+    "falkordb>=1.0.0",
 ]
 bayes = [
     # Probabilistic layer (v0.7) — pgmpy powers compute_posterior / mpe and

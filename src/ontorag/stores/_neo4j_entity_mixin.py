@@ -488,7 +488,9 @@ def _build_filter_cypher(
         prop_expr = f"inst.`{short_prop}`[0]"  # unwrap ARRAY single value
 
         if f.op == FilterOp.contains:
-            parts.append(f"CONTAINS(toString({prop_expr}), ${param_key})")
+            # Operator form (canonical Cypher); portable to FalkorDB, which has
+            # no CONTAINS() function. Neo4j accepts the operator form too.
+            parts.append(f"toString({prop_expr}) CONTAINS ${param_key}")
         elif f.op == FilterOp.starts_with:
             parts.append(f"toString({prop_expr}) STARTS WITH ${param_key}")
         elif f.op == FilterOp.eq:
@@ -525,6 +527,12 @@ def _extract_props(
 
     for key, val in node_props.items():
         if key in skip_keys:
+            continue
+        # Skip internal bookkeeping props (never RDF predicates): _ontology,
+        # and the FalkorDB shadow/embedding props (_fulltext, _struct_embedding,
+        # _text_embedding). RDF predicates shorten to prefix__local where the
+        # prefix is alphanumeric, so a leading underscore is always internal.
+        if key.startswith("_"):
             continue
         full_key = expand_fn(key)
         unpacked = unpack_value(val)

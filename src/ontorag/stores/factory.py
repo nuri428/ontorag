@@ -7,7 +7,7 @@ from ontorag.stores.base import GraphStore
 
 logger = logging.getLogger(__name__)
 
-VALID_BACKENDS = ("fuseki", "neo4j")
+VALID_BACKENDS = ("fuseki", "neo4j", "falkordb")
 
 
 def create_store() -> GraphStore:
@@ -52,6 +52,16 @@ def create_store() -> GraphStore:
                 "Install it with: uv add 'ontorag[neo4j]' (or pip install neo4j)"
             ) from exc
         store = Neo4jStore.from_env()
+
+    elif backend == "falkordb":
+        try:
+            from ontorag.stores.falkordb import FalkorDBStore  # noqa: PLC0415
+        except ImportError as exc:
+            raise ValueError(
+                "GRAPH_STORE=falkordb requires the 'falkordb' client. "
+                "Install it with: uv add 'ontorag[falkordb]' (or pip install falkordb)"
+            ) from exc
+        store = FalkorDBStore.from_env()
 
     else:
         raise ValueError(

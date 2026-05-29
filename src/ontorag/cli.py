@@ -607,6 +607,10 @@ def config_set(
     qdrant_url: Optional[str] = typer.Option(
         None, help="Qdrant URL (Fuseki 백엔드의 find_similar 벡터 스토어)."
     ),
+    falkordb_host: Optional[str] = typer.Option(None, help="FalkorDB 호스트."),
+    falkordb_port: Optional[int] = typer.Option(None, help="FalkorDB 포트 (기본 6379)."),
+    falkordb_password: Optional[str] = typer.Option(None, help="FalkorDB 비밀번호."),
+    falkordb_graph: Optional[str] = typer.Option(None, help="FalkorDB 그래프 키명."),
 ) -> None:
     """LLM 및 스토어 설정을 .env 파일에 저장합니다."""
     from dotenv import set_key
@@ -683,6 +687,22 @@ def config_set(
         set_key(str(env_file), "QDRANT_URL", qdrant_url)
         changes.append(f"QDRANT_URL={qdrant_url}")
 
+    if falkordb_host is not None:
+        set_key(str(env_file), "FALKORDB_HOST", falkordb_host)
+        changes.append(f"FALKORDB_HOST={falkordb_host}")
+
+    if falkordb_port is not None:
+        set_key(str(env_file), "FALKORDB_PORT", str(falkordb_port))
+        changes.append(f"FALKORDB_PORT={falkordb_port}")
+
+    if falkordb_password is not None:
+        set_key(str(env_file), "FALKORDB_PASSWORD", falkordb_password)
+        changes.append("FALKORDB_PASSWORD=***")
+
+    if falkordb_graph is not None:
+        set_key(str(env_file), "FALKORDB_GRAPH", falkordb_graph)
+        changes.append(f"FALKORDB_GRAPH={falkordb_graph}")
+
     if not changes:
         console.print(
             "[yellow]변경 사항 없음.[/] 옵션을 지정하세요. (예: --provider anthropic)"
@@ -725,9 +745,13 @@ def config_show() -> None:
         ("NEO4J_PASSWORD", "Neo4j 비밀번호"),
         ("NEO4J_DATABASE", "Neo4j DB"),
         ("QDRANT_URL", "Qdrant URL"),
+        ("FALKORDB_HOST", "FalkorDB 호스트"),
+        ("FALKORDB_PORT", "FalkorDB 포트"),
+        ("FALKORDB_PASSWORD", "FalkorDB 비밀번호"),
+        ("FALKORDB_GRAPH", "FalkorDB 그래프"),
         ("EMBEDDING_PROVIDER", "임베딩 제공자"),
     ]
-    sensitive = {"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "NEO4J_PASSWORD"}
+    sensitive = {"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "NEO4J_PASSWORD", "FALKORDB_PASSWORD"}
 
     for env_key, label in keys:
         value = effective.get(env_key, "")

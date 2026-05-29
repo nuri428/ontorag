@@ -50,7 +50,7 @@ Vector RAG handles flat lookups well — the structural advantage of ontorag app
 | **Probabilistic + causal reasoning** | Bayesian network over the OWL graph: `compute_posterior` / `mpe` (v0.7) + Pearl Rung 2-3 `do_query` / `identify_effect` / `counterfactual` (v0.8) — pgmpy-native, `[bayes]` extra, both backends. Causal DAG is user-supplied (see [note](#causal-reasoning--over-claim-guard)). |
 | **Web UI** | Built-in browser interface — Schema graph, Data browser, Playground chat at `/ui` |
 | **Multi-LLM** | Anthropic Claude · OpenAI · Ollama (local) |
-| **Pluggable backend** | `GRAPH_STORE=fuseki` (default) or `neo4j` (Neo4j + n10s) — same tools, no code change. Neo4j adds native `rdfs:subClassOf` inference. |
+| **Pluggable backend** | `GRAPH_STORE=fuseki` (default) · `neo4j` (Neo4j + n10s) · `falkordb` (Cypher/GraphBLAS, v0.9) — same tools + full parity, no code change. |
 | **SSE streaming** | `thinking / tool_call / tool_result / text / done / rate_limit` events |
 | **Progressive disclosure** | `get_schema` (compact) + `get_class_detail` (drill-down) |
 | **Injection-safe L2 DSL** | `query_pattern` translates JSON triple patterns to SPARQL internally |
@@ -80,17 +80,22 @@ Example session:
 
 ![Pokemon chat demo](assets/pokemon_chat_en.png)
 
-### Choosing a backend (Fuseki ⇄ Neo4j — full parity)
+### Choosing a backend (Fuseki ⇄ Neo4j ⇄ FalkorDB — full parity)
 
-`GRAPH_STORE` selects the backend. **Both expose the same CLI and MCP tools**,
-including reasoning, full-text search, and vector similarity — each backend just
-uses its own native tech:
+`GRAPH_STORE` selects the backend. **All three expose the same CLI and MCP tools**,
+including reasoning, full-text search, vector similarity, and the Bayesian/causal
+layers — each backend just uses its own native tech:
 
-| Capability | `GRAPH_STORE=fuseki` (default) | `GRAPH_STORE=neo4j` |
-|---|---|---|
-| subClassOf reasoning | query-level SPARQL `subClassOf*` | Cypher `[:rdfs__subClassOf*]` |
-| `search_text` (BM25) | jena-text (Lucene) | native full-text index |
-| `find_similar` + `ontorag embed` | FastRP + embeddings → Qdrant | GDS FastRP + native vector index |
+| Capability | `GRAPH_STORE=fuseki` (default) | `GRAPH_STORE=neo4j` | `GRAPH_STORE=falkordb` |
+|---|---|---|---|
+| subClassOf reasoning | query-level SPARQL `subClassOf*` | Cypher `[:rdfs__subClassOf*]` | Cypher `[:rdfs__subClassOf*]` |
+| `search_text` (BM25) | jena-text (Lucene) | native full-text index | native `db.idx.fulltext` |
+| `find_similar` + `ontorag embed` | FastRP + embeddings → Qdrant | GDS FastRP + native vector index | FastRP + native vector index |
+| RDF loading | SPARQL named graphs | n10s (neosemantics) | custom rdflib→Cypher loader |
+
+> **FalkorDB license:** FalkorDB is **RSAL (Redis Source Available License)** —
+> *not* OSI-approved open source, unlike Fuseki (Apache 2.0) and Neo4j (GPL/AGPL).
+> Choose it for its GraphRAG/GraphBLAS performance positioning with that caveat in mind.
 
 Run on Neo4j:
 
@@ -115,6 +120,14 @@ ontorag embed --mode both       # structural (FastRP) + textual (EMBEDDING_PROVI
 (node text via OpenAI/Ollama), `hybrid` (reciprocal-rank fusion). `search_text`
 and `find_similar` return ranked hits with scores; an optional `class_uri`
 restricts to a class and its subclasses.
+
+Run on FalkorDB (v0.9 — needs the `[falkordb]` extra):
+
+```bash
+docker compose --profile falkordb up -d falkordb   # falkordb/falkordb:latest, port 6379
+ontorag config set --graph-store falkordb --falkordb-host localhost --falkordb-port 6379
+ontorag config show
+```
 
 ### Multiple ontologies in one instance
 
@@ -237,6 +250,7 @@ uv sync                      # core dependencies (Fuseki backend)
 # optional extras — install only what you need:
 uv sync --extra bayes        # v0.7/v0.8 probabilistic + causal reasoning (pgmpy + pandas)
 uv sync --extra neo4j        # Neo4j + n10s backend driver (GRAPH_STORE=neo4j)
+uv sync --extra falkordb     # FalkorDB backend client (GRAPH_STORE=falkordb, v0.9)
 uv sync --extra vector       # Qdrant vector store (Fuseki find_similar)
 ```
 
@@ -280,12 +294,14 @@ Settings are written to `.env` in the current directory.
 | `ANTHROPIC_API_KEY` | — | Required for Anthropic |
 | `OPENAI_API_KEY` | — | Required for OpenAI |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server |
-| `GRAPH_STORE` | `fuseki` | Backend: `fuseki` · `neo4j` |
+| `GRAPH_STORE` | `fuseki` | Backend: `fuseki` · `neo4j` · `falkordb` |
 | `FUSEKI_URL` | `http://localhost:3030` | SPARQL endpoint (`GRAPH_STORE=fuseki`) |
 | `FUSEKI_DATASET` | `ontorag` | Dataset name |
 | `NEO4J_URI` | `bolt://localhost:7687` | Bolt endpoint (`GRAPH_STORE=neo4j`) |
 | `NEO4J_USER` / `NEO4J_PASSWORD` | `neo4j` / — | Neo4j credentials |
 | `NEO4J_DATABASE` | `neo4j` | Neo4j database name |
+| `FALKORDB_HOST` / `FALKORDB_PORT` | `localhost` / `6379` | FalkorDB endpoint (`GRAPH_STORE=falkordb`) |
+| `FALKORDB_PASSWORD` / `FALKORDB_GRAPH` | — / `ontorag` | FalkorDB auth + graph key |
 | `QDRANT_URL` | `http://localhost:6333` | Vector store for Fuseki `find_similar` |
 | `EMBEDDING_PROVIDER` | `openai` | Textual embeddings: `openai` · `ollama` |
 | `ONTOLOGY_ACCESS` | — | Per-ontology access lock, e.g. `poke:rw,shop:r,secret:none`; unset = fully open (default) |
@@ -1204,6 +1220,8 @@ FUSEKI_DATASET=ontorag uv run python scripts/bench_query_speed_4domain.py --n 20
 - **v0.6.1** — **per-ontology access control** (config-driven read/write/none via `ONTOLOGY_ACCESS`, GraphStore-boundary wrapper) · **cross-ontology entity alignment** (`owl:sameAs` closure → `find_aligned`) · `load_rdf` pre-parsed-graph fast path ✅
 - **v0.7** — **Probabilistic layer (Bayesian)**: named-graph foundation (`OntologyLayer`, layer/ontology graph URIs) · `bn:` vocabulary + RDF round-trip · `BayesianStore` (Fuseki + Neo4j parity) · `BayesianEngine` (pgmpy) → `compute_posterior` / `mpe` MCP tools · `ontorag bayes` CLI incl. `learn-cpt` (CPT estimation from ABox). pgmpy is the `[bayes]` extra. ✅
 - **v0.8** — **Causal layer (Pearl Rung 2-3)**: `causal:` vocabulary + `urn:ontorag:causal` graph (Fuseki + Neo4j parity) · `CausalEngine` (pgmpy-native, **not DoWhy**) → `do_query` (intervention + back-door adjustment) · `identify_effect` (back-door/front-door sets) · `counterfactual` (canonical-SCM) MCP tools · PC structure discovery (`learn-dag`, proposal-only) · `ontorag causal` CLI · smoking confounder example (`do` 0.60 ≠ `see` 0.72). Causal DAG is user-supplied; ontorag does not validate causal semantics. ✅
+- **v0.8.4** — **Reasoning WebUI**: single `🧮 Reasoning` tab with Bayesian / Causal sub-tabs (HTMX) · evidence/query → posterior/mpe · do / observed / query → do_query / counterfactual / identify_effect · DAG view + "do(X) vs see" cross-link · Playwright E2E 16/16. ✅
+- **v0.9** — **FalkorDB backend** (3rd, Cypher/GraphBLAS): `stores/falkordb.py` reuses the Neo4j L1 + reasoning mixins; **custom rdflib→Cypher loader** (no n10s) reproducing SHORTEN/LABELS_AND_NODES/ARRAY · native `db.idx.fulltext` (`_fulltext` scalar shadow) + native vector index (pure-Python FastRP) · full protocol + capability parity (schema/entities/traversal/search/similar/bayes/causal), 11 live integration tests identical to Fuseki/Neo4j. **RSAL-licensed** (not OSI open source). ✅
 
 ---
 
