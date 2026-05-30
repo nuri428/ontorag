@@ -45,7 +45,7 @@ flowchart LR
 - **3-백엔드 parity** — Fuseki / Neo4j / FalkorDB 사이에 프로토콜 메트릭
   7/7이 완전 일치 (`full_parity = True`). [Benchmark](https://github.com/nuri428/ontorag/blob/main/docs/BENCHMARK_v1.md) 참조.
 - **인과 정직성(causal honesty)** — 모든 `do_query`가 백도어 보정 집합과
-  "왜 do ≠ see인지" 트레이스를 함께 반환 (흡연 예제: P(Cancer | **see** Smoking) = 0.72
+  "왜 do ≠ see인지" 트레이스를 함께 반환 (예제: P(Cancer | **see** Smoking) = 0.72
   vs P(Cancer | **do** Smoking) = 0.60).
 - **LLM에는 raw SPARQL을 노출하지 않음** — 에이전트는 타입이 명확한 MCP 툴만 봅니다.
 

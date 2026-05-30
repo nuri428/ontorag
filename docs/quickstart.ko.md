@@ -102,7 +102,7 @@ ontorag causal counterfactual \
     --query    "Cancer"
 ```
 
-흡연 예제는 교과서적 *see ≠ do* 격차를 재현합니다:
+이 동작 예제는 교과서적 *see ≠ do* 격차를 재현합니다:
 **P(Cancer | see Smoking) = 0.72** vs **P(Cancer | do Smoking) = 0.60**.
 
 ## 다음 단계

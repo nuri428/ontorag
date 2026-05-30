@@ -106,7 +106,7 @@ ontorag causal identify --treatment Smoking --outcome Cancer
 MCP 툴, REST 라우트, Reasoning WebUI(do() 막대 아래의 "why:" 트레이스)에
 모두 노출됩니다.
 
-## 종합 예제 — 흡연 BN
+## 동작 예제
 
 교과서적 *see ≠ do* 격차를 엔드투엔드로 재현:
 
