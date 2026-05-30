@@ -1,0 +1,119 @@
+site_name: ontorag
+site_url: https://nuri428.github.io/ontorag/
+site_description: OWL-native, ontology-aware RAG framework — ontology as the source of truth.
+site_author: Jaeho Kang
+repo_url: https://github.com/nuri428/ontorag
+repo_name: nuri428/ontorag
+copyright: MIT &copy; Jaeho Kang
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
+    - search.highlight
+    - search.suggest
+    - search.share
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/hexagon-outline
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path:
+        - .
+        - docs
+      check_paths: true
+
+plugins:
+  - search:
+      lang:
+        - en
+  - i18n:
+      docs_structure: suffix
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: ko
+          name: 한국어
+          build: true
+          site_name: ontorag (한국어)
+          nav_translations:
+            Home: 홈
+            Quickstart: 빠른 시작
+            CLI: CLI 레퍼런스
+            MCP & Tools: MCP & 툴
+            Reasoning: 추론 레이어
+            Changelog: 변경 이력
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - CLI: cli.md
+  - MCP & Tools: mcp.md
+  - Reasoning: reasoning.md
+  - Changelog: changelog.md
+
+# Design notes and the raw benchmark live in docs/ for direct linking
+# from prose pages, but are intentionally kept out of the top nav to keep
+# the MVP site shallow. They remain reachable via deep links.
+not_in_nav: |
+  /BENCHMARK_v1.md
+  /design/*
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/nuri428/ontorag
+      name: GitHub
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/ontorag/
+      name: PyPI (placeholder)
+  generator: false

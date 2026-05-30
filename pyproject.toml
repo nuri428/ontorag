@@ -109,6 +109,14 @@ bayes = [
     "pgmpy>=1.0",
     "pandas>=2.0",
 ]
+docs = [
+    # MkDocs Material documentation site (GitHub Pages target). Install only
+    # when building / serving docs locally (`mkdocs serve`) or in the docs
+    # CI workflow. Core runtime needs none of this.
+    "mkdocs-material>=9.5",
+    "mkdocs-static-i18n>=1.2",
+    "pymdown-extensions>=10.7",
+]
 
 [project.urls]
 Homepage = "https://github.com/nuri428/ontorag"
