@@ -87,26 +87,56 @@ plugins:
           site_name: ontorag (한국어)
           nav_translations:
             Home: 홈
+            Getting started: 시작하기
+            Installation: 설치
             Quickstart: 빠른 시작
-            CLI: CLI 레퍼런스
-            MCP & Tools: MCP & 툴
+            Guides: 가이드
+            Web UI: Web UI
+            Ontology Learning: 온톨로지 학습
             Reasoning: 추론 레이어
+            Reference: 레퍼런스
+            CLI: CLI
+            MCP & Tools: MCP & 툴
+            Architecture: 아키텍처
+            Resources: 리소스
+            Benchmark: 벤치마크
             Changelog: 변경 이력
+            Design notes: 설계 노트
 
 nav:
   - Home: index.md
-  - Quickstart: quickstart.md
-  - CLI: cli.md
-  - MCP & Tools: mcp.md
-  - Reasoning: reasoning.md
-  - Changelog: changelog.md
+  - Getting started:
+      - Installation: installation.md
+      - Quickstart: quickstart.md
+  - Guides:
+      - Web UI: webui.md
+      - Ontology Learning: learning.md
+      - Reasoning: reasoning.md
+  - Reference:
+      - CLI: cli.md
+      - MCP & Tools: mcp.md
+      - Architecture: architecture.md
+  - Resources:
+      - Benchmark: benchmark.md
+      - Changelog: changelog.md
+      - Design notes:
+          - Named Graph layers: design/named-graph-layers.md
+          - Bayesian layer: design/bayesian-layer.md
+          - Causal layer: design/causal-layer.md
+          - Multi-ontology scoping: design/multi-ontology.md
+          - Directory loader: design/directory-loader.md
+          - SPARQL approach: design/sparql-approach.md
+          - Fuseki parity: design/fuseki-parity.md
+          - Neo4j (n10s): design/neo4j-n10s.md
+          - Neo4j BM25 search: design/neo4j-bm25.md
+          - Neo4j embeddings: design/neo4j-embedding.md
+          - FalkorDB: design/falkordb.md
+          - Layered ontology plan: design/layered-ontology-plan.md
 
-# Design notes and the raw benchmark live in docs/ for direct linking
-# from prose pages, but are intentionally kept out of the top nav to keep
-# the MVP site shallow. They remain reachable via deep links.
+# The raw BENCHMARK file lives in docs/ for the snippets include used by
+# benchmark.md — kept off the nav so it isn't a duplicate entry point.
 not_in_nav: |
   /BENCHMARK_v1.md
-  /design/*
 
 extra:
   social:
