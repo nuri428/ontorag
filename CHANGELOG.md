@@ -2,6 +2,247 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.1.1 — 2026-05-30
+
+### Added — three lightweight, high-impact additions on v1.0
+
+- **Standalone stdio MCP server (`ontorag-mcp`)** — `src/ontorag/mcp_stdio.py`
+  on the official MCP Python SDK (`stdio_server`); handlers call the existing
+  `create_store()` + `GraphStore` protocol + Bayesian/Causal engines directly.
+  Drops into Claude Desktop / Cursor / Claude Code in one config line — no
+  FastAPI server required (`{ "command": "ontorag-mcp", "env": {"GRAPH_STORE": "fuseki"} }`).
+  Exposes 10 read tools + `compute_posterior` / `do_query`; raw SPARQL stays
+  excluded (same policy as HTTP `/mcp`). Ships as the `[mcp]` extra
+  (`mcp>=1.0`) + an `ontorag-mcp` console script.
+- **Causal answer explainability** — `CausalEngine.explain_do()` returns the
+  interventional distribution **plus** the back-door adjustment set the graph
+  surgery used **plus** a one-line "why do ≠ see" summary. Surfaced through the
+  MCP tool, the REST route (`DoQueryResponse` gains optional `adjustment` +
+  `explanation`), and the Reasoning WebUI ("why:" trace under the `do()` bars).
+  Existing `do_query` signature unchanged.
+- **Reasoning-layer goldset + `ontorag eval reasoning`** —
+  `eval/reasoning_goldset.py` (`ReasoningQuestion`/`ReasoningGoldset`, kinds:
+  `posterior`/`do`/`counterfactual`/`identify`) + a thin runner that loads the
+  stored BN (+ causal DAG) from the active backend and reports pass/fail.
+  `examples/smoking/reasoning_goldset.jsonl` — 6 hand-verified checks (see
+  0.72, do 0.60/0.20, counterfactual 0.28, back-door `{Genotype}`, marginal
+  0.43). The runner caught a wrong prior in the goldset itself (0.5 → 0.43)
+  on its first run.
+
+### Notes
+
+- Suite: 914 unit tests pass. No change to the v1.0 3-backend parity numbers
+  (`docs/BENCHMARK_v1.md`).
+- These are feature additions (normally a minor bump); `1.1.0 → 1.1.1` tag
+  chosen per release request.
+
+## v1.0.0 — 2026-05-30
+
+### Added — Production-Ready & Proven (the 0.x → 1.0 maturity jump)
+
+- **Configurable query/LLM timeouts on every backend** — Neo4j
+  (`NEO4J_QUERY_TIMEOUT`, default 30s), FalkorDB (`FALKORDB_QUERY_TIMEOUT`,
+  default 30s), Fuseki (`FUSEKI_TIMEOUT`, default 60s), LLM (`LLM_TIMEOUT`,
+  default 60s on anthropic/openai/ollama). `core/config.py:env_timeout()`
+  helper — number/unset → default, `0` → unbounded, malformed → default + warn.
+  Closes the "a hung query blocks the worker" gap; defaults preserve prior
+  behavior.
+- **Global structured-500 exception handler** — `api/main.py`
+  `@app.exception_handler(Exception)` returns `{detail, type}` JSON + 500, with
+  the raw message logged server-side. No traceback leak; existing 501/404/400
+  route guards untouched. `version=__version__` (was hardcoded `0.1.0`).
+- **CI gate on the real unit suite** — new `.github/workflows/test.yml`:
+  `unit` job runs `ruff check` + `pytest -m "not integration"` (910) and
+  hard-gates every push/PR. Integration job runs Neo4j+FalkorDB service
+  containers (informative, `continue-on-error`). The pre-existing `eval.yml`
+  only ran eval-module tests behind a path filter — main code reached `main`
+  with no CI before this.
+
+### Proof (`docs/BENCHMARK_v1.md`) — key-free, reproducible
+
+- Goldset quality: 5 domains / 130 questions, **0 `gold_sparql` failures**.
+- **3-backend deterministic parity**: 7/7 protocol metrics identical across
+  Fuseki / Neo4j / FalkorDB (`full_parity=True`) — schema, subclass-inferred
+  counts, aggregation, traversal all match. README leads with the parity
+  headline.
+
+### Known sharp edge (documented, not a v1.0 blocker)
+
+- On Neo4j/FalkorDB, a double `replace=True` (schema then data) can drop
+  property-type nodes since schema+data share one physical graph; the normal
+  `clear → schema → data` path is unaffected and is what the parity run uses.
+
+### Deferred to v1.1+
+
+- GNN learning layer (R-GCN link prediction, neural CPT), connection-pool
+  tuning, startup health-check, JSON/JSONL typed-literal fidelity.
+
+## v0.9.1 — 2026-05-30
+
+### Added — FalkorDB capability parity
+
+- **Full-text search** via FalkorDB native `db.idx.fulltext` — `_fulltext`
+  scalar shadow property worked around FalkorDB only indexing scalars, not the
+  n10s-style ARRAY props.
+- **Vector similarity** via native `CREATE VECTOR INDEX` +
+  `db.idx.vector.queryNodes`, with **pure-Python FastRP** (`core/fastrp.py`,
+  no GDS — the Fuseki path) for structural embeddings + EmbeddingProvider
+  textual + RRF hybrid.
+- **Bayesian + Causal CPT/DAG storage** reused from the Neo4j mixins (distinct
+  labels, not `:Resource`).
+
+### Dialect notes (vs Neo4j, live-verified against `falkordb/falkordb:latest`)
+
+- `db.idx.*` not `db.index.*`; no `EXISTS{}` subqueries (use `OPTIONAL MATCH` +
+  count); no `CONTAINS()` function (operator form only — fixed in shared
+  `_build_filter_cypher`); full-text indexes scalars only; multi-label +
+  `*0..N` paths + array props + `vecf32()` all supported.
+
+### Quality bar
+
+- `tests/test_falkordb_integration.py` (11 tests) — full protocol + search +
+  similar + bayes + causal + dump, identical results to Fuseki/Neo4j.
+
+## v0.9.0 — 2026-05-29
+
+### Added — third graph backend (FalkorDB)
+
+- **`stores/falkordb.py`** (async `falkordb` client, `[falkordb]` extra) —
+  **reuses the Neo4j L1 + reasoning mixins** (schema/entity/traversal/bayes/
+  causal) since FalkorDB is OpenCypher. `_run` normalises Node → property-dict
+  so the shared mixins work unchanged.
+- **Custom rdflib → Cypher loader** replaces n10s (FalkorDB has none):
+  reproduces SHORTEN (`prefix__local`), LABELS_AND_NODES (type-as-extra-label
+  — FalkorDB supports multi-label), ARRAY (every literal a LIST), prefixes
+  persisted in a `:_OntoragMeta` node.
+- TBox/ABox classify + status + dump rewritten without `EXISTS{}` /
+  `n10s.export`.
+- **License note** (documented in README): FalkorDB is **RSAL (Redis Source
+  Available License)**, *not* OSI-approved open source. Listed honestly
+  alongside Fuseki (Apache 2.0) and Neo4j (GPL/AGPL).
+
+## v0.8.4 — 2026-05-29
+
+### Added — Reasoning WebUI
+
+- Single `🧮 Reasoning` tab (`web/templates/reasoning.html`) with Bayesian /
+  Causal sub-tabs over the existing HTMX-partial pattern.
+- **Bayesian**: evidence/query builders → `compute_posterior` / `mpe`.
+- **Causal**: do / observed / query builders → `do_query` / `counterfactual` /
+  `identify_effect`, plus the DAG edge list and a "do(X)로 비교 →" cross-link
+  that seeds the Causal tab from the posterior evidence (the see ≠ do demo).
+- Shared renderer `partials/dist_bars.html`; capability-guarded
+  (`partials/reasoning_error.html` amber hint when no backend / no BN / no
+  pgmpy).
+- Routes in `web/router.py` (`/ui/reasoning` +
+  `/ui/reasoning/posterior|mpe|causal/do|causal/identify|causal/counterfactual`),
+  all reusing `BayesianEngine` / `CausalEngine`.
+- Tests: `tests/test_web_reasoning.py` (10, guards run without pgmpy;
+  happy-path asserts see 0.72 ≠ do 0.60).
+
+## v0.8.3 — 2026-05-29
+
+### Added — Causal Layer complete (Pearl Rung 2 + 3) — bundles v0.8.0 → v0.8.3
+
+- **v0.8.0 — `causal:` vocabulary + storage parity** —
+  `core/causal.py` (`CausalModel`/`CausalVariable`, `causal:influences`/
+  `causal:observed`/`causal:basedOn`, acyclicity check) + RDF round-trip +
+  `CausalStore` Protocol (`stores/base.py`); DAG stored in `urn:ontorag:causal`
+  named graph **only**. Fuseki mixin (`_fuseki_causal_mixin.py`, GSP) + Neo4j
+  mixin (`_neo4j_causal_mixin.py`, `:_CausalVariable` nodes + `[:_CAUSES]`
+  edges tagged `_scope`) — full backend parity.
+- **v0.8.1 — Pearl Rung 2 (interventional)** —
+  `CausalEngine.do_query` (`causal/engine.py`) via pgmpy
+  `CausalInference.query(do=…)` (graph surgery + automatic back-door
+  adjustment) + `identify` (`get_minimal_adjustment_set` /
+  `get_all_frontdoor_adjustment_sets`). MCP tools `do_query`,
+  `identify_effect` (`api/routes/tools/causal.py`).
+- **v0.8.2 — Pearl Rung 3 (counterfactual)** —
+  `counterfactual` MCP tool + `CausalEngine.counterfactual` via
+  abduction–action–prediction over the **canonical independent-noise SCM**
+  consistent with the CPTs (response-function enumeration, `_CF_RESPONSE_CAP`).
+- **v0.8.3 — Structure learning (proposal-only)** —
+  `causal/discovery.py` PC algorithm (pgmpy `PC` estimator, reuses
+  `bayes/learn.gather_observations`) → proposal-only `CausalModel`;
+  `ontorag causal learn-dag` CLI (`--save` still prints the review warning).
+  Never auto-committed.
+- **CLI** (`cli_causal.py`): `ontorag causal load/show/do/identify/counterfactual/clear/learn-dag`.
+
+### Quality bar
+
+- Synthetic smoking BN with an **observed genotype confounder**
+  (`examples/smoking/`: Genotype→Smoking, Genotype→Cancer, Smoking→Cancer).
+  Hand-verified: P(Cancer | **see** Smoking=yes) = 0.72 vs
+  P(Cancer | **do** Smoking=yes) = 0.60 (back-door adjusted over Genotype) —
+  `do` ≠ `see`. Counterfactual consistency axiom verified in
+  `tests/test_causal_engine.py`; PC recovers the chain skeleton in
+  `tests/test_causal_discovery.py`. Both backends return identical results.
+
+### Library choice
+
+- **pgmpy-native** (not DoWhy). With a fully-specified BN (DAG + CPTs from
+  v0.7), `do` is graph surgery + back-door adjustment via pgmpy's
+  `CausalInference`, and counterfactuals come from a canonical-SCM enumeration
+  over the CPTs. pgmpy stays the single probabilistic/causal engine
+  (`[bayes]` extra).
+
+### Over-claim guard
+
+- Shipped in README + every tool/CLI docstring: *"The causal DAG is
+  user-supplied. ontorag computes interventional / counterfactual queries
+  assuming the DAG is correctly specified; it does not validate causal
+  semantics or discover causation."* Structure discovery (`learn-dag`) emits
+  proposals only.
+
+## v0.7.0 — 2026-05-29
+
+### Added — Probabilistic Foundation (Bayesian) — bundles v0.7.0 → v0.7.4
+
+- **v0.7.0 — Named Graph foundation** (extracts Phase 1 of the paused
+  `layered-ontology-plan.md`): `OntologyLayer` enum
+  (`semantic`/`policy`/`state`/`provenance`) + `LAYER_GRAPH_URI` +
+  `layer_graph_uri()` in `core/ontology.py` (re-exported from
+  `stores/base.py`); opt-in multi-graph inference assembler
+  `docker/fuseki/config-inference.ttl.template` (OWLMicro reasoner over
+  `urn:x-arq:UnionGraph`, selected via `FUSEKI_CONFIG_TEMPLATE`);
+  `schema/data` → `semantic/state` **vocabulary** rename. **Key decision**:
+  physical graph URIs are kept (`semantic` → `urn:ontorag:schema`, `state`
+  → `urn:ontorag:data`) — only the layer *names* changed, so persisted TDB2
+  data + tests are untouched; `"schema"`/`"data"` stay accepted as aliases
+  (`resolve_layer`). `policy`/`provenance` are reserved vocabulary (no
+  read/write path until deferred Phases 2/4). Design:
+  `docs/design/named-graph-layers.md`.
+- **v0.7.1 — `bn:` vocabulary + Fuseki CPT storage** — mini-vocabulary +
+  spec models + RDF round-trip (`core/bayes.py`) + `BayesianStore` Protocol
+  (`stores/base.py`) + Fuseki CPT mixin (`_fuseki_bayes_mixin.py`); stores
+  CPTs in `urn:ontorag:probabilistic` named graph **only**.
+  `probabilistic_graph_uri()` is deliberately NOT an `OntologyLayer` member
+  (reasoning-stack storage ≠ document layer).
+- **v0.7.2 — Neo4j CPT storage** — `_neo4j_bayes_mixin.py`:
+  `:_BayesVariable`/`:_BayesCPD` nodes tagged `_scope`; full backend parity
+  (identical `BayesNetwork` returned).
+- **v0.7.3 — `BayesianEngine` + MCP tools** — pgmpy wrapper
+  (`bayes/engine.py`, lazy import) + MCP tools `compute_posterior`, `mpe`
+  (`api/routes/tools/bayes.py`). pgmpy is the `[bayes]` optional extra.
+  Quality bar: hand-computed Pokémon posteriors in
+  `tests/test_bayes_engine.py`.
+- **v0.7.4 — CPT learning from data** — `ontorag bayes` CLI
+  (load/show/posterior/mpe/clear/learn-cpt; `cli_bayes.py`) +
+  `bayes/learn.py`; `bn:dependsOn` structure specs; ties v0.3 LLMs4OL output
+  to BN parameter estimation. Design: `docs/design/bayesian-layer.md`.
+
+### Vocabulary note
+
+- *"Dynamic" (Palantir reasoning capability — Bayesian/Causal) ≠ "State"
+  (time-series ABox — deferred layered-plan Phase 3a).* Used as defined in
+  the 4-layer stack throughout.
+
+### Library choice
+
+- pgmpy (Python-native, MIT, async-friendly via `asyncio.to_thread`).
+  OpenMarkov rejected (Java GUI focus, no fit). pyAgrum reserved as a
+  performance fallback.
+
 ## v0.6.1 — 2026-05-28
 
 ### Added — completes the v0.6 roadmap
