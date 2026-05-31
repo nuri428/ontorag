@@ -9,6 +9,14 @@ on:
       - CHANGELOG.md
       - pyproject.toml
       - .github/workflows/docs.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - docs/**
+      - mkdocs.yml
+      - CHANGELOG.md
+      - pyproject.toml
+      - .github/workflows/docs.yml
   workflow_dispatch:
 
 permissions:
@@ -46,6 +54,11 @@ jobs:
           path: site/
 
   deploy:
+    # PR builds are *check-only* — they must not touch the live site.
+    # GitHub Pages would also refuse the pages:write token from a PR
+    # context, but skipping explicitly keeps the Actions run green and
+    # signals intent to the reader.
+    if: github.event_name != 'pull_request'
     needs: build
     environment:
       name: github-pages
