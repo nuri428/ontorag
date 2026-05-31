@@ -123,6 +123,42 @@ default, `0` → unbounded, malformed → default + warn.
 - **Explicit over implicit.** Configuration via `.env` and CLI flags, no
   magic.
 
+## CI / Deployment
+
+Three independent workflows guard the repo. Each one is *automatic* but uses
+a different trigger surface so unrelated work never burns CI minutes.
+
+| Workflow | Trigger | What it does | Touches the live site? |
+|---|---|---|---|
+| **`test.yml`** | every `push` to `main` and every `pull_request` (no path filter) | `ruff check` + `pytest -m "not integration"` (unit suite, 914+); optional Neo4j + FalkorDB integration job | no |
+| **`eval.yml`** | `push`/`PR` matching `src/ontorag/eval/**`, `cli_eval.py`, eval-domain examples, `tests/test_eval_*` | goldset regression on the eval module | no |
+| **`docs.yml`** | `push`/`PR` matching `docs/**`, `mkdocs.yml`, `CHANGELOG.md`, `pyproject.toml`, the workflow itself | `mkdocs build --strict` → GitHub Pages deploy | **yes — on `push` to `main` only** |
+
+### docs build vs deploy
+
+`docs.yml` is split so that build is a *signal* (runs everywhere) and deploy
+is a *side-effect* (only on landed `main`):
+
+```mermaid
+flowchart LR
+    PR[pull_request] --> build1[build · mkdocs --strict]
+    main[push to main] --> build2[build · mkdocs --strict]
+    build1 -. skipped .-> dep1[deploy]
+    build2 --> dep2[deploy<br/>github.io/ontorag/]
+    style dep1 stroke-dasharray:4 4,color:#999
+```
+
+The deploy job guards itself with `if: github.event_name != 'pull_request'`
+so a PR build can never overwrite the live site. GitHub Pages would refuse
+the `pages:write` token from a PR context anyway, but the explicit `if:`
+keeps the Actions run **green** on PRs (a build-only check) and makes the
+intent legible to the next reader.
+
+### Manual override
+
+All three workflows expose `workflow_dispatch`, so anything can be re-run
+manually from the Actions tab without an empty commit.
+
 ## Further reading
 
 - [Installation](installation.md) — extras matrix.

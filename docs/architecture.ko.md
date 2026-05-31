@@ -120,6 +120,42 @@ ANTHROPIC_API_KEY=...
 - **빠른 콜드 스타트.** `docker compose up` → 60초 안에 API 준비.
 - **명시 > 암묵.** 설정은 `.env`와 CLI 플래그로, 매직 없음.
 
+## CI / 배포
+
+세 개의 독립 워크플로가 저장소를 지킵니다. 모두 *자동*이지만 서로 다른
+트리거 면적을 사용해, 무관한 작업이 CI 시간을 소비하지 않도록 합니다.
+
+| 워크플로 | 트리거 | 역할 | 라이브 사이트 갱신? |
+|---|---|---|---|
+| **`test.yml`** | `main`의 모든 `push` + 모든 `pull_request` (path 필터 없음) | `ruff check` + `pytest -m "not integration"` (단위 914+); 선택적 Neo4j + FalkorDB 통합 잡 | 안 함 |
+| **`eval.yml`** | `src/ontorag/eval/**`, `cli_eval.py`, eval 도메인 examples, `tests/test_eval_*` 매치되는 `push`/`PR` | eval 모듈의 goldset 회귀 테스트 | 안 함 |
+| **`docs.yml`** | `docs/**`, `mkdocs.yml`, `CHANGELOG.md`, `pyproject.toml`, 워크플로 자체 매치되는 `push`/`PR` | `mkdocs build --strict` → GitHub Pages 배포 | **함 — `main` `push`에서만** |
+
+### docs build vs deploy
+
+`docs.yml`은 분리되어 — build는 *신호*(어디서든 실행), deploy는
+*부작용*(머지된 `main`에서만)입니다:
+
+```mermaid
+flowchart LR
+    PR[pull_request] --> build1[build · mkdocs --strict]
+    main[push to main] --> build2[build · mkdocs --strict]
+    build1 -. skip .-> dep1[deploy]
+    build2 --> dep2[deploy<br/>github.io/ontorag/]
+    style dep1 stroke-dasharray:4 4,color:#999
+```
+
+deploy 잡은 `if: github.event_name != 'pull_request'`로 스스로를 가드 —
+PR 빌드가 라이브 사이트를 덮어쓸 수 없습니다. GitHub Pages는 PR 컨텍스트에서
+온 `pages:write` 토큰을 어차피 거부하지만, 명시적 `if:`로 (a) PR Actions
+실행을 **녹색** 상태로 유지(build-only 체크) (b) 의도를 다음 독자에게
+명확히 전달합니다.
+
+### 수동 실행
+
+세 워크플로 모두 `workflow_dispatch`를 노출하므로, 빈 커밋 없이 Actions
+탭에서 언제든 재실행 가능합니다.
+
 ## 더 읽기
 
 - [설치](installation.md) — extras 매트릭스.
