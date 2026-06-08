@@ -41,105 +41,19 @@ Each layer answers a different *kind* of question:
 
 This stack is independent of (and complementary to) Palantir's Semantic/Kinetic/Dynamic frame — Layers 2-4 collectively activate Palantir's Dynamic layer. Kinetic (actions/workflows) is intentionally out of scope for ontorag and lives in a separate BPM project; ontorag exposes capability via MCP so external Kinetic engines can compose.
 
-## Version scope
-
-### v0.1 / v0.2 (shipped)
-- RDF ontology loader (TTL, JSON-LD, RDF/XML) — TBox + ABox loaded separately or combined
-- Graph store: Apache Jena Fuseki with OWL reasoning
-- GraphStore Protocol abstraction (Fuseki adapter; Neo4j → v0.5)
-- Agentic MCP server: 9 ontology-aware tools (8 L1 intent + 1 L2 JSON DSL)
-- FastAPI + SSE streaming — tool calls visible in stream; `rate_limit` event
-- LLM providers: Anthropic, OpenAI, Ollama
-- Web UI: Schema graph, Data browser, Playground chat (`/ui`)
-- CLI: load, config, serve, chat, status
-- Docker compose one-command deployment
-- Pokémon example ontology
-
-### v0.3 scope — LLMs4OL (Ontology Learning)
-
-**Goal**: LLMs extend an existing OWL ontology from unstructured text — no manual authoring.
-
-Implements the three canonical LLMs4OL tasks (EKAW 2023):
-
-| Task | Input | Output | New triple type |
-|------|-------|--------|-----------------|
-| **A — Term Typing** | text mention + TBox classes | ranked `(class_uri, confidence)` | `rdf:type` |
-| **B — Taxonomy Discovery** | term pair + existing hierarchy | `is_subclass: bool + confidence` | `rdfs:subClassOf` |
-| **C — Relation Extraction** | text + entity pair | predicted `predicate_uri + confidence` | `owl:ObjectProperty` assertion |
-
-Pipeline: `text → [A] term typing → [B] taxonomy → [C] relations → proposed RDF triples → auto-load to Fuseki`
-
-New CLI:
-```bash
-ontorag learn type-term "Pikachu"              # Task A → pk:Pokemon (0.97)
-ontorag learn taxonomy --text corpus.txt       # Task B → propose subClassOf
-ontorag learn extract --text corpus.txt        # Task C → propose property triples
-ontorag learn populate --text corpus.txt       # A+B+C pipeline + auto-load to ABox
-```
-
-New MCP tools (L1, exposed):
-- `type_term(term, context?)` — map text mention to TBox class
-- `extract_triples(text, entities?)` — propose RDF triples from text, validated against schema
-
-Out of scope for v0.3:
-- DL-based (transformer embedding) ontology learning — LLM-prompting only
-- Fully automated schema evolution (new class proposals without human review)
-- BPM, notifications, multi-tenant, vector similarity (v0.5+)
-
-### v0.5 — Neo4j backend (shipped)
-- **Neo4j + neosemantics (n10s) adapter** behind `GRAPH_STORE=fuseki|neo4j` (default fuseki). `create_store()` factory selects the backend; all tools/routes/CLI depend on the `GraphStore` protocol only.
-- n10s import: `handleVocabUris=SHORTEN` + `handleRDFTypes=LABELS_AND_NODES`. URIs round-trip through a shorten/expand layer with prefixes pinned from the loaded TTL.
-- **subClassOf inference is implemented natively on Neo4j** (Cypher `[:rdfs__subClassOf*0..N]`), so `find_entities(Animal)` includes Dog/Cat instances. ⚠️ This *diverges* from the current Fuseki deployment, which runs `--mem` with inference OFF (plain type-match). See Open questions.
-- L2 `query_pattern` translated via `core/cypher.py` (`pattern_to_cypher`), symmetric to the SPARQL translator. All Cypher rel-types/labels routed through `_safe_rel()` (injection-safe).
-- Design note: `docs/design/neo4j-n10s.md`. Verified live against `neo4j:5.26` + n10s 5.26.
-- **BM25 full-text search** (`search_text`): **both backends** — Neo4j fulltext index / Fuseki jena-text (Lucene). `docs/design/neo4j-bm25.md`.
-- **Graph embeddings** (`find_similar` + `ontorag embed`): **both backends** — structural + textual (`EmbeddingProvider`: OpenAI/Ollama via `EMBEDDING_PROVIDER`) + `hybrid` (RRF), explicit `ontorag embed` trigger. Neo4j: GDS FastRP + native vector index. Fuseki: `core/fastrp.py` + EmbeddingProvider → **Qdrant**. `docs/design/neo4j-embedding.md`, `docs/design/fuseki-parity.md`.
-- **Reasoning, full-text, and vector similarity have full backend parity** (Fuseki ⇄ Neo4j); each uses its native tech.
-- **Multi-ontology per instance** (shipped): one instance hosts many ontologies; every read tool + `load` + `embed`/`find_similar` takes an optional `ontology` scope (`None` = union/all, backward-compatible). Fuseki = per-ontology named graphs (`urn:ontorag:{id}:schema/data`); Neo4j = node `_ontology` list tag. Embeddings are scoped too — Qdrant points carry an `ontology` payload (un-tagged, not deleted, when shared across ontologies); Neo4j post-filters kNN by `_ontology`. `docs/design/multi-ontology.md`.
-
-### v0.6.1 (shipped)
-- **Per-ontology access control** — config-driven read/write/none via `ONTOLOGY_ACCESS` env (`core/access.py` + `stores/access_wrapper.py`, factory-wired). Scope-lock at the GraphStore boundary; unset = fully open (backward-compatible). Write methods (load/clear) fully guarded; capability reads (search/similar/aligned) pass through (v0.7 follow-up).
-- **Cross-ontology entity alignment** — `owl:sameAs` transitive+symmetric closure via `sameas_closure` (both backends) → `find_aligned` tool/route.
-- **`load_rdf` pre-parsed-graph fast path** — optional `graph=` kwarg avoids the directory loader's double-parse.
-
 ## Architecture
 
-```
-사용자 (브라우저 / CLI)
-         │
-         ▼ POST /chat  (SSE 스트림 응답)
-┌────────────────────────────────────────┐
-│            FastAPI Server              │
-│                                        │
-│  /chat ──▶ Agent Loop                  │
-│                 │                      │
-│                 ▼ tool_use (MCP)       │
-│          LLM (Claude/GPT/Ollama)       │
-│                 │                      │
-│   ┌─────────────────────────────────┐  │
-│   L1 (intent tools, 8개):           │  │
-│    get_schema     find_entities     │  │
-│    describe_entity  count_entities  │  │
-│    aggregate      traverse_graph    │  │
-│    find_path      find_related      │  │
-│   L2 (JSON DSL):  query_pattern     │  │
-│   L3 (dev only):  query_sparql_raw  │  │
-│   └─────────────┬───────────────────┘  │
-└─────────────────┼──────────────────────┘
-                  │ SPARQL (HTTP)
-                  ▼
-       Apache Jena Fuseki  ← Phase 1
-       Neo4j + n10s        ← Phase 1.5
-```
+Browser / CLI → FastAPI `POST /chat` (SSE) → Agent Loop calls an LLM
+(Claude / GPT / Ollama), which in turn calls MCP tools (L1 intent tools + L2 JSON
+DSL `query_pattern`; raw SPARQL is L3 dev-only, MCP-excluded). MCP tools depend
+only on the `GraphStore` Protocol, served by one of three swappable adapters —
+Fuseki (SPARQL/TDB2), Neo4j (n10s + Cypher), or FalkorDB (Cypher) — selected by
+`GRAPH_STORE`. Reasoning capability is layered on top via `BayesianStore` /
+`CausalStore` Protocols (v0.7 / v0.8), backed by pgmpy.
 
-SSE stream events visible to client:
-```
-data: {"type": "thinking",     "content": "스키마를 확인합니다..."}
-data: {"type": "tool_call",    "tool": "get_schema"}
-data: {"type": "tool_result",  "content": {"classes": [...]}}
-data: {"type": "text",         "content": "Person 클래스는..."}
-data: {"type": "done"}
-```
+SSE event types streamed to the client: `thinking`, `tool_call`, `tool_result`,
+`text`, `rate_limit`, `error`, `done`. Tool calls and results are visible —
+the agent loop is white-box, not black-box.
 
 ## Tools the LLM can call (MCP)
 
@@ -225,114 +139,31 @@ Load progress example:
 
 ## GraphStore abstraction
 
-All MCP tools depend on this Protocol, not a concrete store. Swapping Fuseki → Neo4j requires only a new adapter.
+The `GraphStore` Protocol (`src/ontorag/stores/base.py`) is the single seam
+between MCP tools and the underlying store. Every L1 intent tool, the L2 JSON
+DSL `query_pattern`, and the capability tools (`search_text`, `find_similar`,
+`find_aligned`) target this Protocol — adding a new backend means writing one
+adapter + a factory branch, never touching routes/CLI/tests. The same pattern is
+repeated by `BayesianStore` and `CausalStore` Protocols (v0.7 / v0.8) for the
+reasoning capabilities. Raw SPARQL access is intentionally a *private* method
+(`_sparql_select`, Fuseki-only) and is never exposed via MCP.
 
-```python
-class GraphStore(Protocol):
-    # Loading
-    async def load_rdf(self, path: str, mode: Literal["schema", "data", "auto"]) -> LoadResult: ...
+All read methods take an optional `ontology` scope (`None` = union / legacy
+default) for multi-ontology hosting (v0.5).
 
-    # Layer 1 — intent-based tools (MCP exposed)
-    async def get_schema(self) -> SchemaResult: ...                                    # compact, ~30 tokens/class
-    async def get_class_detail(self, class_uri: str) -> ClassDetail: ...               # drill-down per class
-    async def find_entities(self, class_uri: str, filters: list[EntityFilter] | None, limit: int) -> list[EntityResult]: ...
-    async def describe_entity(self, uri: str, predicates: list[str] | None = None) -> EntityResult: ...
-    async def count_entities(self, class_uri: str, filters: list[EntityFilter] | None) -> int: ...
-    async def aggregate(self, class_uri: str, group_by: str, agg: AggFunc) -> list[AggregateResult]: ...
-    async def traverse(self, start_uri: str, predicate: str | None, max_depth: int, direction: TraversalDirection) -> TraversalResult: ...
-    async def find_path(self, uri_a: str, uri_b: str, max_depth: int) -> TraversalResult: ...
-    async def find_related(self, class_uri_a: str, predicate: str, class_uri_b: str, filters_a: list[EntityFilter] | None, filters_b: list[EntityFilter] | None, limit: int) -> list[dict]: ...
+## LLMs4OL Learner Protocol (v0.3, shipped)
 
-    # Layer 2 — JSON DSL (MCP exposed)
-    async def query_pattern(self, query: PatternQuery) -> QueryResult: ...
+`OntologyLearner` Protocol + result types live in `src/ontorag/learn/base.py`. Three
+LLM-prompting tasks against the current TBox: `type_term` (A: text → class_uri),
+`discover_taxonomy` (B: propose `rdfs:subClassOf`), `extract_relations` (C: propose
+object/data property triples). `populate_from_text` runs A+B+C and optionally
+auto-loads via `store.load_rdf(..., mode="data")`.
 
-    # Layer 3 — raw SPARQL (internal only, NOT exposed via MCP)
-    async def _sparql_select(self, sparql: str) -> dict: ...
-
-    # Status
-    async def status(self) -> StoreStatus: ...
-```
-
-## v0.3 LearnerProtocol
-
-```python
-from dataclasses import dataclass, field
-from typing import Protocol
-
-@dataclass
-class TermTypingResult:
-    term: str
-    class_uri: str          # best matching TBox class
-    label: str
-    confidence: float       # 0.0–1.0
-    reasoning: str | None = None
-
-@dataclass
-class TaxonomyRelation:
-    child_term: str
-    parent_uri: str         # existing TBox class URI
-    confidence: float
-
-@dataclass
-class ExtractedTriple:
-    subject_label: str
-    subject_uri: str | None   # None → new entity to be minted
-    predicate_uri: str        # must exist in TBox
-    object_uri: str | None    # for object properties
-    object_value: str | None  # for data properties
-    confidence: float
-
-@dataclass
-class PopulationResult:
-    term_typings: list[TermTypingResult] = field(default_factory=list)
-    taxonomy_proposals: list[TaxonomyRelation] = field(default_factory=list)
-    triples: list[ExtractedTriple] = field(default_factory=list)
-    triples_loaded: int | None = None   # set after auto-load
-
-class OntologyLearner(Protocol):
-    """LLMs4OL pipeline — all tasks backed by LLM prompting against current TBox."""
-
-    async def type_term(
-        self,
-        term: str,
-        context: str | None = None,
-        top_k: int = 3,
-    ) -> list[TermTypingResult]:
-        """Task A: rank TBox classes for a text mention."""
-        ...
-
-    async def discover_taxonomy(
-        self,
-        text: str,
-        candidate_classes: list[str] | None = None,
-    ) -> list[TaxonomyRelation]:
-        """Task B: propose rdfs:subClassOf from text evidence."""
-        ...
-
-    async def extract_relations(
-        self,
-        text: str,
-        entities: list[str] | None = None,
-        min_confidence: float = 0.7,
-    ) -> list[ExtractedTriple]:
-        """Task C: propose object/data property triples from text."""
-        ...
-
-    async def populate_from_text(
-        self,
-        text: str,
-        auto_load: bool = False,
-        min_confidence: float = 0.7,
-    ) -> PopulationResult:
-        """Run A+B+C in sequence; optionally load accepted triples to Fuseki."""
-        ...
-```
-
-Design constraints:
-- All methods receive the current TBox (SchemaResult) at call time — no stale schema cache
-- `predicate_uri` and `class_uri` in outputs must exist in the current TBox (validated before return)
-- Confidence threshold `min_confidence` filters low-quality proposals; default 0.7
-- `auto_load=True` calls `store.load_rdf(...)` with mode="data" after validation
+Invariants enforced in the implementation:
+- TBox is read at call time (no stale cache); all output `class_uri` / `predicate_uri`
+  are validated to exist in the current schema before return.
+- `min_confidence` (default 0.7) filters low-quality proposals.
+- New TBox classes are never proposed automatically — human review required.
 
 ## Tech stack
 
@@ -340,92 +171,36 @@ Design constraints:
 - Package manager: uv (preferred)
 - Web framework: FastAPI
 - MCP: `fastapi-mcp>=0.4.0` — FastAPI 라우트를 MCP 툴로 자동 변환, ASGI transport (HTTP 오버헤드 없음), `/mcp` 엔드포인트 자동 생성
-- Graph store (Phase 1): Apache Jena Fuseki (SPARQL 1.1 compliant, Docker image ~200MB)
-- Graph store (Phase 1.5): Neo4j + n10s (Cypher natively; SPARQL via n10s endpoint)
-- LLM SDKs: anthropic (Phase 1); openai, ollama (Phase 1.5)
+- Graph stores: Fuseki (Apache Jena, SPARQL 1.1, ~200MB image) · Neo4j + n10s (Cypher) · FalkorDB (Cypher, RSAL). Select via `GRAPH_STORE`.
+- LLM SDKs: anthropic · openai · ollama
+- Probabilistic / Causal engine: pgmpy (`[bayes]` extra, lazy import)
 - CLI: Typer + Rich (progress bars, status display)
 - Deployment: Docker + docker-compose
 - Tests: pytest
 
 ## Repo layout
 
+High-level only — use `tree src/ontorag` for the current truth.
+
 ```
-ontorag/
-├── .claude/CLAUDE.md          # this file
-├── README.md
-├── pyproject.toml
-├── docker-compose.yml         # dev
-├── docker-compose.prod.yml    # production overlay
-├── .env.example
-├── .dockerignore
-├── docker/
-│   └── api/Dockerfile
-├── src/ontorag/
-│   ├── __init__.py
-│   ├── cli.py                 # `ontorag` command entry (Typer)
-│   ├── api/                   # FastAPI app
-│   │   ├── main.py            # FastAPI app + fastapi-mcp mount
-│   │   └── routes/
-│   │       ├── health.py      # GET  /health
-│   │       ├── status.py      # GET  /status
-│   │       ├── load.py        # POST /load
-│   │       ├── chat.py        # POST /chat — SSE streaming
-│   │       └── tools/         # MCP 툴 라우트 (fastapi-mcp → /mcp 자동 노출)
-│   │           ├── schema.py      # L1: GET /tools/schema + GET /tools/schema/class
-│   │           ├── entities.py    # L1: find/count/aggregate + GET /tools/entities/{uri}
-│   │           ├── traversal.py   # L1: traverse + path + related
-│   │           ├── pattern.py     # L2: POST /tools/query/pattern
-│   │           ├── _sparql.py     # L3: POST /tools/query/sparql (Fuseki-only, getattr 501)
-│   │           ├── learning.py    # v0.3 L1: type_term, extract_triples (MCP exposed)
-│   │           ├── search.py      # v0.5 POST /tools/search/text (BM25 — both backends)
-│   │           ├── similar.py     # v0.5 POST /tools/similar (find_similar — both backends)
-│   │           └── bayes.py       # v0.7.3 POST /tools/bayes/posterior + /mpe (both backends)
-│   ├── core/
-│   │   ├── loader.py          # RDF parsing & loading (with progress callback)
-│   │   ├── sparql.py          # PatternQuery DSL → SPARQL translator (Fuseki) + uri_ref
-│   │   ├── cypher.py          # PatternQuery DSL → Cypher translator (Neo4j) + _safe_rel
-│   │   ├── ontology.py        # named-graph URIs + OntologyLayer (v0.7.0)
-│   │   ├── bayes.py           # v0.7.1 bn: vocab + BN/StructureSpec models + RDF round-trip
-│   │   └── fastrp.py          # v0.5 pure-Python FastRP structural embeddings (Fuseki)
-│   ├── stores/
-│   │   ├── base.py            # GraphStore + BayesianStore Protocols + result types
-│   │   ├── factory.py         # create_store() — GRAPH_STORE=fuseki|neo4j
-│   │   ├── fuseki.py          # v0.1 default (SPARQL over HTTP)
-│   │   ├── neo4j.py           # v0.5 (Neo4j + n10s, async driver)
-│   │   ├── _neo4j_schema_mixin.py    # get_schema / get_class_detail
-│   │   ├── _neo4j_entity_mixin.py    # find/describe/count/aggregate
-│   │   ├── _neo4j_traversal_mixin.py # traverse/path/closure/related
-│   │   ├── _neo4j_export.py          # dump_graph TTL/XLSX serialisation
-│   │   ├── _neo4j_values.py          # n10s ARRAY-multival unpack helpers
-│   │   ├── _neo4j_search_mixin.py    # v0.5 BM25 full-text (search_text)
-│   │   ├── _neo4j_embedding_mixin.py # v0.5 GDS FastRP + textual embeddings (build_embeddings, find_similar)
-│   │   ├── _fuseki_search_mixin.py   # v0.5 jena-text full-text (search_text)
-│   │   ├── _fuseki_embedding_mixin.py# v0.5 FastRP + textual → Qdrant (build_embeddings, find_similar)
-│   │   ├── _fuseki_bayes_mixin.py     # v0.7.1 BayesianStore via GSP on urn:ontorag:probabilistic
-│   │   ├── _neo4j_bayes_mixin.py      # v0.7.2 BayesianStore via :_Bayes* nodes (_scope tag)
-│   │   └── _qdrant.py                # v0.5 async Qdrant wrapper (Fuseki vector store)
-│   ├── llm/
-│   │   ├── base.py            # LLMProvider abstract base
-│   │   ├── anthropic.py
-│   │   ├── openai.py
-│   │   ├── ollama.py
-│   │   └── embedding.py       # v0.5 EmbeddingProvider (OpenAI/Ollama) for textual embeddings
-│   ├── chat/
-│   │   └── agent.py           # Agentic MCP loop (LLM + tool calls + SSE emit)
-│   ├── learn/                 # v0.3 — LLMs4OL ontology learning
-│   │   ├── __init__.py
-│   │   ├── base.py            # OntologyLearner Protocol + result types
-│   │   ├── term_typing.py     # Task A: term → TBox class
-│   │   ├── taxonomy.py        # Task B: rdfs:subClassOf discovery
-│   │   ├── relation.py        # Task C: object/data property extraction
-│   │   └── pipeline.py        # A+B+C orchestration + auto-load
-│   ├── bayes/                 # v0.7 — probabilistic layer (pgmpy, [bayes] extra)
-│   │   ├── engine.py          # v0.7.3 BayesianEngine: compute_posterior / mpe
-│   │   └── learn.py           # v0.7.4 CPT learning from ABox data
-│   └── cli_bayes.py           # v0.7.4 `ontorag bayes` group (load/show/posterior/mpe/clear/learn-cpt)
-├── examples/
-│   └── foaf/                  # FOAF ontology schema + sample instance data
-└── tests/
+src/ontorag/
+├── api/            # FastAPI app + routes (incl. routes/tools/ = MCP-exposed tools)
+├── core/           # RDF loader, SPARQL/Cypher translators, FastRP, bayes/causal vocab
+├── stores/         # GraphStore Protocol (base.py) + adapters: fuseki / neo4j / falkordb
+│                   #   + per-backend mixins (search / embedding / bayes / causal)
+│                   #   + access_wrapper.py (v0.6.1 scope lock), _qdrant.py
+├── llm/            # LLMProvider (anthropic / openai / ollama) + EmbeddingProvider
+├── chat/           # Agentic MCP loop (SSE emit)
+├── learn/          # v0.3 LLMs4OL (term typing, taxonomy, relation extraction)
+├── bayes/          # v0.7 BayesianEngine (pgmpy wrapper) + CPT learning
+├── causal/         # v0.8 CausalEngine (do/counterfactual) + PC discovery
+├── web/            # v0.8.4 Reasoning WebUI (HTMX partials)
+└── cli*.py         # Typer entry points: cli.py + cli_bayes.py + cli_causal.py
+
+examples/           # pokemon · commerce · ods · pure_land · techstack · smoking · foaf
+tests/              # pytest, integration marker for live-container suites
+docs/design/        # ALL design notes (single source of truth for shipped decisions)
+docker/             # Dockerfiles + Fuseki config templates
 ```
 
 ## Coding conventions
@@ -455,8 +230,10 @@ ontorag/
 ## Docker compose design
 
 ```bash
-docker compose up                   # Fuseki + API
-docker compose --profile ui up      # + Web UI (Phase 2)
+docker compose up                                       # Fuseki + API + Web UI
+docker compose --profile neo4j up                       # + Neo4j backend
+docker compose --profile falkordb up                    # + FalkorDB backend
+docker compose --profile qdrant up                      # + Qdrant (Fuseki find_similar)
 ```
 
 Production overlay:
@@ -585,49 +362,47 @@ JSON/JSONL typed-literal fidelity (TTL already preserves datatypes), RAGAS in CI
 
 ## What NOT to do (anti-patterns)
 
+**Architecture & dependencies**
 - Don't pull in LangChain, LlamaIndex, or LangServe. Each tool is small; write it directly.
-- Don't skip the GraphStore abstraction. Even with only Fuseki, define the Protocol first — Neo4j comes in v0.5.
-- Don't expose raw SPARQL to the LLM. MCP에는 L1 툴 + L2 `query_pattern`만 노출하고, raw SPARQL(L3 `query_sparql_raw`)은 개발자 디버그 전용으로 격리.
+- Don't skip the GraphStore / BayesianStore / CausalStore abstractions. All tools depend on the Protocol, never on a concrete backend.
+- Don't expose raw SPARQL to the LLM. MCP에는 L1 툴 + L2 `query_pattern`만 노출. raw SPARQL (`_sparql_select`)은 개발자 디버그 전용.
 - Don't add features from `patent_board` directly. Domain-specific code stays out.
 - Don't add BPM, notifications, or multi-tenant — separate repo.
 - Don't include KIPRIS/IPC/CPC code or data. License risk and scope creep.
 - Don't optimize prematurely. Get it working first; profile second.
-- v0.3 LLMs4OL: Don't propose new TBox classes automatically — only ABox triples using existing schema. TBox evolution requires human review.
-- v0.3 LLMs4OL: Don't output `predicate_uri` or `class_uri` that don't exist in the current TBox — validate against SchemaResult before returning.
-- v0.7 Bayesian: Don't conflate "Dynamic" (Palantir reasoning capability — Bayesian/Causal) with "State" (time-series ABox — deferred layered-plan Phase 3a). Use the names exactly as defined in the 4-layer stack.
-- v0.7 Bayesian: Don't import a Java engine (OpenMarkov, SamIam). Python-native only — pgmpy primary, pyAgrum as performance fallback.
-- v0.7 Bayesian: Don't store CPTs in the schema or data named graphs. They go in `urn:ontorag:probabilistic` exclusively.
-- v0.8 Causal: Don't auto-modify the causal DAG from observational data without human review. Structure learning (PC algorithm) produces *proposals*, never auto-committed.
-- v0.8 Causal: Don't claim causal validity. README and tool docstrings must state the DAG is user-supplied; ontorag computes interventional/counterfactual queries assuming the DAG is correct.
-- v1.0 GNN: Don't add GPU/training infrastructure before v0.9 ships. ontorag stays "training-free" through v0.9. v1.0 is the deliberate paradigm shift.
+
+**Ontology learning (LLMs4OL)**
+- Don't propose new TBox classes automatically — only ABox triples using existing schema. TBox evolution requires human review.
+- Don't output `predicate_uri` or `class_uri` that don't exist in the current TBox — validate against SchemaResult before returning.
+
+**Probabilistic / Causal reasoning**
+- Don't conflate "Dynamic" (Palantir reasoning capability — Bayesian/Causal) with "State" (time-series ABox — deferred layered-plan Phase 3a). Use the names exactly as defined in the 4-layer stack.
+- Don't import a Java engine (OpenMarkov, SamIam). Python-native only — pgmpy primary, pyAgrum as performance fallback.
+- Don't store CPTs in the schema or data named graphs. They go in `urn:ontorag:probabilistic` exclusively; causal DAGs in `urn:ontorag:causal`.
+- Don't auto-modify the causal DAG from observational data. Structure learning (PC) emits *proposals only*, never auto-committed.
+- Don't claim causal validity. README and tool docstrings must state the DAG is user-supplied; ontorag computes interventional/counterfactual queries assuming the DAG is correct.
+
+**Learning layer (v1.1+, GNN)**
+- Don't add GPU/training infrastructure incrementally. GNN is the deliberate paradigm shift in v1.1+; ontorag stays "training-free" through v1.0.
 
 ## Open questions (decide when reached)
 
-- ✅ L2 `query_pattern` DSL 검증: 구조적 검증(SPARQL 측 `PatternTriple` regex) + Cypher 측 `_safe_rel()` allowlist + `*` 경로 상한으로 결정.
-- ✅ Neo4j SPARQL via n10s endpoint vs. native Cypher translation: **native Cypher translation** 채택 (`core/cypher.py`).
-- ✅ **subClassOf 추론 백엔드 divergence 해소**: 이제 양 백엔드 모두 추론 ON. Neo4j는 Cypher `[:rdfs__subClassOf*]`, Fuseki는 쿼리 레벨 `?inst a/rdfs:subClassOf*`(SCHEMA·DATA named graph 조인 + 직접매치 UNION). `ja:OntModelSpec` reasoner 없이 쿼리 레벨로 수렴 — `find_entities`/`count_entities` 결과 일치.
-- ✅ Vector similarity: **별도 L1 툴 `find_similar`** 채택 — Neo4j는 native vector index, Fuseki는 Qdrant. `ontorag embed`로 사전 생성.
-- ✅ **Multi-ontology per instance 해소**: named-graph 스코핑(Fuseki) + 노드 `_ontology` 태깅(Neo4j), 모든 read 툴 + `load`에 `ontology` 파라미터. 단일 온톨로지 가정 제거(`ontology=None`이 하위호환).
-- Auth/multi-tenant: still single-user (no user identity). v0.6.1 adds a config-driven per-ontology **scope lock** (`ONTOLOGY_ACCESS`, read/write/none at the GraphStore boundary) — not authentication; protects against accidental cross-ontology writes/reads, not malicious actors.
+- **Auth/multi-tenant**: still single-user (no user identity). v0.6.1 added a
+  config-driven per-ontology *scope lock* (`ONTOLOGY_ACCESS`, read/write/none at
+  the GraphStore boundary) — not authentication; protects against accidental
+  cross-ontology writes/reads, not malicious actors. Real auth is deferred.
+
+(Historical decisions on L2 DSL injection defense, n10s-vs-Cypher, subClassOf
+parity, vector similarity, multi-ontology scoping — all resolved and captured
+in `docs/design/*.md`.)
 
 ## How to work with Claude Code on this repo
 
-When starting a session, Claude Code should:
-1. Read this CLAUDE.md
-2. Check current state with `git status` and `git log --oneline -10`
-3. Confirm which milestone item is the current focus
-4. Propose specific files to touch before writing code
-
-When proposing changes:
-- Match the repo layout above
-- Honor GraphStore Protocol — tools never import a concrete store directly
-- Add or update tests in the same change
-- Keep changes scoped to one concern per commit
-
-When unsure about scope:
-- Default to smaller. Phase 1 is small on purpose.
-- If something feels like Phase 2, flag it and skip.
+- Tools depend on `GraphStore` / `BayesianStore` / `CausalStore` Protocols — never import a concrete backend.
+- Update or add tests in the same change (cross-backend parity tests where capability-relevant).
+- Keep changes scoped to one concern per commit; default to smaller scope when unsure.
+- Detailed shipped-decision rationale lives in `docs/design/*.md` — read there before re-litigating settled questions.
 
 ## License
 
-MIT (planned). No proprietary or domain-specific code from patent_board.
+MIT. No proprietary or domain-specific code from `patent_board`.
