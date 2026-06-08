@@ -25,6 +25,7 @@ from ontorag.chat.multi_agent.evaluator import (
     compute_is_use,
     decide,
 )
+from ontorag.chat.multi_agent.loop import MultiAgentLoop
 from ontorag.chat.multi_agent.messages import (
     Complexity,
     EvaluationAxes,
@@ -39,6 +40,7 @@ __all__ = [
     "EvaluationAxes",
     "EvaluationDecision",
     "Evaluator",
+    "MultiAgentLoop",
     "RouteDecision",
     "SufficientContext",
     "compute_is_rel",
