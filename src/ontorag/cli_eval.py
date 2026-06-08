@@ -373,9 +373,27 @@ def _build_baseline(
         # BenchRunner's asyncio loop on the first answer() call, so the
         # store's httpx client is bound to the right loop.
         return OntoragNativeBaseline(store, llm, graph)
+    if name == "ontorag_multiagent":
+        from ontorag.eval.baselines.ontorag_multiagent import (  # noqa: PLC0415
+            OntoragMultiagentBaseline,
+        )
+        from ontorag.llm.factory import get_llm_provider  # noqa: PLC0415
+        from ontorag.stores.factory import create_store  # noqa: PLC0415
+
+        try:
+            llm = get_llm_provider()
+        except ValueError as e:
+            raise typer.BadParameter(
+                f"ontorag_multiagent baseline requires LLM provider config: {e}"
+            ) from e
+        store = create_store()
+        # Same lazy-schema pattern as ontorag_native — see that class
+        # for the asyncio-loop binding rationale.
+        return OntoragMultiagentBaseline(store, llm, graph)
     raise typer.BadParameter(
-        f"Unknown baseline: {name!r}. "
-        "Valid: ontorag_mock | vector_rag_mock | langchain | ontorag_native"
+        f"Unknown baseline: {name!r}. Valid: "
+        "ontorag_mock | vector_rag_mock | langchain | "
+        "ontorag_native | ontorag_multiagent"
     )
 
 
