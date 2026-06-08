@@ -102,6 +102,8 @@ plugins:
             Benchmark: 벤치마크
             Changelog: 변경 이력
             Design notes: 설계 노트
+            Portfolio: 포트폴리오
+            Neo4j backend evolution: Neo4j 백엔드 변천
 
 nav:
   - Home: index.md
@@ -132,6 +134,8 @@ nav:
           - Neo4j embeddings: design/neo4j-embedding.md
           - FalkorDB: design/falkordb.md
           - Layered ontology plan: design/layered-ontology-plan.md
+      - Portfolio:
+          - Neo4j backend evolution: portfolio/neo4j-evolution.md
 
 # The raw BENCHMARK file lives in docs/ for the snippets include used by
 # benchmark.md — kept off the nav so it isn't a duplicate entry point.
