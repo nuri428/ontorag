@@ -203,20 +203,26 @@ class TestDecide:
         _, rationale = decide(axes)
         assert "rel=" in rationale and "use=" in rationale
 
-    def test_v121_boundary_at_06_is_sufficient(self) -> None:
-        """v1.2.1 — _T_SUFFICIENT lowered to 0.6 so realistically-grounded
-        answers (rel=0.6+ / use=0.6+) reach SUFFICIENT in one round.
-
-        Diagnostic that drove this: v1.2 first run had 0/15 SUFFICIENT
-        verdicts at _T_SUFFICIENT=0.7, hitting max iterations every time
-        and adding ungrounded paraphrase that hurt faithfulness.
+    def test_v122_boundary_at_07_is_sufficient(self) -> None:
+        """v1.2.2 — _T_SUFFICIENT reverted to 0.7 after the v1.2.1 ablation
+        attributed the answer_relevancy regression (-0.140) entirely to
+        the threshold being lowered to 0.6. The "0/15 SUFFICIENT at 0.7"
+        pathology from v1.2 is addressed by max_iterations 3 → 2 in
+        loop.py instead.
         """
-        axes = EvaluationAxes(is_rel=0.6, is_use=0.6, is_sup=0.6)
+        axes = EvaluationAxes(is_rel=0.7, is_use=0.7, is_sup=0.7)
         verdict, _ = decide(axes)
         assert verdict == SufficientContext.SUFFICIENT
 
-    def test_v121_boundary_just_below_06_still_ambiguous(self) -> None:
-        axes = EvaluationAxes(is_rel=0.59, is_use=0.7)
+    def test_v122_boundary_just_below_07_still_ambiguous(self) -> None:
+        """0.69 must fall back to AMBIGUOUS — guards the threshold revert."""
+        axes = EvaluationAxes(is_rel=0.69, is_use=0.9)
+        verdict, _ = decide(axes)
+        assert verdict == SufficientContext.AMBIGUOUS
+
+    def test_v122_06_is_no_longer_sufficient(self) -> None:
+        """Regression — what was SUFFICIENT in v1.2.1 must now be AMBIGUOUS."""
+        axes = EvaluationAxes(is_rel=0.6, is_use=0.6, is_sup=0.6)
         verdict, _ = decide(axes)
         assert verdict == SufficientContext.AMBIGUOUS
 

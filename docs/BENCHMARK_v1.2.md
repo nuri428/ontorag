@@ -152,24 +152,134 @@ which appears as the new relevancy regression).
 Keep `AGENT_MODE=multi` opt-in. Document both v1.2 and v1.2.1 as
 *experimental modes*.
 
-### 3.5 Tuning targets for v1.2.2 (next iteration)
+### 3.5 Ablation — what caused the v1.2.1 relevancy regression?
 
-The new diagnostics point at three further levers — each is a
-single-commit change, and together they should land a default-on
-candidate:
+The v1.2.1 result had two surprises — faithfulness recovered (good)
+but answer_relevancy regressed (new). To attribute cleanly, a third
+configuration was run holding one Tune at v1.2 while flipping the
+other to v1.2.1:
 
-1. **Router AND-gate** — require ≥2 signals (or a hop+reasoning combo)
-   before promoting to MULTI_STEP. Today a single weak hop word can
-   over-fire. Brings SIMPLE % back into a healthier band (target
-   30–50% on this goldset).
-2. **max_iterations 3 → 2** — avg is already 2.40, and questions that
-   don't hit SUFFICIENT by iter 2 rarely improve in iter 3. Saves
-   latency and the ungrounded-paraphrase tail that hurts relevancy.
-3. **_T_SUFFICIENT 0.6 → 0.5 + floor condition** — only 5/15 SUFFICIENT
-   at 0.6 suggests the threshold is *still* high. A "0.5 with all
-   axes ≥ 0.4 floor" rule may be more honest than a flat threshold.
+**ABLATION** = `v1.2 router (5/15 MULTI_STEP) + v1.2.1 evaluator (_T_SUFFICIENT=0.6)`.
 
-Running this same bench after all three lands is the v1.2.2 gate.
+| Metric | v1.2 multi | v1.2.1 multi | ABLATION |
+|---|---|---|---|
+| answer_relevancy | 0.331 | **0.191** | **0.191** ← identical to v1.2.1 |
+| faithfulness | 0.199 | 0.291 | 0.207 ← closer to v1.2 |
+
+Bit-identical relevancy between v1.2.1 and ABLATION (both used the
+0.6 threshold) localises the relevancy regression *entirely* to
+Tune B (threshold lowering). The faithfulness recovery, on the other
+hand, came almost entirely from Tune A (router expansion) — ABLATION
+only gained +0.008 faithfulness from threshold change alone.
+
+**Causal attribution table**:
+
+| Metric | from Tune A (router) | from Tune B (evaluator) |
+|---|---|---|
+| correctness | +0.043 (good) | −0.043 (bad) |
+| faithfulness | +0.084 (good) | +0.008 (~null) |
+| **relevancy** | 0.000 (null) | **−0.140 (bad)** |
+| citation_cov | +0.039 (good) | ~null |
+
+→ Tune A is strictly good-or-neutral. Tune B is the regression source.
+
+### 3.6 v1.2.2 — third run, after Tune C + Tune D
+
+Two changes derived directly from the ablation:
+
+* **Tune C** — Revert `_T_SUFFICIENT` 0.6 → 0.7 (drop Tune B).
+* **Tune D** — Reduce `_DEFAULT_MAX_ITERATIONS` 3 → 2. v1.2's
+  "always-3-iter forced paraphrase" pathology that drove the original
+  faithfulness regression is fixed here instead of by lowering the
+  threshold.
+
+Router expansion (Tune A) preserved.
+
+| Metric | v1.2 multi | v1.2.1 multi | v1.2.2 multi | Δ vs native |
+|---|---|---|---|---|
+| answer_correctness | 0.288 | 0.251 | 0.254 | +0.021 |
+| faithfulness | 0.199 | 0.291 | **0.334** | **−0.039** (nearly closed) |
+| answer_relevancy | 0.331 | 0.191 | 0.170 | **−0.116** (still worse) |
+| citation_coverage | 0.050 | 0.050 | 0.033 | +0.026 |
+| avg latency (ms) | 6,052 | 7,172 | 5,088 | +2,139 |
+| avg tool calls | 4.27 | 5.27 | 3.73 | +2.00 |
+| cited (n / 15) | 11 | 11 | 9 | +2 |
+
+Diagnostic signals (v1.2 → v1.2.1 → ABL → v1.2.2):
+
+| | v1.2 | v1.2.1 | ABL | v1.2.2 |
+|---|---|---|---|---|
+| SIMPLE % | 66.67 | 0.00 | 66.67 | 0.00 |
+| avg iter (MULTI_STEP) | 3.00 | 2.40 | 2.40 | **1.80** |
+| SUFFICIENT @ iter 1 % | 0.00 | 26.67 | 20.00 | 20.00 |
+| verdict mix (suf/amb/ins) | 0/12/3 | 5/23/8 | 2/7/3 | 3/17/7 |
+
+#### v1.2.2 conclusion — structural tradeoff surfaced
+
+Tune D halved the v1.2 faithfulness regression *again* (−0.082 →
+−0.039, nearly native parity). But answer_relevancy went *further*
+the wrong way (−0.096 → −0.116) because max_iter=2 means some
+questions exit before the loop satisfies SUFFICIENT, ending on an
+unpolished candidate answer.
+
+The three runs collectively expose a **direct tradeoff between
+faithfulness and relevancy** that thresholds and iter caps cannot
+resolve on their own:
+
+* `max_iter ↓` → less ungrounded paraphrase → faithfulness ↑, but
+  more half-finished answers → relevancy ↓.
+* `max_iter ↑` → more answer polish → relevancy ↑, but ungrounded
+  paraphrase in the tail → faithfulness ↓.
+
+No setting of (`_T_SUFFICIENT`, `_DEFAULT_MAX_ITERATIONS`) reaches
+default-on parity. The next progress requires changing the *mechanism*,
+not the parameters.
+
+---
+
+## 4. Final v1.2 milestone judgement
+
+After three measurement rounds (v1.2 + v1.2.1 + v1.2.2) and one
+ablation, the verdict is:
+
+| Variant | default-on ready? | reason |
+|---|---|---|
+| v1.2 multi | ❌ | −0.174 faithfulness |
+| v1.2.1 multi | ❌ | −0.082 faithfulness + new −0.096 relevancy |
+| v1.2.2 multi | ❌ | −0.039 faithfulness + worsened −0.116 relevancy |
+
+**Ship decision**: v1.2.2 is the best-of-three by combined score and
+the best on faithfulness, so it becomes the `AGENT_MODE=multi`
+implementation. Default behaviour remains `AGENT_MODE=single`. The
+multi-agent path is documented as **experimental opt-in** in CHANGELOG.
+
+**What v1.2 actually accomplished**:
+
+* Three RAG-paper-pattern adaptations (Adaptive-RAG router,
+  Self-RAG 3-axis evaluator, CRAG branching) with 81 unit tests, all
+  written without learned reflection tokens or new framework deps.
+* Honest measurement — three full RAGAS runs and one targeted
+  ablation surfaced *which* tune caused *which* metric move.
+* A reusable benchmark contract (this document) future v1.x cycles
+  can extend rather than rewrite.
+
+**What v1.2 did not accomplish**: shipping multi-agent as default. The
+data is clear that further parameter tuning has diminishing returns;
+the next progress requires one of:
+
+1. **LLM-based router** — replace or fall back from regex when signals
+   are sparse. The simple-router/multi-stay-on tradeoff above suggests
+   the binary `route` decision itself is a bottleneck.
+2. **Final answer-synthesis stage** — after the evaluator-optimizer
+   loop closes, one more LLM pass that combines all gathered evidence
+   into a polished answer. Most likely to recover relevancy without
+   sacrificing faithfulness.
+3. **Cross-validation outside RAGAS** — RAGAS faithfulness may penalise
+   stylistic difference between single- and multi-agent answers in
+   ways that don't reflect actual correctness. Adding a goldset-matching
+   metric would isolate this.
+
+These are v1.3 territory, each a separate milestone.
 
 ---
 

@@ -330,6 +330,20 @@ class TestMaxIterationClamp:
         )
         assert loop._max_iterations <= 6
 
+    def test_v122_default_is_two(self) -> None:
+        """v1.2.2 dropped the default from 3 to 2 — the v1.2 first run
+        showed iter 3 rarely improved answer quality while regularly
+        introducing ungrounded paraphrase. Guards against accidental
+        revert.
+        """
+        loop = MultiAgentLoop(
+            store=AsyncMock(),
+            llm=AsyncMock(),
+            agent_factory=lambda: FakeAgentLoop([]),
+        )
+        assert loop._max_iterations == 2
+        assert MultiAgentLoop.DEFAULT_MAX_ITERATIONS == 2
+
 
 class TestFollowupPrompt:
     """The follow-up prompt helper composes the right hint."""

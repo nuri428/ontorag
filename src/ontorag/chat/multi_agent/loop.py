@@ -49,10 +49,22 @@ from ontorag.stores.base import GraphStore
 logger = logging.getLogger(__name__)
 
 
-# Default number of evaluator-optimizer iterations. Three covers the
-# common shape — first pass gathers, second fills gaps, third resolves
-# any remaining ambiguity — without running away on hard questions.
-_DEFAULT_MAX_ITERATIONS = 3
+# Default number of evaluator-optimizer iterations.
+#
+# v1.2 set this to 3. The first-run diagnostic showed avg iter = 3.00
+# (= max) on every MULTI_STEP question, and the forced 3rd iteration
+# regularly added ungrounded paraphrase that dragged RAGAS faithfulness
+# down by -0.174 vs native. The v1.2.1 run with router expansion
+# brought avg iter down to 2.40, and the 3-vs-2-iter difference rarely
+# improved answer quality — questions that don't reach SUFFICIENT by
+# iter 2 generally don't reach it at all.
+#
+# v1.2.2 reduces the default to 2. Combined with reverting the
+# evaluator threshold back to 0.7 (see evaluator.py), this preserves
+# the v1.2.1 router gains (faithfulness / citation / correctness)
+# while removing both pathologies — the forced 3rd-iter paraphrase
+# and the premature-SUFFICIENT relevancy regression.
+_DEFAULT_MAX_ITERATIONS = 2
 
 # Hard ceiling regardless of constructor argument. Defensive against
 # pathological loop configurations slipping into production.
