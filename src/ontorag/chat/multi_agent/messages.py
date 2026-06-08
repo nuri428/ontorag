@@ -59,3 +59,57 @@ class RouteDecision:
     matched_classes: tuple[str, ...] = field(default_factory=tuple)
     hop_signals: tuple[str, ...] = field(default_factory=tuple)
     reasoning_signals: tuple[str, ...] = field(default_factory=tuple)
+
+
+class SufficientContext(str, Enum):
+    """CRAG-style three-way branching verdict from the evaluator.
+
+    Values:
+        SUFFICIENT: All available axes are above the high threshold. The
+            candidate answer should be returned without further looping.
+        AMBIGUOUS: Mixed signal — at least one axis is in the middle
+            band. Trigger one more search/tool-call round and re-evaluate.
+        INSUFFICIENT: At least one axis is below the low threshold. The
+            current search direction is unproductive — re-plan with a
+            different tool path or different ontology scope.
+    """
+
+    SUFFICIENT = "sufficient"
+    AMBIGUOUS = "ambiguous"
+    INSUFFICIENT = "insufficient"
+
+
+@dataclass(frozen=True)
+class EvaluationAxes:
+    """Three reflection axes inspired by Self-RAG (Asai et al., NAACL 2024).
+
+    Self-RAG used learned tokens (`[IsRel]`, `[IsSup]`, `[IsUse]`) emitted
+    by a fine-tuned base model. Here the same three dimensions are scored
+    deterministically against the OWL schema and the active BN — no
+    additional training required.
+
+    Attributes:
+        is_rel: Relevance score in ``[0, 1]`` — how well the tool results
+            cover the TBox classes the question is about.
+        is_use: Utility score in ``[0, 1]`` — how much of the retrieved
+            evidence actually surfaces in the candidate answer (citation
+            completeness).
+        is_sup: Support score in ``[0, 1]`` or ``None``. Measures the
+            posterior entropy reduction from the latest tool calls when
+            a Bayesian network is active; ``None`` when no BN is in play.
+    """
+
+    is_rel: float
+    is_use: float
+    is_sup: float | None = None
+
+
+@dataclass(frozen=True)
+class EvaluationDecision:
+    """Combined evaluator output handed to the multi-agent loop."""
+
+    axes: EvaluationAxes
+    verdict: SufficientContext
+    rationale: str
+    matched_classes_in_results: tuple[str, ...] = field(default_factory=tuple)
+    cited_uris: tuple[str, ...] = field(default_factory=tuple)

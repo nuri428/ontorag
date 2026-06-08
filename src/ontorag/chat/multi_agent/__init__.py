@@ -19,7 +19,30 @@ keeps the existing single-agent path untouched.
 
 from __future__ import annotations
 
-from ontorag.chat.multi_agent.messages import Complexity, RouteDecision
+from ontorag.chat.multi_agent.evaluator import (
+    Evaluator,
+    compute_is_rel,
+    compute_is_use,
+    decide,
+)
+from ontorag.chat.multi_agent.messages import (
+    Complexity,
+    EvaluationAxes,
+    EvaluationDecision,
+    RouteDecision,
+    SufficientContext,
+)
 from ontorag.chat.multi_agent.router import route
 
-__all__ = ["Complexity", "RouteDecision", "route"]
+__all__ = [
+    "Complexity",
+    "EvaluationAxes",
+    "EvaluationDecision",
+    "Evaluator",
+    "RouteDecision",
+    "SufficientContext",
+    "compute_is_rel",
+    "compute_is_use",
+    "decide",
+    "route",
+]
