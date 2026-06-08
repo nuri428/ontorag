@@ -97,22 +97,79 @@ or token cost.*
 Keep it opt-in via `AGENT_MODE=multi`. The citation gains are real but
 the faithfulness regression is large enough to harm production trust.
 
-### 3.4 Tuning targets surfaced by the diagnostic signals — for v1.2.1
+### 3.4 v1.2.1 — second run, after Tune A + Tune B
 
-The signals point at two specific tuning levers:
+Two changes landed:
 
-1. **Evaluator thresholds too strict.** 0/15 SUFFICIENT verdicts and a
-   3.00 iteration average means `_T_SUFFICIENT=0.7` is unreachable
-   on this domain. Each extra iteration adds ungrounded paraphrase that
-   shows up as the faithfulness regression. *Lower the threshold (try
-   0.6) or make it data-adaptive and re-run the same goldset.*
-2. **Router signal set too narrow.** 66.7% SIMPLE on a goldset that was
-   *designed* to be multi-hop means the heuristic is missing common
-   Korean multi-hop phrasing — "타입별", "각각", "공유", "이상". *Add
-   those signals to `router._HOP_PATTERNS` and re-run.*
+* **Tune A (router)** — 14 Korean hop patterns added to
+  `_HOP_PATTERNS` (grouping `타입별`, distributive `각각`, threshold
+  `\d+ 이상`, equality `과/와 같은`, superlative `가장 많은`, completeness
+  `모두 알려`, existential `한 마리라도`, inverse `역방향`, set inclusion
+  `포함`, two-stage compound `이고, 그`, relational `출신`).
+* **Tune B (evaluator)** — `_T_SUFFICIENT` lowered 0.7 → 0.6.
 
-Together these two tuning passes are the v1.2.1 milestone. Re-running
-this benchmark after both is the gate to v1.2.0 default-on.
+#### Observed numbers (same 15-q multi-hop goldset, same gpt-4o, ko)
+
+| Metric | v1.2 multi | v1.2.1 multi | Δ (vs v1.2) | Δ (vs native) |
+|---|---|---|---|---|
+| answer_correctness | 0.288 | 0.251 | −0.036 | +0.018 |
+| faithfulness | 0.199 | 0.291 | **+0.092** | −0.082 |
+| answer_relevancy | 0.331 | 0.191 | **−0.140** | −0.096 |
+| citation_coverage | 0.050 | 0.050 | ±0 | +0.043 |
+| hallucination_rate | 0.000 | 0.000 | ±0 | ±0 |
+| avg latency (ms) | 6,052 | 7,172 | +1,120 | +4,222 |
+| avg tool calls | 4.27 | 5.27 | +1.00 | +3.54 |
+| cited (n / 15) | 11 | 11 | ±0 | +4 |
+
+#### Diagnostic signals — Tune A + B worked
+
+| Signal | v1.2 | v1.2.1 | Note |
+|---|---|---|---|
+| SIMPLE route % | 66.7% | **0.0%** | Router now catches all 15 designed-multi-hop Qs |
+| MULTI_STEP route % | 33.3% | **100.0%** | All Qs enter the evaluator loop |
+| avg iter (MULTI_STEP) | 3.00 | **2.40** | Lower threshold lets some Qs stop early |
+| SUFFICIENT at iter 1 % | 0.0% | **26.7%** | 4/15 satisfied on first round |
+| verdict mix (suf/amb/ins) | 0/12/3 | **5/23/8** | SUFFICIENT now reachable |
+
+The signals **all moved in the intended direction**.
+
+#### Decision rule re-evaluation
+
+| Criterion | v1.2 | v1.2.1 | Verdict |
+|---|---|---|---|
+| correctness improved (vs native) | ✅ +0.055 | ✅ +0.018 | weakened |
+| citation improved (vs native) | ✅ +0.043 | ✅ +0.043 | held |
+| simple-q latency regression | ✅ | ✅ | held |
+| faithfulness regression | ❌ −0.174 | ❌ −0.082 | **halved** |
+| relevancy regression (NEW) | n/a | ❌ −0.096 | **new** |
+
+**Conclusion** — v1.2.1 is **clearly better than v1.2** (faithfulness
+gap halved, SUFFICIENT verdicts reachable) but still **not default-on
+ready**. The Tune A expansion is too aggressive (0% SIMPLE means
+even questions a single-agent could nail get the evaluator overhead,
+which appears as the new relevancy regression).
+
+Keep `AGENT_MODE=multi` opt-in. Document both v1.2 and v1.2.1 as
+*experimental modes*.
+
+### 3.5 Tuning targets for v1.2.2 (next iteration)
+
+The new diagnostics point at three further levers — each is a
+single-commit change, and together they should land a default-on
+candidate:
+
+1. **Router AND-gate** — require ≥2 signals (or a hop+reasoning combo)
+   before promoting to MULTI_STEP. Today a single weak hop word can
+   over-fire. Brings SIMPLE % back into a healthier band (target
+   30–50% on this goldset).
+2. **max_iterations 3 → 2** — avg is already 2.40, and questions that
+   don't hit SUFFICIENT by iter 2 rarely improve in iter 3. Saves
+   latency and the ungrounded-paraphrase tail that hurts relevancy.
+3. **_T_SUFFICIENT 0.6 → 0.5 + floor condition** — only 5/15 SUFFICIENT
+   at 0.6 suggests the threshold is *still* high. A "0.5 with all
+   axes ≥ 0.4 floor" rule may be more honest than a flat threshold.
+
+Running this same bench after all three lands is the v1.2.2 gate.
 
 ---
 

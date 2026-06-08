@@ -46,10 +46,20 @@ from ontorag.stores.base import SchemaResult
 logger = logging.getLogger(__name__)
 
 
-# CRAG-style branching thresholds. Conservative — middle band is wide
-# so the loop reaches for one more round rather than emitting a
-# half-supported answer.
-_T_SUFFICIENT = 0.7
+# CRAG-style branching thresholds.
+#
+# v1.2 first-run diagnostic on the multi-hop pokemon goldset showed
+# 0/15 SUFFICIENT verdicts with _T_SUFFICIENT=0.7 — the loop hit max
+# iterations on every MULTI_STEP question, and each forced extra
+# iteration added ungrounded paraphrase that dragged RAGAS faithfulness
+# down by -0.174 against the single-agent baseline. The threshold was
+# unreachable in the real domain.
+#
+# v1.2.1 — lowered _T_SUFFICIENT to 0.6 so SUFFICIENT is reachable on
+# realistically-grounded answers. _T_INSUFFICIENT stays at 0.3; the
+# middle band (ambiguous) is narrowed by 0.1 rather than widened, so
+# the loop still iterates when an axis is actually weak.
+_T_SUFFICIENT = 0.6
 _T_INSUFFICIENT = 0.3
 
 # IsUse saturation point. Most well-grounded answers cite ~3–5 entities;

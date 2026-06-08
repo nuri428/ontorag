@@ -1,0 +1,1029 @@
+{
+  "baseline_name": "ontorag_multiagent",
+  "baseline_version": "0.1.0",
+  "goldset_path": "examples/pokemon/goldset_multihop.jsonl",
+  "graph_triples": 463,
+  "total_questions": 15,
+  "language": "ko",
+  "results": [
+    {
+      "question_id": "Q501",
+      "difficulty": "medium",
+      "category": "join",
+      "uses_inference": false,
+      "question_text": "피카츄와 같은 타입을 가진 포켓몬을 알려줘.",
+      "gold_answer": "피카츄(전기 타입)와 같은 타입을 공유하는 포켓몬들.",
+      "baseline_answer": "피카츄와 같은 타입을 가진 포켓몬은 데이터에 없습니다.피카츄와 같은 전기 타입을 가진 포켓몬은 데이터에 없습니다.피카츄와 같은 전기 타입을 가진 포켓몬은 현재 데이터에 등록되어 있지 않습니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 7,
+      "latency_ms": 11047.286832996178,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.18317401520160115,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_multiagent",
+        "tool_call_sequence": [
+          "search_text",
+          "find_similar",
+          "find_entities",
+          "find_entities",
+          "search_text",
+          "traverse_graph",
+          "find_related"
+        ],
+        "rate_limit_hits": 0,
+        "error": null,
+        "route": {
+          "complexity": "multi_step",
+          "rationale": "hop signal: '와 같은'",
+          "matched_classes": [],
+          "hop_signals": [
+            "와 같은"
+          ],
+          "reasoning_signals": []
+        },
+        "iterations": 3,
+        "evaluations": [
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          },
+          {
+            "verdict": "insufficient",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.2,
+              "sup": null
+            },
+            "rationale": "axis below 0.3: use=0.20"
+          },
+          {
+            "verdict": "insufficient",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.2,
+              "sup": null
+            },
+            "rationale": "axis below 0.3: use=0.20"
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "Q502",
+      "difficulty": "medium",
+      "category": "join_aggregate",
+      "uses_inference": false,
+      "question_text": "타입별 포켓몬은 각각 몇 마리인가?",
+      "gold_answer": "타입별 고유 포켓몬 수.",
+      "baseline_answer": "포켓몬의 타입별 개수는 다음과 같습니다:\n\n- 불꽃 타입: 3마리\n- 풀 타입: 3마리\n- 독 타입: 3마리\n- 물 타입: 3마리\n- 비행 타입: 2마리\n- 노말 타입: 2마리\n- 전기 타입: 1마리\n- 에스퍼 타입: 1마리타입별 포켓몬의 개수는 다음과 같습니다:\n\n- 불꽃 타입: 3마리\n- 풀 타입: 3마리\n- 독 타입: 3마리\n- 물 타입: 3마리\n- 비행 타입: 2마리\n- 노말 타입: 2마리\n- 전기 타입: 1마리\n- 에스퍼 타입: 1마리타입별 포켓몬의 개수는 다음과 같습니다:\n\n- 불꽃 타입: 3마리\n- 풀 타입: 3마리\n- 독 타입: 3마리\n- 물 타입: 3마리\n- 비행 타입: 2마리\n- 노말 타입: 2마리\n- 전기 타입: 1마리\n- 에스퍼 타입: 1마리\n\n각 타입은 불꽃, 풀, 독, 물, 비행, 노말, 전기, 에스퍼 입니다. 이 타입들은 각기 다른 상대 타입에 대한 강점과 약점을 가지고 있습니다. 예를 들어, 불꽃 타입은 풀 타입, 강철 타입, 얼음 타입, 벌레 타입에 대해 강하지만 물 타입, 불꽃 타입, 바위 타입에 약합니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 11,
+      "latency_ms": 10411.346041990328,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.07692307692307693,
+      "ragas_answer_correctness": 0.142168504933,
+      "ragas_answer_relevancy": 0.7614007418070637,
+      "extra": {
+        "baseline_kind": "ontology_multiagent",
+        "tool_call_sequence": [
+          "aggregate",
+          "aggregate",
+          "aggregate",
+          "describe_entity",
+          "describe_entity",
+          "describe_entity",
+          "describe_entity",
+          "describe_entity",
+          "describe_entity",
+          "describe_entity",
+          "describe_entity"
+        ],
+        "rate_limit_hits": 0,
+        "error": null,
+        "route": {
+          "complexity": "multi_step",
+          "rationale": "hop signal: '타입별'",
+          "matched_classes": [],
+          "hop_signals": [
+            "타입별",
+            "각각"
+          ],
+          "reasoning_signals": []
+        },
+        "iterations": 3,
+        "evaluations": [
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          },
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          },
+          {
+            "verdict": "insufficient",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.2,
+              "sup": null
+            },
+            "rationale": "axis below 0.3: use=0.20"
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "Q503",
+      "difficulty": "medium",
+      "category": "join_compare",
+      "uses_inference": false,
+      "question_text": "리자몽과 거북왕의 HP와 공격력을 비교해줘.",
+      "gold_answer": "리자몽과 거북왕의 HP·공격력 수치 비교.",
+      "baseline_answer": "리자몽과 거북왕의 HP와 공격력은 다음과 같습니다:\n\n- **리자몽:**\n  - HP: 78\n  - 공격력: 84\n\n- **거북왕:**\n  - HP: 79\n  - 공격력: 83\n\n리자몽은 공격력이 조금 더 높고, 거북왕은 HP가 약간 더 높습니다.리자몽과 거북왕의 HP와 공격력은 다음과 같습니다:\n\n- **리자몽:**\n  - HP: 78\n  - 공격력: 84\n\n- **거북왕:**\n  - HP: 79\n  - 공격력: 83\n\n리자몽은 공격력이 조금 더 높고, 거북왕은 HP가 약간 더 높습니다.리자몽과 거북왕의 HP와 공격력은 다음과 같습니다:\n\n- **리자몽:**\n  - HP: 78\n  - 공격력: 84\n\n- **거북왕:**\n  - HP: 79\n  - 공격력: 83\n\n리자몽은 공격력이 조금 더 높고, 거북왕은 HP가 약간 더 높습니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 8,
+      "latency_ms": 10347.343457993702,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.05,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.3333333333333333,
+      "ragas_answer_correctness": 0.18617123543948808,
+      "ragas_answer_relevancy": 0.6278464245618871,
+      "extra": {
+        "baseline_kind": "ontology_multiagent",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_entities",
+          "search_text",
+          "search_text",
+          "describe_entity",
+          "describe_entity",
+          "find_entities",
+          "find_entities"
+        ],
+        "rate_limit_hits": 0,
+        "error": null,
+        "route": {
+          "complexity": "multi_step",
+          "rationale": "hop signal: '비교'",
+          "matched_classes": [],
+          "hop_signals": [
+            "비교"
+          ],
+          "reasoning_signals": []
+        },
+        "iterations": 3,
+        "evaluations": [
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.4,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.40"
+          },
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.4,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.40"
+          },
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.4,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.40"
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "Q504",
+      "difficulty": "hard",
+      "category": "transitive_inference",
+      "uses_inference": true,
+      "question_text": "리자몽의 진화 계통을 모두 알려줘.",
+      "gold_answer": "리자몽 ← 리자드 ← 파이리 (모든 조상, evolvesFrom 추이 관계).",
+      "baseline_answer": "리자몽의 진화 계통은 다음과 같습니다:\n\n- 파이리\n- 리자드\n- 리자몽",
+      "baseline_cited_triple_count": 15,
+      "tool_calls": 2,
+      "latency_ms": 2389.427625006647,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.42419339877597445,
+      "ragas_answer_relevancy": 0.3369273420661573,
+      "extra": {
+        "baseline_kind": "ontology_multiagent",
+        "tool_call_sequence": [
+          "search_text",
+          "property_path_query"
+        ],
+        "rate_limit_hits": 0,
+        "error": null,
+        "route": {
+          "complexity": "multi_step",
+          "rationale": "hop signal: '모두 알려'",
+          "matched_classes": [],
+          "hop_signals": [
+            "모두 알려"
+          ],
+          "reasoning_signals": []
+        },
+        "iterations": 1,
+        "evaluations": [
+          {
+            "verdict": "sufficient",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.6,
+              "sup": null
+            },
+            "rationale": "all axes ≥ 0.6: rel=1.00 use=0.60"
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "Q505",
+      "difficulty": "hard",
+      "category": "join_top_n",
+      "uses_inference": false,
+      "question_text": "공격력 상위 5 포켓몬은?",
+      "gold_answer": "공격력 기준 상위 5 포켓몬.",
+      "baseline_answer": "현재 데이터에는 공격력이 80 이상인 포켓몬에 대한 정보가 없습니다.현재 데이터에는 공격력이 80 이상인 포켓몬에 대한 정보가 없습니다. 포켓몬 TBox의 최대 공격력은 110으로 나타나지만, 공격력이 큰 포켓몬의 ABox 데이터는 비어 있습니다. 따라서 공격력이 가장 높은 5개의 포켓몬에 대한 구체적인 정보를 제공할 수 없습니다.현재 데이터에 따르면, 공격력이 80 이상인 포켓몬에 대한 정보는 비어 있습니다. 공격력 상위 5 포켓몬의 구체적인 정보를 제공할 수 없는 이유는 공격력 데이터가 부족하기 때문입니다. 공격력 상위값은 110으로 확인되지만, 해당 데이터에 대한 세부 정보는 존재하지 않습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 6,
+      "latency_ms": 10338.906290999148,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.13304174489498805,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_multiagent",
+        "tool_call_sequence": [
+          "aggregate",
+          "find_entities",
+          "aggregate",
+          "find_entities",
+          "aggregate",
+          "find_entities"
+        ],
+        "rate_limit_hits": 0,
+        "error": null,
+        "route": {
+          "complexity": "multi_step",
+          "rationale": "hop signal: '상위 5'",
+          "matched_classes": [],
+          "hop_signals": [
+            "상위 5"
+          ],
+          "reasoning_signals": []
+        },
+        "iterations": 3,
+        "evaluations": [
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          },
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          },
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "Q506",
+      "difficulty": "hard",
+      "category": "subclass_inference",
+      "uses_inference": true,
+      "question_text": "관동 지방 출신 포켓몬은 (전설 포함) 몇 마리인가?",
+      "gold_answer": "Pokemon + LegendaryPokemon(subClassOf 추론 포함)이고 fromRegion이 관동인 개수.",
+      "baseline_answer": "데이터에 따르면 관동 지방 출신인 포켓몬은 없습니다.데이터에 따르면, \"관동 지방 (Kanto)\"으로 레이블된 지역이 없습니다. 따라서, 관동 지방 출신 포켓몬에 대한 정보를 제공할 수 없습니다.데이터에 따르면, \"관동 지방\" 출신으로 등록된 포켓몬은 없습니다. 관동 지방 출신 포켓몬에 대한 추가 정보가 데이터에 포함되어 있지 않으므로 전설의 포켓몬을 포함한 관동 지방 출신 포켓몬의 수를 제공할 수 없습니다.",
+      "baseline_cited_triple_count": 2,
+      "tool_calls": 5,
+      "latency_ms": 8913.843333008117,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.5,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.10033838408112022,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_multiagent",
+        "tool_call_sequence": [
+          "count_entities",
+          "find_entities",
+          "find_entities",
+          "find_entities",
+          "find_entities"
+        ],
+        "rate_limit_hits": 0,
+        "error": null,
+        "route": {
+          "complexity": "multi_step",
+          "rationale": "hop signal: '출신'",
+          "matched_classes": [],
+          "hop_signals": [
+            "출신",
+            "포함"
+          ],
+          "reasoning_signals": []
+        },
+        "iterations": 3,
+        "evaluations": [
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          },
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          },
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "Q507",
+      "difficulty": "hard",
+      "category": "two_class_join",
+      "uses_inference": false,
+      "question_text": "불꽃 타입 포켓몬을 한 마리라도 가진 트레이너는?",
+      "gold_answer": "보유 포켓몬 중 hasType=Fire인 트레이너 목록.",
+      "baseline_answer": "데이터에 불꽃 타입 포켓몬을 가진 트레이너는 없습니다.데이터에 불꽃 타입 포켓몬을 가진 정보는 없습니다. 그리고 트레이너 목록에는 이슬, 지우, 웅이 포함되어 있습니다. 따라서, 불꽃 타입 포켓몬을 가진 트레이너는 현재 데이터에 존재하지 않습니다.데이터에는 불꽃 타입 포켓몬을 가진 트레이너에 대한 정보가 없습니다. 트레이너 목록에는 이슬, 지우, 웅이 포함되어 있지만, 이들이 불꽃 타입 포켓몬을 가진다는 정보는 현재 데이터에 없습니다.",
+      "baseline_cited_triple_count": 14,
+      "tool_calls": 4,
+      "latency_ms": 6191.201709007146,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.3333333333333333,
+      "ragas_answer_correctness": 0.13766102402890623,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_multiagent",
+        "tool_call_sequence": [
+          "aggregate",
+          "find_entities",
+          "find_entities",
+          "aggregate"
+        ],
+        "rate_limit_hits": 0,
+        "error": null,
+        "route": {
+          "complexity": "multi_step",
+          "rationale": "hop signal: '한 마리라도'",
+          "matched_classes": [],
+          "hop_signals": [
+            "한 마리라도"
+          ],
+          "reasoning_signals": []
+        },
+        "iterations": 3,
+        "evaluations": [
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          },
+          {
+            "verdict": "insufficient",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.0,
+              "sup": null
+            },
+            "rationale": "axis below 0.3: use=0.00"
+          },
+          {
+            "verdict": "insufficient",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.0,
+              "sup": null
+            },
+            "rationale": "axis below 0.3: use=0.00"
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "Q508",
+      "difficulty": "hard",
+      "category": "inverse_traversal",
+      "uses_inference": true,
+      "question_text": "지우가 가진 포켓몬은? (trainedBy 역방향으로 추적)",
+      "gold_answer": "p trainedBy 지우 인 모든 p — 지우의 라인업.",
+      "baseline_answer": "지우가 가진 포켓몬은 다음과 같습니다:\n\n- 리자몽\n- 피조트\n- 피카츄\n- 이상해씨\n- 파이리",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 2,
+      "latency_ms": 2426.4924169983715,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.07541585169616458,
+      "ragas_answer_relevancy": 0.30397461735457804,
+      "extra": {
+        "baseline_kind": "ontology_multiagent",
+        "tool_call_sequence": [
+          "find_entities",
+          "traverse_graph"
+        ],
+        "rate_limit_hits": 0,
+        "error": null,
+        "route": {
+          "complexity": "multi_step",
+          "rationale": "hop signal: '역방향'",
+          "matched_classes": [],
+          "hop_signals": [
+            "역방향"
+          ],
+          "reasoning_signals": []
+        },
+        "iterations": 1,
+        "evaluations": [
+          {
+            "verdict": "sufficient",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.8,
+              "sup": null
+            },
+            "rationale": "all axes ≥ 0.6: rel=1.00 use=0.80"
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "Q509",
+      "difficulty": "medium",
+      "category": "join_then_filter",
+      "uses_inference": false,
+      "question_text": "공격력 80 이상의 물 타입 포켓몬을 알려줘.",
+      "gold_answer": "hasType=Water이고 attack > 80인 포켓몬.",
+      "baseline_answer": "데이터에는 \"물 타입\"으로 등록된 포켓몬이 없습니다. 데이터에는 공격력 80 이상의 포켓몬이 없습니다. 또한, \"물 타입\"으로 등록된 포켓몬도 없습니다.데이터에는 공격력 80 이상의 포켓몬이 없습니다. 또한, \"물 타입\"으로 분류된 포켓몬도 없습니다. 요청하신 기준을 만족하는 포켓몬 정보를 찾을 수 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 4,
+      "latency_ms": 7720.754875001148,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.1354937260005795,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_multiagent",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_entities",
+          "find_entities",
+          "find_entities"
+        ],
+        "rate_limit_hits": 0,
+        "error": null,
+        "route": {
+          "complexity": "multi_step",
+          "rationale": "hop signal: '80 이상'",
+          "matched_classes": [],
+          "hop_signals": [
+            "80 이상"
+          ],
+          "reasoning_signals": []
+        },
+        "iterations": 3,
+        "evaluations": [
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          },
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          },
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "Q510",
+      "difficulty": "hard",
+      "category": "type_effectiveness",
+      "uses_inference": false,
+      "question_text": "물 타입이 강한 타입은 무엇이고, 그 타입의 포켓몬은 누구인가?",
+      "gold_answer": "Water strongAgainst t 인 t 타입을 가진 포켓몬 모두.",
+      "baseline_answer": "물 타입에 강한 타입은 없습니다. 따라서 그 타입에 속한 포켓몬도 존재하지 않습니다.물 타입에 강한 타입은 전기 타입과 풀 타입입니다. 이 타입의 포켓몬 목록을 확인하겠습니다. \n\n잠시만 기다려 주세요.물 타입에 강한 타입은 전기 타입과 풀 타입입니다. 그에 속하는 포켓몬들은 다음과 같습니다:\n\n- **전기 타입 포켓몬**\n  - 피카츄\n\n- **풀 타입 포켓몬**\n  - 이상해꽃\n  - 이상해풀\n  - 이상해씨",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 5,
+      "latency_ms": 8050.329625009908,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.0,
+      "ragas_answer_correctness": 0.13270317903543327,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_multiagent",
+        "tool_call_sequence": [
+          "find_entities",
+          "find_entities",
+          "find_related",
+          "find_entities",
+          "find_entities"
+        ],
+        "rate_limit_hits": 0,
+        "error": null,
+        "route": {
+          "complexity": "multi_step",
+          "rationale": "hop signal: '이고, 그 타'",
+          "matched_classes": [],
+          "hop_signals": [
+            "이고, 그 타"
+          ],
+          "reasoning_signals": []
+        },
+        "iterations": 2,
+        "evaluations": [
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          },
+          {
+            "verdict": "sufficient",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.8,
+              "sup": null
+            },
+            "rationale": "all axes ≥ 0.6: rel=1.00 use=0.80"
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "Q511",
+      "difficulty": "medium",
+      "category": "compare_average",
+      "uses_inference": false,
+      "question_text": "불 타입과 물 타입 포켓몬의 평균 HP를 비교해줘.",
+      "gold_answer": "타입별 평균 HP 두 값.",
+      "baseline_answer": "현재 데이터베이스에는 불타입과 물타입 포켓몬의 평균 HP 정보가 없습니다.현재 데이터베이스에는 불 타입 포켓몬의 정보가 없기 때문에 불 타입 포켓몬의 평균 HP를 계산할 수 없습니다. 물 타입 포켓몬의 경우 특정한 정보가 있긴 하지만, 평균 HP를 도출할 수 있는 자료는 아직 없습니다.현재 데이터베이스에 불 타입 포켓몬 정보가 없으며, 물 타입에 대한 정보는 있지만 평균 HP를 도출할 수 없습니다. 따라서 불 타입과 물 타입 포켓몬의 평균 HP 비교는 불가능합니다.",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 9,
+      "latency_ms": 7748.371958005009,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.13879593071550286,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_multiagent",
+        "tool_call_sequence": [
+          "aggregate",
+          "find_entities",
+          "find_entities",
+          "aggregate",
+          "find_entities",
+          "find_entities",
+          "aggregate",
+          "find_entities",
+          "find_entities"
+        ],
+        "rate_limit_hits": 0,
+        "error": null,
+        "route": {
+          "complexity": "multi_step",
+          "rationale": "hop signal: '비교'",
+          "matched_classes": [],
+          "hop_signals": [
+            "비교"
+          ],
+          "reasoning_signals": []
+        },
+        "iterations": 3,
+        "evaluations": [
+          {
+            "verdict": "insufficient",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.0,
+              "sup": null
+            },
+            "rationale": "axis below 0.3: use=0.00"
+          },
+          {
+            "verdict": "insufficient",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.0,
+              "sup": null
+            },
+            "rationale": "axis below 0.3: use=0.00"
+          },
+          {
+            "verdict": "insufficient",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.0,
+              "sup": null
+            },
+            "rationale": "axis below 0.3: use=0.00"
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "Q512",
+      "difficulty": "hard",
+      "category": "move_type_join",
+      "uses_inference": false,
+      "question_text": "자기 타입과 같은 타입의 기술을 가진 포켓몬은?",
+      "gold_answer": "기술의 moveType이 자기 hasType과 같은 포켓몬 (자속 기술 보유).",
+      "baseline_answer": "자기 타입과 같은 타입의 기술을 가진 포켓몬은 다음과 같습니다:\n\n- 거북왕 (물 타입) : \n  - 하이드로캐논 (물 타입 기술)\n  - 파도타기 (물 타입 기술)\n\n- 어니부기 (물 타입) : \n  - 파도타기 (물 타입 기술)\n  - 물대포 (물 타입 기술)\n\n- 리자몽 (불꽃 타입) : \n  - 불대문자 (불꽃 타입 기술)\n  - 화염방사 (불꽃 타입 기술)\n\n- 리자드 (불꽃 타입) : \n  - 화염방사 (불꽃 타입 기술)\n  - 불꽃세례 (불꽃 타입 기술)\n\n- 피카츄 (전기 타입) : \n  - 10만볼트 (전기 타입 기술)\n  - 천둥 (전기 타입 기술)\n\n- 이상해꽃 (풀 타입) : \n  - 덩굴채찍 (풀 타입 기술)\n\n- 이상해풀 (풀 타입) : \n  - 덩굴채찍 (풀 타입 기술)\n  - 솔라빔 (풀 타입 기술)\n\n- 이상해씨 (풀 타입) : \n  - 솔라빔 (풀 타입 기술)",
+      "baseline_cited_triple_count": 20,
+      "tool_calls": 2,
+      "latency_ms": 5272.937041998375,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 0.4583333333333333,
+      "ragas_answer_correctness": 0.11452440828182725,
+      "ragas_answer_relevancy": 0.2719615880609505,
+      "extra": {
+        "baseline_kind": "ontology_multiagent",
+        "tool_call_sequence": [
+          "find_related",
+          "find_related"
+        ],
+        "rate_limit_hits": 0,
+        "error": null,
+        "route": {
+          "complexity": "multi_step",
+          "rationale": "hop signal: '과 같은'",
+          "matched_classes": [],
+          "hop_signals": [
+            "과 같은"
+          ],
+          "reasoning_signals": []
+        },
+        "iterations": 1,
+        "evaluations": [
+          {
+            "verdict": "sufficient",
+            "axes": {
+              "rel": 1.0,
+              "use": 1.0,
+              "sup": null
+            },
+            "rationale": "all axes ≥ 0.6: rel=1.00 use=1.00"
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "Q513",
+      "difficulty": "hard",
+      "category": "subclass_aggregate",
+      "uses_inference": true,
+      "question_text": "전설의 포켓몬 평균 HP와 전체 포켓몬 평균 HP를 비교해줘.",
+      "gold_answer": "LegendaryPokemon 평균 HP vs 전체 Pokemon(subClassOf 추론 포함) 평균 HP.",
+      "baseline_answer": "- 전설의 포켓몬 평균 HP: 106\n- 전체 포켓몬 평균 HP: 160\n\n전설의 포켓몬의 평균 HP는 전체 포켓몬의 평균 HP보다 낮습니다.- 전설의 포켓몬 평균 HP: 106\n- 전체 포켓몬 평균 HP: 160\n\n전설의 포켓몬의 평균 HP는 전체 포켓몬의 평균 HP보다 낮습니다.- 전설의 포켓몬 평균 HP: 106\n- 전체 포켓몬 평균 HP: 160\n\n전설의 포켓몬의 평균 HP는 전체 포켓몬의 평균 HP보다 낮습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 6,
+      "latency_ms": 5723.705249998602,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.8741461890223949,
+      "ragas_answer_relevancy": 0.39719868661501234,
+      "extra": {
+        "baseline_kind": "ontology_multiagent",
+        "tool_call_sequence": [
+          "aggregate",
+          "aggregate",
+          "aggregate",
+          "aggregate",
+          "aggregate",
+          "aggregate"
+        ],
+        "rate_limit_hits": 0,
+        "error": null,
+        "route": {
+          "complexity": "multi_step",
+          "rationale": "hop signal: '비교'",
+          "matched_classes": [],
+          "hop_signals": [
+            "비교"
+          ],
+          "reasoning_signals": []
+        },
+        "iterations": 3,
+        "evaluations": [
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          },
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          },
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "Q514",
+      "difficulty": "hard",
+      "category": "path_query",
+      "uses_inference": true,
+      "question_text": "파이리에서 리자몽까지 진화 경로가 존재하는가?",
+      "gold_answer": "예 — 리자드를 거쳐 (evolvesFrom 추이 관계).",
+      "baseline_answer": "네, 파이리에서 리자몽까지의 진화 경로가 존재합니다. 그 경로는 다음과 같습니다:\n\n- 파이리\n- 리자드\n- 리자몽",
+      "baseline_cited_triple_count": 15,
+      "tool_calls": 3,
+      "latency_ms": 2904.2448330001207,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": 0.0,
+      "citation_coverage": 0.0,
+      "uses_property_path": null,
+      "ragas_faithfulness": 1.0,
+      "ragas_answer_correctness": 0.8635667892772576,
+      "ragas_answer_relevancy": 0.16138277556924271,
+      "extra": {
+        "baseline_kind": "ontology_multiagent",
+        "tool_call_sequence": [
+          "search_text",
+          "search_text",
+          "property_path_query"
+        ],
+        "rate_limit_hits": 0,
+        "error": null,
+        "route": {
+          "complexity": "multi_step",
+          "rationale": "hop signal: '경로'",
+          "matched_classes": [],
+          "hop_signals": [
+            "경로"
+          ],
+          "reasoning_signals": []
+        },
+        "iterations": 1,
+        "evaluations": [
+          {
+            "verdict": "sufficient",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.6,
+              "sup": null
+            },
+            "rationale": "all axes ≥ 0.6: rel=1.00 use=0.60"
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "Q515",
+      "difficulty": "hard",
+      "category": "multi_class_compose",
+      "uses_inference": false,
+      "question_text": "가장 많은 포켓몬을 배출한 지역은 어디이고, 그 지역의 가장 흔한 타입은 무엇인가?",
+      "gold_answer": "두 단계: (1) fromRegion 기준 COUNT가 가장 많은 Region; (2) 그 지역 포켓몬들 중 가장 빈도 높은 hasType.",
+      "baseline_answer": "데이터에 가장 많은 포켓몬을 배출한 지역과 관련된 정보가 없습니다. 따라서 그 지역의 가장 흔한 타입 또한 확인할 수 없습니다.데이터에 가장 많은 포켓몬을 배출한 지역에 대한 정보가 없습니다. 따라서 그 지역의 가장 흔한 타입 또한 확인할 수 없습니다.데이터에 포켓몬을 가장 많이 배출한 특정 지역에 대한 정보가 없습니다. 그러나 포켓몬의 타입 정보를 확인한 결과 가장 흔한 타입은 **불꽃, 풀, 독, 물 타입**으로 각각 3개의 포켓몬이 존재합니다. 이에 따라 특정 지역에서 흔한 타입에 대한 구체적인 정보도 확인할 수 없습니다.",
+      "baseline_cited_triple_count": 0,
+      "tool_calls": 5,
+      "latency_ms": 8093.001792003633,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "hallucination_rate": null,
+      "citation_coverage": null,
+      "uses_property_path": null,
+      "ragas_faithfulness": null,
+      "ragas_answer_correctness": 0.12790522358231565,
+      "ragas_answer_relevancy": 0.0,
+      "extra": {
+        "baseline_kind": "ontology_multiagent",
+        "tool_call_sequence": [
+          "aggregate",
+          "find_related",
+          "aggregate",
+          "aggregate",
+          "aggregate"
+        ],
+        "rate_limit_hits": 0,
+        "error": null,
+        "route": {
+          "complexity": "multi_step",
+          "rationale": "hop signal: '가장 많은'",
+          "matched_classes": [],
+          "hop_signals": [
+            "가장 많은",
+            "이고, 그 지",
+            "가장 흔한"
+          ],
+          "reasoning_signals": []
+        },
+        "iterations": 3,
+        "evaluations": [
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          },
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          },
+          {
+            "verdict": "ambiguous",
+            "axes": {
+              "rel": 1.0,
+              "use": 0.5,
+              "sup": null
+            },
+            "rationale": "middle band: rel=1.00 use=0.50"
+          }
+        ]
+      }
+    }
+  ],
+  "aggregate": {
+    "avg_latency_ms": 7171.946205534429,
+    "avg_tool_calls": 5.266666666666667,
+    "total_prompt_tokens": 0,
+    "total_completion_tokens": 0,
+    "avg_hallucination_rate": 0.0,
+    "avg_citation_coverage": 0.05,
+    "citation_provided_count": 11,
+    "citation_provided_rate": 0.7333333333333333,
+    "avg_ragas_faithfulness": 0.2910839160839161,
+    "avg_ragas_answer_correctness": 0.2512866403311036,
+    "avg_ragas_answer_relevancy": 0.19071281173565946,
+    "per_difficulty": {
+      "medium": {
+        "count": 5,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.0125,
+        "citation_provided": 4
+      },
+      "hard": {
+        "count": 10,
+        "avg_hallucination": 0.0,
+        "avg_citation": 0.07142857142857142,
+        "citation_provided": 7
+      }
+    }
+  }
+}

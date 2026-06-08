@@ -34,21 +34,51 @@ logger = logging.getLogger(__name__)
 # Korean + English multi-hop indicators. Patterns are anchored with
 # word boundaries where they apply to single English words; Korean
 # patterns rely on the substring being distinctive enough.
+#
+# The Korean set was tuned against the v1.2 multi-hop goldset
+# (examples/pokemon/goldset_multihop.jsonl) — the v1.2 first-run
+# benchmark showed 66.7% SIMPLE on questions that were *designed* to
+# be multi-hop, because the router had no signal for Korean grouping,
+# threshold, inverse, superlative, or two-stage compound phrasing.
 _HOP_PATTERNS: tuple[str, ...] = (
+    # ── English (kept as-is) ──
     r"\band\b",
-    r"그리고",
     r"first .{1,30} then",
-    r"먼저 .{1,30} 다음",
-    r"이후",
     r"compared? (?:to|with)",
-    r"비교",
-    r"대비",
     r"top \d+",
-    r"상위 \d+",
     r"chain",
-    r"경로",
     r"path",
     r"vs\.?",
+    # ── Korean (existing) ──
+    r"그리고",
+    r"먼저 .{1,30} 다음",
+    r"이후",
+    r"비교",
+    r"대비",
+    r"상위 \d+",
+    r"경로",
+    # ── Korean grouping / per-X aggregation (v1.2.1) ──
+    r"타입별|유형별|종류별|지역별|클래스별",
+    r"각각",
+    # ── Korean threshold comparison (v1.2.1) ──
+    r"\d+\s*(?:이상|이하|초과|미만)",
+    # ── Korean equality / shared-attribute join (v1.2.1) ──
+    r"(?:과|와)\s*같은",
+    # ── Korean superlative (v1.2.1) ──
+    r"가장\s*(?:많은|적은|흔한|큰|작은|높은|낮은|긴|짧은|빠른|느린|강한|약한)",
+    # ── Korean completeness / exhaustive (v1.2.1) ──
+    r"모두\s*(?:알려|보여|찾|나열)",
+    # ── Korean existential cross-class (v1.2.1) ──
+    r"한\s*\S{1,3}\s*라도|하나라도",
+    # ── Korean inverse direction (v1.2.1) ──
+    r"역방향|반대로|반대\s*방향",
+    # ── Korean set inclusion (v1.2.1) ──
+    r"포함",
+    # ── Korean two-stage compound question (v1.2.1) ──
+    # "X이고, 그 X" / "X이며, 그 X" — second clause depends on first
+    r"(?:이고|이며)[\s,]+그\s*\S",
+    # ── Korean relational origin (v1.2.1) ──
+    r"출신",
 )
 _HOP_RE = re.compile("|".join(_HOP_PATTERNS), re.IGNORECASE)
 
