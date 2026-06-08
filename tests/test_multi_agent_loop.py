@@ -381,3 +381,43 @@ class TestFollowupPrompt:
         out = _make_followup_prompt("question", decision, long_prev)
         # Snippet bounded to 500 chars; total prompt should not contain 2000 x's
         assert out.count("x") < 1000
+
+    def test_quote_anchored_fires_when_isuse_low(self) -> None:
+        """v1.2-experimental — IsUse < 0.5 triggers grounding requirement.
+
+        Implements the Self-RAG IsSup-gate idea adapted for no-BN domains:
+        when the candidate answer doesn't cite the retrieved evidence
+        (low IsUse), the next iteration's prompt forces every claim to
+        carry a source URI/label, banning ungrounded paraphrase.
+        """
+        decision = EvaluationDecision(
+            axes=EvaluationAxes(is_rel=1.0, is_use=0.3),
+            verdict=SufficientContext.AMBIGUOUS,
+            rationale="x",
+        )
+        out = _make_followup_prompt("question", decision, "prev")
+        assert "[근거 의무]" in out
+        assert "출처" in out
+        assert "근거 없음" in out  # explicit fallback when no evidence found
+
+    def test_quote_anchored_skipped_when_isuse_high(self) -> None:
+        """High IsUse means the answer already cites evidence — no extra hint."""
+        decision = EvaluationDecision(
+            axes=EvaluationAxes(is_rel=1.0, is_use=0.8),
+            verdict=SufficientContext.AMBIGUOUS,
+            rationale="x",
+        )
+        out = _make_followup_prompt("question", decision, "prev")
+        assert "[근거 의무]" not in out
+        # Base verdict hint still present
+        assert "[추가 안내]" in out
+
+    def test_quote_anchored_at_boundary(self) -> None:
+        """IsUse exactly at the threshold (0.5) does NOT fire — strict <."""
+        decision = EvaluationDecision(
+            axes=EvaluationAxes(is_rel=1.0, is_use=0.5),
+            verdict=SufficientContext.AMBIGUOUS,
+            rationale="x",
+        )
+        out = _make_followup_prompt("question", decision, "prev")
+        assert "[근거 의무]" not in out

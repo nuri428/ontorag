@@ -74,6 +74,15 @@ _HARD_MAX_ITERATIONS = 6
 # follow-up prompt — keeps prompt size bounded across iterations.
 _PREV_ANSWER_SNIPPET = 500
 
+# IsUse threshold below which the follow-up prompt switches to a
+# quote-anchored grounding-required format. Self-RAG-inspired
+# behaviour change: when the candidate answer doesn't actually cite
+# the retrieved evidence (low IsUse), the next iteration's prompt
+# *requires* every claim to be paired with a specific entity URI or
+# label from the tool results. Bounded experiment in the no-BN domain
+# where IsSup is unavailable and IsUse is the sole grounding proxy.
+_T_QUOTE_ANCHORED_TRIGGER = 0.5
+
 
 # Type alias for the agent-factory dependency injection seam used by
 # tests to substitute a deterministic fake AgentLoop.
@@ -243,24 +252,44 @@ def _make_followup_prompt(
 ) -> str:
     """Compose a follow-up prompt with a verdict-shaped hint.
 
-    The hint is intentionally short — the model already has the previous
-    tool results in its conversation history. We only need to nudge it
-    toward (a) different evidence (``INSUFFICIENT``) or (b) more
-    evidence (``AMBIGUOUS``).
+    Three-layer prompt assembly:
+
+    * **Verdict hint** — short directive depending on whether the last
+      verdict was ``INSUFFICIENT`` (try different evidence) or
+      ``AMBIGUOUS`` (gather more evidence).
+    * **Quote-anchored grounding requirement** *(v1.2-experimental)* —
+      injected only when the IsUse axis is below
+      :data:`_T_QUOTE_ANCHORED_TRIGGER`. Forces the next iteration to
+      pair every claim with a specific entity URI / label, banning
+      ungrounded paraphrase. This is the Self-RAG IsSup gate adapted
+      for the no-BN domain where IsUse is the support proxy.
+    * **Previous answer snippet** — truncated to bound prompt growth.
     """
     if decision is None:
         return original
 
     if decision.verdict == SufficientContext.INSUFFICIENT:
-        hint = (
+        verdict_hint = (
             "이전 도구 호출 결과가 질문과 관련도가 낮습니다. "
             "다른 클래스 / 다른 도구 / 다른 URI로 접근해 새 evidence를 모아주세요."
         )
     else:  # AMBIGUOUS
-        hint = (
+        verdict_hint = (
             "이전 답변의 evidence가 일부 부족합니다. "
             "추가 도구 호출로 근거를 더 모아 답을 보강해주세요."
         )
 
+    grounding_block = ""
+    if decision.axes.is_use < _T_QUOTE_ANCHORED_TRIGGER:
+        grounding_block = (
+            "\n\n[근거 의무] 답변의 각 주장은 도구 호출 결과의 구체적 entity URI "
+            "또는 label과 함께 제시하세요. 형식: '<주장> (출처: <URI 또는 label>)'. "
+            "도구 결과로 뒷받침되지 않는 추정·일반 지식 기반 paraphrase는 금지. "
+            "근거를 찾을 수 없으면 '근거 없음'이라고 명시하세요."
+        )
+
     snippet = prev_answer[:_PREV_ANSWER_SNIPPET]
-    return f"{original}\n\n[추가 안내] {hint}\n이전 답변 초안: {snippet}"
+    return (
+        f"{original}\n\n[추가 안내] {verdict_hint}"
+        f"{grounding_block}\n이전 답변 초안: {snippet}"
+    )
