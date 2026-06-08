@@ -52,42 +52,67 @@ sets but flags them.
 
 ---
 
-## 3. Result template (fill from `ontorag eval bench --with-ragas`)
+## 3. Results — first run (2026-06-09, gpt-4o, ko)
 
-The numbers below are placeholders — they get replaced by the actual
-RAGAS-backed run defined in §4. The shape of the table is fixed so
-two runs can be compared like-for-like.
+15-question multi-hop goldset, Fuseki backend, RAGAS-backed.
+Same store, same LLM, same schema context — only the chat loop changes.
 
-### 3.1 Multi-hop goldset (15 q)
+### 3.1 Multi-hop goldset (15 q) — observed
 
 | Metric | `ontorag_native` | `ontorag_multiagent` | Δ |
 |---|---|---|---|
-| answer correctness (RAGAS) | _TBD_ | _TBD_ | _TBD_ |
-| faithfulness (RAGAS) | _TBD_ | _TBD_ | _TBD_ |
-| citation completeness | _TBD_ | _TBD_ | _TBD_ |
-| hallucination | _TBD_ | _TBD_ | _TBD_ |
-| avg tool calls / q | _TBD_ | _TBD_ | _TBD_ |
-| avg latency / q | _TBD_ | _TBD_ | _TBD_ |
-| avg LLM tokens / q | _TBD_ | _TBD_ | _TBD_ |
+| answer_correctness (RAGAS) | 0.233 | 0.288 | **+0.055** |
+| faithfulness (RAGAS) | 0.373 | 0.199 | **−0.174** ← regression |
+| answer_relevancy (RAGAS) | 0.287 | 0.331 | +0.044 |
+| citation_coverage | 0.007 | 0.050 | **+0.043** (~7×) |
+| hallucination_rate | 0.000 | 0.000 | ±0.000 |
+| avg latency (ms) | 2,949 | 6,052 | +3,103 (×2.05) |
+| avg tool calls | 1.73 | 4.27 | +2.53 (×2.47) |
+| cited (n / 15) | 7 | 11 | +4 (47% → 73%) |
 
-### 3.2 Existing factual goldset (130 q, pre-existing) — regression check
+### 3.2 v1.2-only diagnostic signals (multi-agent only)
 
-| Metric | `ontorag_native` (v1.1 reference) | `ontorag_multiagent` | Δ |
-|---|---|---|---|
-| answer correctness | _from BENCHMARK_RESULTS.md_ | _TBD_ | _TBD_ |
-| avg latency / q | _from BENCHMARK_RESULTS.md_ | _TBD_ | _TBD_ |
-
-### 3.3 v1.2-only signals (multi-agent only)
-
-| Signal | Multi-hop | Factual |
+| Signal | Value | What it tells us |
 |---|---|---|
-| SIMPLE route % (short-circuit, zero overhead) | _TBD_ | _TBD_ |
-| MULTI_STEP route % (evaluator loop activated) | _TBD_ | _TBD_ |
-| avg iterations when MULTI_STEP | _TBD_ | _TBD_ |
-| SUFFICIENT verdict % at iter 1 | _TBD_ | _TBD_ |
+| SIMPLE route % | 66.7% (10/15) | Router classified most multi-hop q as "easy" — signal set too narrow |
+| MULTI_STEP route % | 33.3% (5/15) | Only these reach the evaluator loop |
+| avg iterations (MULTI_STEP) | **3.00** | Always hits max — no early termination |
+| SUFFICIENT at iter 1 % | **0.0%** | Evaluator never satisfied first time |
+| verdict mix | 0 suf / 12 amb / 3 ins | Thresholds too strict for this domain |
 
-These last four come from `BaselineAnswer.extra` on the multi-agent run
-— they explain *why* any quality delta exists.
+### 3.3 Verdict against decision rule
+
+The decision rule in §0 was: *material improvement on correctness or
+citation, without unacceptable regression on simple-question latency
+or token cost.*
+
+| Criterion | Outcome | Pass? |
+|---|---|---|
+| answer correctness improved | +0.055 (small) | ✅ marginal |
+| citation completeness improved | +0.043 coverage, +26pp rate | ✅ strong |
+| simple-question latency regression | SIMPLE route → single agent, zero extra cost | ✅ |
+| **faithfulness regression** | **−0.174** | ❌ **fails** |
+
+**Conclusion** — do NOT ship `ontorag_multiagent` as the v1.2.0 default.
+Keep it opt-in via `AGENT_MODE=multi`. The citation gains are real but
+the faithfulness regression is large enough to harm production trust.
+
+### 3.4 Tuning targets surfaced by the diagnostic signals — for v1.2.1
+
+The signals point at two specific tuning levers:
+
+1. **Evaluator thresholds too strict.** 0/15 SUFFICIENT verdicts and a
+   3.00 iteration average means `_T_SUFFICIENT=0.7` is unreachable
+   on this domain. Each extra iteration adds ungrounded paraphrase that
+   shows up as the faithfulness regression. *Lower the threshold (try
+   0.6) or make it data-adaptive and re-run the same goldset.*
+2. **Router signal set too narrow.** 66.7% SIMPLE on a goldset that was
+   *designed* to be multi-hop means the heuristic is missing common
+   Korean multi-hop phrasing — "타입별", "각각", "공유", "이상". *Add
+   those signals to `router._HOP_PATTERNS` and re-run.*
+
+Together these two tuning passes are the v1.2.1 milestone. Re-running
+this benchmark after both is the gate to v1.2.0 default-on.
 
 ---
 
