@@ -413,7 +413,15 @@ class TestFollowupPrompt:
         assert "[추가 안내]" in out
 
     def test_quote_anchored_at_boundary(self) -> None:
-        """IsUse exactly at the threshold (0.5) does NOT fire — strict <."""
+        """IsUse exactly at the threshold (0.5) does NOT fire — strict <.
+
+        This boundary is load-bearing: compute_is_use returns exactly
+        0.5 (``_IS_USE_NO_EVIDENCE``) when the tool results contain
+        nothing citable. The strict ``<`` therefore exempts
+        zero-evidence iterations from the grounding requirement —
+        relaxing it to ``<=`` would demand citations of nonexistent
+        evidence.
+        """
         decision = EvaluationDecision(
             axes=EvaluationAxes(is_rel=1.0, is_use=0.5),
             verdict=SufficientContext.AMBIGUOUS,
@@ -421,3 +429,18 @@ class TestFollowupPrompt:
         )
         out = _make_followup_prompt("question", decision, "prev")
         assert "[근거 의무]" not in out
+
+    def test_quote_anchored_fires_with_insufficient_verdict(self) -> None:
+        """Grounding block is orthogonal to the verdict axis.
+
+        INSUFFICIENT + low IsUse must combine both layers: the
+        "find different evidence" hint and the grounding requirement.
+        """
+        decision = EvaluationDecision(
+            axes=EvaluationAxes(is_rel=0.2, is_use=0.3),
+            verdict=SufficientContext.INSUFFICIENT,
+            rationale="x",
+        )
+        out = _make_followup_prompt("question", decision, "prev")
+        assert "[근거 의무]" in out
+        assert "다른 클래스" in out  # INSUFFICIENT verdict hint preserved

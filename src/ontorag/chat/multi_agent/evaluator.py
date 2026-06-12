@@ -70,6 +70,12 @@ _T_INSUFFICIENT = 0.3
 # beyond that, more citations don't improve trustworthiness.
 _IS_USE_SATURATION = 5
 
+# Neutral IsUse score returned when the tool results contain nothing
+# citable. NOTE: loop.py's _T_QUOTE_ANCHORED_TRIGGER relies on this
+# value with a strict `<` so zero-evidence iterations are never asked
+# to cite nonexistent evidence — keep the two in sync.
+_IS_USE_NO_EVIDENCE = 0.5
+
 # Minimum local-name length to count as a "named" entity match. Avoids
 # matching very short generic tokens.
 _MIN_NAME_LEN = 3
@@ -155,7 +161,7 @@ def compute_is_use(
     distinct_labels = {label for label in labels if len(label) >= _MIN_NAME_LEN}
 
     if not distinct_uris and not distinct_labels:
-        return 0.5, ()
+        return _IS_USE_NO_EVIDENCE, ()
 
     answer = candidate_answer.lower()
     cited: set[str] = set()
@@ -168,7 +174,7 @@ def compute_is_use(
 
     n_target = min(_IS_USE_SATURATION, len(distinct_uris) + len(distinct_labels))
     if n_target == 0:
-        return 0.5, ()
+        return _IS_USE_NO_EVIDENCE, ()
     score = min(1.0, len(cited) / n_target)
     return score, tuple(sorted(cited))
 

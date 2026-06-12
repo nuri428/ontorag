@@ -81,6 +81,11 @@ _PREV_ANSWER_SNIPPET = 500
 # *requires* every claim to be paired with a specific entity URI or
 # label from the tool results. Bounded experiment in the no-BN domain
 # where IsSup is unavailable and IsUse is the sole grounding proxy.
+#
+# NOTE: must stay <= evaluator._IS_USE_NO_EVIDENCE (0.5) — the strict
+# `<` below exempts zero-evidence iterations, where compute_is_use
+# returns exactly that neutral score and demanding citations of
+# nonexistent evidence would be wrong.
 _T_QUOTE_ANCHORED_TRIGGER = 0.5
 
 
