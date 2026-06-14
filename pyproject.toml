@@ -143,7 +143,7 @@ artifacts = [
 asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
-    "integration: tests that require a live backend (e.g. Neo4j on bolt://localhost:7687); deselect with -m 'not integration'",
+    "integration: tests that require a live backend (Fuseki localhost:3030, Neo4j bolt://localhost:7687, FalkorDB localhost:6379); deselect with -m 'not integration'",
 ]
 
 [dependency-groups]
