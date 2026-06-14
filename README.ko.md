@@ -882,11 +882,36 @@ FUSEKI_DATASET=ontorag uv run python scripts/bench_query_speed_4domain.py --n 20
 # 개발 환경 설정
 uv sync --extra dev
 
-# 테스트 실행
-uv run pytest tests/ --cov=src/ontorag
+# 테스트 실행 (유닛만 — 라이브 백엔드 불필요)
+uv run pytest tests/ -m "not integration" --cov=src/ontorag
+
+# Integration 테스트 (라이브 백엔드 필요)
+#   Fuseki:   docker compose up -d
+#   Neo4j:    docker compose --profile neo4j up -d
+#   FalkorDB: docker compose --profile falkordb up -d
+uv run pytest tests/ -m integration
 
 # 개발 서버 실행
 uv run ontorag serve --reload
+```
+
+### Integration 테스트 마크
+
+`integration` 마크가 붙은 테스트는 라이브 백엔드가 필요하며 기본 실행에서 제외됩니다:
+
+| 마크 대상 | 필요한 백엔드 |
+|---|---|
+| Fuseki 스토어 (SPARQL, GSP) | `docker compose up` → Fuseki on `:3030` |
+| Neo4j 스토어 | `docker compose --profile neo4j up` → Neo4j on `:7687` |
+| FalkorDB 스토어 | `docker compose --profile falkordb up` → FalkorDB on `:6379` |
+| `assert_triple` / `retract_triple` HTTP MCP | ontorag API on `:8000` |
+
+```bash
+# integration 테스트 전체 제외 (CI 기본값)
+uv run pytest -m "not integration"
+
+# Fuseki 대상 integration 테스트만 실행
+GRAPH_STORE=fuseki uv run pytest -m integration
 ```
 
 ---

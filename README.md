@@ -1270,11 +1270,37 @@ FUSEKI_DATASET=ontorag uv run python scripts/bench_query_speed_4domain.py --n 20
 # Set up dev environment
 uv sync --extra dev
 
-# Run tests
-uv run pytest tests/ --cov=src/ontorag
+# Run tests (unit only — no live backend required)
+uv run pytest tests/ -m "not integration" --cov=src/ontorag
+
+# Run integration tests (requires live backends)
+#   Fuseki:   docker compose up -d
+#   Neo4j:    docker compose --profile neo4j up -d
+#   FalkorDB: docker compose --profile falkordb up -d
+uv run pytest tests/ -m integration
 
 # Run the API in dev mode
 uv run ontorag serve --reload
+```
+
+### Integration test mark
+
+Tests marked `integration` require one or more live backends and are
+excluded from the default run:
+
+| Mark target | Backend required |
+|---|---|
+| Fuseki store (SPARQL, GSP) | `docker compose up` → Fuseki on `:3030` |
+| Neo4j store | `docker compose --profile neo4j up` → Neo4j on `:7687` |
+| FalkorDB store | `docker compose --profile falkordb up` → FalkorDB on `:6379` |
+| `assert_triple` / `retract_triple` HTTP MCP | ontorag API on `:8000` |
+
+```bash
+# deselect all integration tests (CI default)
+uv run pytest -m "not integration"
+
+# run only integration tests against Fuseki
+GRAPH_STORE=fuseki uv run pytest -m integration
 ```
 
 ---
