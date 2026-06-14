@@ -22,6 +22,7 @@ from ontorag.api.routes.tools import (
     search,
     similar,
     traversal,
+    write,
 )
 from ontorag.web.router import router as web_router
 
@@ -103,6 +104,9 @@ app.include_router(bayes.router)
 
 # v0.8 Causal inference (do_query, identify_effect, counterfactual) — both backends
 app.include_router(causal.router)
+
+# ABox write tools — assert_triple / retract_triple / assert_triples (exposed via MCP)
+app.include_router(write.router)
 
 # Debug route — Layer 3 (NOT exposed via MCP)
 app.include_router(_sparql.router)
