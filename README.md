@@ -1254,6 +1254,16 @@ FUSEKI_DATASET=ontorag uv run python scripts/bench_query_speed_4domain.py --n 20
 
 ---
 
+## Related projects
+
+| Repo | Layer | Role |
+|---|---|---|
+| **ontorag** *(this repo)* | Semantic + Dynamic | RDF/OWL graph · Bayesian · Causal · MCP tools |
+| [ontorag-flow](https://github.com/nuri428/ontorag-flow) | Kinetic | Adaptive Case Management · action orchestration · PROV-O audit |
+| [ontorag-memory](https://github.com/nuri428/ontorag-memory) | Agent memory | Ontology-backed persistent memory for Claude Code, Hermes, and any MCP agent |
+
+---
+
 ## Contributing
 
 ```bash
