@@ -134,12 +134,16 @@ def uri_ref(uri: str) -> str:
             raise ValueError(f"Invalid or potentially unsafe URI: {uri!r}")
         return f"<{uri}>"
     if ":" in uri:
-        # Prefixed name (prefix:local) or opaque scheme (e.g. urn:) — validate
-        # against the same safe charset but leave unwrapped. Closes the
-        # injection gap where non-"://" inputs were previously returned
-        # verbatim (e.g. "pk:Foo } INJECT", "urn:x:Foo} SELECT ...").
+        # Prefixed name (prefix:local) or opaque multi-segment IRI (e.g. urn:).
+        # Validate against the safe charset first.
         if not _SAFE_URI_RE.match(uri):
             raise ValueError(f"Invalid or potentially unsafe prefixed name: {uri!r}")
+        # A valid SPARQL prefixed name has exactly ONE colon (prefix:local).
+        # URIs with multiple colons (urn:ag:proj:foo, urn:ontorag:data, …) are
+        # opaque IRIs — they must be wrapped in angle brackets or SPARQL will
+        # try to resolve the prefix ("urn", "isbn", etc.) and raise a 400.
+        if uri.count(":") > 1:
+            return f"<{uri}>"
         return uri
     # Bare token (no scheme/prefix) — allow only safe local-name characters.
     if not _SAFE_LOCAL_RE.match(uri):
