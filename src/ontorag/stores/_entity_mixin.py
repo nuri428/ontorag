@@ -208,7 +208,7 @@ WHERE {{
             f"    OPTIONAL {{ ?obj rdfs:label ?objLabel . }}"
         )
         query = f"""{pfx}
-SELECT ?pred ?obj ?label ?objLabel
+SELECT DISTINCT ?pred ?obj ?label ?objLabel
 WHERE {{
 {values_clause}
   {_data_clause(data_g, inner_body)}

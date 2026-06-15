@@ -31,9 +31,24 @@ from __future__ import annotations
 import dataclasses
 import json
 import logging
+import os
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+def _default_write_ontology() -> str | None:
+    """Build the default ontology id for write operations from env vars.
+
+    When ONTORAG_USER and ONTORAG_WORKSPACE are both set, writes go to the
+    user-scoped named graph (e.g. greennuri_claudecode) rather than the shared
+    default graph.  Returns None when either var is absent (legacy behaviour).
+    """
+    user = os.environ.get("ONTORAG_USER", "").strip()
+    workspace = os.environ.get("ONTORAG_WORKSPACE", "").strip()
+    if user and workspace:
+        return f"{user}_{workspace}"
+    return None
 
 
 def _to_jsonable(obj: Any) -> Any:
@@ -215,23 +230,26 @@ async def _dispatch(store: Any, name: str, args: dict[str, Any]) -> Any:
     if name == "find_path":
         return await store.find_path(args["uri_a"], args["uri_b"], max_depth=args.get("max_depth", 5))
     if name == "assert_triple":
+        ontology = args.get("ontology") or _default_write_ontology()
         await store.assert_triple(
             args["subject"], args["predicate"], args["object"],
             object_is_uri=args.get("object_is_uri", False),
-            ontology=args.get("ontology"),
+            ontology=ontology,
         )
         return {"status": "asserted", "triple": {"s": args["subject"], "p": args["predicate"], "o": args["object"]}}
     if name == "retract_triple":
+        ontology = args.get("ontology") or _default_write_ontology()
         await store.retract_triple(
             args["subject"], args["predicate"], args["object"],
             object_is_uri=args.get("object_is_uri", False),
-            ontology=args.get("ontology"),
+            ontology=ontology,
         )
         return {"status": "retracted", "triple": {"s": args["subject"], "p": args["predicate"], "o": args["object"]}}
     if name == "assert_triples":
+        ontology = args.get("ontology") or _default_write_ontology()
         raw = args["triples"]
         triples = [(t["subject"], t["predicate"], t["object"], t.get("object_is_uri", False)) for t in raw]
-        count = await store.assert_triples(triples, ontology=args.get("ontology"))
+        count = await store.assert_triples(triples, ontology=ontology)
         return {"status": "asserted", "count": count}
     if name in ("compute_posterior", "do_query"):
         bn_getter = getattr(store, "get_bayes_network", None)
