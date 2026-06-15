@@ -97,16 +97,20 @@ async def test_clear_removes_network(store):
 @pytest.mark.asyncio
 async def test_cpts_isolated_from_schema_and_data_graphs(store):
     """CPTs must live ONLY in the probabilistic graph — never schema/data."""
-    await store.put_bayes_network(_network())
-    # The schema and data named graphs must not have gained bn: triples.
     prob = probabilistic_graph_uri(None)
     assert prob == "urn:ontorag:probabilistic"
-    n_schema = await store._count_graph("urn:ontorag:schema")
-    n_data = await store._count_graph("urn:ontorag:data")
+    # Capture counts BEFORE to avoid failing on leftover data from other tests.
+    n_schema_before = await store._count_graph("urn:ontorag:schema")
+    n_data_before = await store._count_graph("urn:ontorag:data")
+
+    await store.put_bayes_network(_network())
+    # The schema and data named graphs must not have gained any new triples.
+    n_schema_after = await store._count_graph("urn:ontorag:schema")
+    n_data_after = await store._count_graph("urn:ontorag:data")
     n_prob = await store._count_graph(prob)
     assert n_prob > 0
-    assert n_schema == 0
-    assert n_data == 0
+    assert n_schema_after == n_schema_before
+    assert n_data_after == n_data_before
 
 
 @pytest.mark.asyncio

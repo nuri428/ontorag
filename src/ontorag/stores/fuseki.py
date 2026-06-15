@@ -207,6 +207,78 @@ class FusekiStore(
             g.parse(data=response.text, format="turtle")
         return g
 
+    async def _sparql_update(self, update: str) -> None:
+        """Execute a SPARQL Update statement against the dataset."""
+        client = await self._http()
+        await self._ensure_dataset()
+        response = await client.post(
+            f"{self._base}/{self._dataset}/update",
+            content=update.encode(),
+            headers={"Content-Type": "application/sparql-update"},
+        )
+        response.raise_for_status()
+
+    async def assert_triple(
+        self,
+        subject: str,
+        predicate: str,
+        obj: str,
+        *,
+        object_is_uri: bool = False,
+        ontology: str | None = None,
+    ) -> None:
+        """Insert a single triple into the ABox via GSP POST."""
+        from rdflib import Literal as RdfLiteral, URIRef  # noqa: PLC0415
+
+        ontology = validate_ontology_id(ontology)
+        graph_uri = data_graph_uri(ontology)
+        g = Graph()
+        g.add((URIRef(subject), URIRef(predicate), URIRef(obj) if object_is_uri else RdfLiteral(obj)))
+        await self._ensure_dataset()
+        await self._gsp_post(g, graph_uri)
+
+    async def retract_triple(
+        self,
+        subject: str,
+        predicate: str,
+        obj: str,
+        *,
+        object_is_uri: bool = False,
+        ontology: str | None = None,
+    ) -> None:
+        """Remove a single triple from the ABox via SPARQL UPDATE DELETE DATA."""
+        from rdflib import Literal as RdfLiteral, URIRef  # noqa: PLC0415
+
+        ontology = validate_ontology_id(ontology)
+        graph_uri = data_graph_uri(ontology)
+        s = URIRef(subject)
+        p = URIRef(predicate)
+        o: URIRef | RdfLiteral = URIRef(obj) if object_is_uri else RdfLiteral(obj)
+        # rdflib's n3() produces injection-safe SPARQL-compatible N-Triples notation.
+        update = f"DELETE DATA {{ GRAPH <{graph_uri}> {{ {s.n3()} {p.n3()} {o.n3()} . }} }}"
+        await self._sparql_update(update)
+
+    async def assert_triples(
+        self,
+        triples: list[tuple[str, str, str, bool]],
+        *,
+        ontology: str | None = None,
+    ) -> int:
+        """Insert multiple triples in one GSP POST."""
+        from rdflib import Literal as RdfLiteral, URIRef  # noqa: PLC0415
+
+        if not triples:
+            return 0
+        ontology = validate_ontology_id(ontology)
+        graph_uri = data_graph_uri(ontology)
+        g = Graph()
+        for subject, predicate, obj, object_is_uri in triples:
+            o: URIRef | RdfLiteral = URIRef(obj) if object_is_uri else RdfLiteral(obj)
+            g.add((URIRef(subject), URIRef(predicate), o))
+        await self._ensure_dataset()
+        await self._gsp_post(g, graph_uri)
+        return len(triples)
+
     async def clear_graph(
         self,
         target: Literal["schema", "data", "all"],
@@ -330,6 +402,10 @@ class FusekiStore(
             data={"query": sparql},
             headers={"Accept": "application/sparql-results+json"},
         )
+        if response.status_code >= 400:
+            logger.error(
+                "SPARQL query failed (%s): %s", response.status_code, response.text[:500]
+            )
         response.raise_for_status()
         return response.json()
 

@@ -110,6 +110,60 @@ _TOOLS: dict[str, dict[str, Any]] = {
         },
         "required": ["uri_a", "uri_b"],
     },
+    "assert_triple": {
+        "description": (
+            "Insert a single (subject, predicate, object) triple into the knowledge graph. "
+            "Use this to store facts, decisions, relationships, and agent memory. "
+            "Subject and predicate must be URIs (full or prefixed). "
+            "Object is a plain string literal by default; set object_is_uri=true for URI objects."
+        ),
+        "properties": {
+            "subject": {"type": "string", "description": "Subject URI (e.g. 'urn:agent:memory:task1')."},
+            "predicate": {"type": "string", "description": "Predicate URI (e.g. 'rdfs:label', 'urn:agent:hasDecision')."},
+            "object": {"type": "string", "description": "Object — literal string or URI (see object_is_uri)."},
+            "object_is_uri": {"type": "boolean", "default": False, "description": "Set true when object is a URI reference."},
+            "ontology": {"type": "string", "description": "Ontology/graph id to write into (omit for default ABox)."},
+        },
+        "required": ["subject", "predicate", "object"],
+    },
+    "retract_triple": {
+        "description": (
+            "Remove a specific triple from the knowledge graph (no-op if absent). "
+            "All three terms must match the stored triple exactly."
+        ),
+        "properties": {
+            "subject": {"type": "string"},
+            "predicate": {"type": "string"},
+            "object": {"type": "string"},
+            "object_is_uri": {"type": "boolean", "default": False},
+            "ontology": {"type": "string"},
+        },
+        "required": ["subject", "predicate", "object"],
+    },
+    "assert_triples": {
+        "description": (
+            "Insert multiple triples in one batch operation. "
+            "More efficient than repeated assert_triple calls when storing structured records."
+        ),
+        "properties": {
+            "triples": {
+                "type": "array",
+                "description": "List of triples to insert.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "subject": {"type": "string"},
+                        "predicate": {"type": "string"},
+                        "object": {"type": "string"},
+                        "object_is_uri": {"type": "boolean", "default": False},
+                    },
+                    "required": ["subject", "predicate", "object"],
+                },
+            },
+            "ontology": {"type": "string"},
+        },
+        "required": ["triples"],
+    },
     "compute_posterior": {
         "description": "Bayesian P(query | evidence) over the stored network ([bayes] extra).",
         "properties": {
@@ -160,6 +214,25 @@ async def _dispatch(store: Any, name: str, args: dict[str, Any]) -> Any:
         )
     if name == "find_path":
         return await store.find_path(args["uri_a"], args["uri_b"], max_depth=args.get("max_depth", 5))
+    if name == "assert_triple":
+        await store.assert_triple(
+            args["subject"], args["predicate"], args["object"],
+            object_is_uri=args.get("object_is_uri", False),
+            ontology=args.get("ontology"),
+        )
+        return {"status": "asserted", "triple": {"s": args["subject"], "p": args["predicate"], "o": args["object"]}}
+    if name == "retract_triple":
+        await store.retract_triple(
+            args["subject"], args["predicate"], args["object"],
+            object_is_uri=args.get("object_is_uri", False),
+            ontology=args.get("ontology"),
+        )
+        return {"status": "retracted", "triple": {"s": args["subject"], "p": args["predicate"], "o": args["object"]}}
+    if name == "assert_triples":
+        raw = args["triples"]
+        triples = [(t["subject"], t["predicate"], t["object"], t.get("object_is_uri", False)) for t in raw]
+        count = await store.assert_triples(triples, ontology=args.get("ontology"))
+        return {"status": "asserted", "count": count}
     if name in ("compute_posterior", "do_query"):
         bn_getter = getattr(store, "get_bayes_network", None)
         if bn_getter is None:
@@ -219,7 +292,13 @@ def build_server():
             return [types.TextContent(type="text", text=json.dumps(payload, ensure_ascii=False, default=str))]
         except Exception as exc:  # surface a clean error to the MCP client
             logger.exception("ontorag MCP tool %s failed", name)
-            return [types.TextContent(type="text", text=json.dumps({"error": str(exc), "type": exc.__class__.__name__}))]
+            detail: dict[str, Any] = {"error": str(exc), "type": exc.__class__.__name__}
+            # Include HTTP response body for 4xx/5xx debugging
+            resp = getattr(exc, "response", None)
+            if resp is not None:
+                detail["http_status"] = resp.status_code
+                detail["http_body"] = resp.text[:1000]
+            return [types.TextContent(type="text", text=json.dumps(detail, ensure_ascii=False, default=str))]
         finally:
             try:
                 await store.aclose()

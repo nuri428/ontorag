@@ -84,9 +84,14 @@ async def test_clear_removes_model(store):
 
 @pytest.mark.asyncio
 async def test_causal_isolated_from_other_graphs(store):
-    await store.put_causal_model(_model())
     assert causal_graph_uri(None) == "urn:ontorag:causal"
+    # Capture counts BEFORE to avoid failing on leftover data from other tests.
+    n_schema_before = await store._count_graph("urn:ontorag:schema")
+    n_data_before = await store._count_graph("urn:ontorag:data")
+    n_prob_before = await store._count_graph("urn:ontorag:probabilistic")
+
+    await store.put_causal_model(_model())
     assert await store._count_graph("urn:ontorag:causal") > 0
-    assert await store._count_graph("urn:ontorag:schema") == 0
-    assert await store._count_graph("urn:ontorag:data") == 0
-    assert await store._count_graph("urn:ontorag:probabilistic") == 0
+    assert await store._count_graph("urn:ontorag:schema") == n_schema_before
+    assert await store._count_graph("urn:ontorag:data") == n_data_before
+    assert await store._count_graph("urn:ontorag:probabilistic") == n_prob_before
