@@ -63,6 +63,7 @@ class _TraversalMixin:
         frontier: list[str] = [start_uri]
         nodes: list[dict[str, Any]] = [{"uri": start_uri, "depth": 0}]
         edges: list[dict[str, Any]] = []
+        seen_edges: set[tuple[str, str, str]] = set()
         depth_reached = 0
 
         for depth in range(1, max_depth + 1):
@@ -94,7 +95,10 @@ WHERE {{
                         b["pred"]["value"],
                         b["tgt"]["value"],
                     )
-                    edges.append({"from": src, "to": tgt, "predicate": pred_uri})
+                    edge_key = (src, tgt, pred_uri)
+                    if edge_key not in seen_edges:
+                        seen_edges.add(edge_key)
+                        edges.append({"from": src, "to": tgt, "predicate": pred_uri})
                     if tgt not in visited:
                         visited.add(tgt)
                         new_frontier.append(tgt)
@@ -122,7 +126,10 @@ WHERE {{
                         b["pred"]["value"],
                         b["tgt"]["value"],
                     )
-                    edges.append({"from": src, "to": tgt, "predicate": pred_uri})
+                    edge_key = (src, tgt, pred_uri)
+                    if edge_key not in seen_edges:
+                        seen_edges.add(edge_key)
+                        edges.append({"from": src, "to": tgt, "predicate": pred_uri})
                     if src not in visited:
                         visited.add(src)
                         new_frontier.append(src)
