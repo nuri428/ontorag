@@ -702,6 +702,67 @@ class GraphStore(Protocol):
         """
         ...
 
+    # ── Write (single-triple mutations) ──────────────────────────────────────
+
+    async def assert_triple(
+        self,
+        subject: str,
+        predicate: str,
+        obj: str,
+        *,
+        object_is_uri: bool = False,
+        ontology: str | None = None,
+    ) -> None:
+        """Insert a single triple into the ABox.
+
+        Args:
+            subject: Subject URI (full URI or prefixed name).
+            predicate: Predicate URI.
+            obj: Object value — a URI when ``object_is_uri`` is True, a plain
+                string literal otherwise.
+            object_is_uri: When True, ``obj`` is treated as a URI reference.
+            ontology: Ontology id to scope into, or None for the default graph.
+        """
+        ...
+
+    async def retract_triple(
+        self,
+        subject: str,
+        predicate: str,
+        obj: str,
+        *,
+        object_is_uri: bool = False,
+        ontology: str | None = None,
+    ) -> None:
+        """Remove a single triple from the ABox (no-op if absent).
+
+        Args:
+            subject: Subject URI.
+            predicate: Predicate URI.
+            obj: Object value — URI or literal string matching the stored value.
+            object_is_uri: When True, ``obj`` is treated as a URI reference.
+            ontology: Ontology id to scope into, or None for the default graph.
+        """
+        ...
+
+    async def assert_triples(
+        self,
+        triples: list[tuple[str, str, str, bool]],
+        *,
+        ontology: str | None = None,
+    ) -> int:
+        """Insert multiple triples in a single operation.
+
+        Args:
+            triples: Sequence of ``(subject, predicate, object, object_is_uri)``
+                tuples.  Use ``object_is_uri=False`` for plain string literals.
+            ontology: Ontology id to scope into, or None for the default graph.
+
+        Returns:
+            Number of triples written.
+        """
+        ...
+
     # ── Store management ─────────────────────────────────────────────────────
 
     async def status(self) -> StoreStatus:

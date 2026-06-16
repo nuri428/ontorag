@@ -1,0 +1,203 @@
+# Entity Registry — canonical URI + alias 목록
+#
+# 모든 free-text 언급은 이 파일을 거쳐 canonical URI로 수렴.
+# 같은 개념의 다른 표기법을 aliases에 등록하면 SPARQL이 동일 엔티티로 인식.
+#
+# 네임스페이스 규칙:
+#   urn:ag:proj:{slug}     → 프로젝트/제품
+#   urn:ag:tech:{slug}     → 기술/도구
+#   urn:ag:concept:{slug}  → 도메인 개념
+#   urn:ag:agent:{slug}    → AI 에이전트/시스템
+#   urn:ag:layer:{slug}    → 아키텍처 레이어
+
+entities:
+
+  # ── 프로젝트 ──────────────────────────────────────────────────────────────
+
+  - uri: "urn:ag:proj:ontorag"
+    label: "ontorag"
+    type: "Project"
+    aliases:
+      - "ontorag"
+      - "OntoRAG"
+      - "onto-rag"
+      - "Onto-RAG"
+      - "ontorag framework"
+
+  - uri: "urn:ag:proj:ontorag-flow"
+    label: "ontorag-flow"
+    type: "Project"
+    aliases:
+      - "ontorag-flow"
+      - "ontorag flow"
+      - "OntoragFlow"
+      - "ontorag_flow"
+
+  - uri: "urn:ag:proj:ontorag-demo"
+    label: "ontorag-demo"
+    type: "Project"
+    aliases:
+      - "ontorag-demo"
+      - "ontorag demo"
+      - "ontorag_demo"
+
+  - uri: "urn:ag:proj:patent-board"
+    label: "patent_board"
+    type: "Project"
+    aliases:
+      - "patent_board"
+      - "patent board"
+      - "PatentBoard"
+      - "patent-board"
+
+  # ── 기술/도구 ────────────────────────────────────────────────────────────
+
+  - uri: "urn:ag:tech:mcp"
+    label: "MCP"
+    type: "Technology"
+    aliases:
+      - "MCP"
+      - "Model Context Protocol"
+      - "MCP 서버"
+      - "MCP server"
+      - "mcp"
+
+  - uri: "urn:ag:tech:rdf"
+    label: "RDF"
+    type: "Technology"
+    aliases:
+      - "RDF"
+      - "rdf"
+      - "RDF/OWL"
+
+  - uri: "urn:ag:tech:sparql"
+    label: "SPARQL"
+    type: "Technology"
+    aliases:
+      - "SPARQL"
+      - "sparql"
+      - "SPARQL 1.1"
+
+  - uri: "urn:ag:tech:fuseki"
+    label: "Fuseki"
+    type: "Technology"
+    aliases:
+      - "Fuseki"
+      - "fuseki"
+      - "Apache Fuseki"
+      - "Jena Fuseki"
+
+  - uri: "urn:ag:tech:fastapi-mcp"
+    label: "fastapi-mcp"
+    type: "Technology"
+    aliases:
+      - "fastapi-mcp"
+      - "fastapi_mcp"
+      - "FastApiMCP"
+
+  # ── AI 에이전트/시스템 ────────────────────────────────────────────────────
+
+  - uri: "urn:ag:agent:hermes"
+    label: "Hermes Agent"
+    type: "Agent"
+    aliases:
+      - "Hermes"
+      - "Hermes Agent"
+      - "hermes"
+      - "hermes-agent"
+      - "헤르메스"
+      - "hemes"
+
+  - uri: "urn:ag:agent:claude-code"
+    label: "Claude Code"
+    type: "Agent"
+    aliases:
+      - "Claude Code"
+      - "claude-code"
+      - "ClaudeCode"
+      - "claude code"
+
+  # ── 아키텍처 레이어 ───────────────────────────────────────────────────────
+
+  - uri: "urn:ag:layer:semantic"
+    label: "Semantic Layer"
+    type: "ArchitectureLayer"
+    aliases:
+      - "Semantic"
+      - "Semantic Layer"
+      - "시맨틱 레이어"
+
+  - uri: "urn:ag:layer:kinetic"
+    label: "Kinetic Layer"
+    type: "ArchitectureLayer"
+    aliases:
+      - "Kinetic"
+      - "Kinetic Layer"
+      - "키네틱 레이어"
+
+  - uri: "urn:ag:layer:dynamic"
+    label: "Dynamic Layer"
+    type: "ArchitectureLayer"
+    aliases:
+      - "Dynamic"
+      - "Dynamic Layer"
+      - "다이나믹 레이어"
+
+  # ── 도메인 개념 ───────────────────────────────────────────────────────────
+
+  - uri: "urn:ag:concept:acm"
+    label: "ACM"
+    type: "Concept"
+    aliases:
+      - "ACM"
+      - "Adaptive Case Management"
+      - "적응형 케이스 관리"
+
+  - uri: "urn:ag:concept:prov-o"
+    label: "PROV-O"
+    type: "Concept"
+    aliases:
+      - "PROV-O"
+      - "PROV-O write-back"
+      - "Provenance"
+      - "provenance"
+      - "출처 추적"
+
+  - uri: "urn:ag:concept:bayesian"
+    label: "Bayesian"
+    type: "Concept"
+    aliases:
+      - "Bayesian"
+      - "Bayesian reasoning"
+      - "베이지안"
+      - "확률 추론"
+
+  - uri: "urn:ag:concept:causal"
+    label: "Causal Reasoning"
+    type: "Concept"
+    aliases:
+      - "Causal"
+      - "causal reasoning"
+      - "인과 추론"
+      - "do-calculus"
+
+  - uri: "urn:ag:concept:ontology"
+    label: "Ontology"
+    type: "Concept"
+    aliases:
+      - "ontology"
+      - "온톨로지"
+      - "OWL"
+      - "RDF/OWL"
+
+  - uri: "urn:ag:concept:sre"
+    label: "SRE"
+    type: "Concept"
+    aliases:
+      - "SRE"
+      - "Site Reliability Engineering"
+      - "포스트모템"
+      - "postmortem"
+      - "RCA"
+      - "인시던트"
+      - "incident"
