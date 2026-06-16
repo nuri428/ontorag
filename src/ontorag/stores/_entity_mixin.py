@@ -19,6 +19,28 @@ from ontorag.stores.base import AggFunc, AggregateResult, EntityFilter, EntityRe
 
 logger = logging.getLogger(__name__)
 
+
+def _obj_key(obj: Any) -> Any:
+    """Dedup key for a property value: URI string for URI objects, raw value for literals."""
+    if isinstance(obj, dict):
+        return obj.get("uri")
+    return obj
+
+
+def _props_append(properties: dict[str, Any], pred: str, obj: Any) -> None:
+    """Append obj to properties[pred], skipping exact-key duplicates."""
+    obj_key = _obj_key(obj)
+    existing = properties.get(pred)
+    if existing is None:
+        properties[pred] = obj
+    elif isinstance(existing, list):
+        if not any(_obj_key(x) == obj_key for x in existing):
+            existing.append(obj)
+    else:
+        if _obj_key(existing) != obj_key:
+            properties[pred] = [existing, obj]
+
+
 # Both data- and schema-graph fragments come from the same authoritative
 # helper (ontorag.core.ontology.graph_clause): None → union default graph
 # (no GRAPH wrapper), a URI → GRAPH <uri> { ... }.
@@ -145,13 +167,7 @@ WHERE {{
                 }
             else:
                 obj = obj_term["value"]
-            existing = props[eu].get(pred)
-            if existing is None:
-                props[eu][pred] = obj
-            elif isinstance(existing, list):
-                existing.append(obj)
-            else:
-                props[eu][pred] = [existing, obj]
+            _props_append(props[eu], pred, obj)
 
         return [
             EntityResult(
@@ -242,13 +258,7 @@ WHERE {{
                 }
             else:
                 obj = obj_value
-            existing = properties.get(pred)
-            if existing is None:
-                properties[pred] = obj
-            elif isinstance(existing, list):
-                existing.append(obj)
-            else:
-                properties[pred] = [existing, obj]
+            _props_append(properties, pred, obj)
 
         # -- Incoming-via-inverse pass ------------------------------------------
         # For every incoming edge  X p <uri>  where the TBox declares
@@ -323,13 +333,7 @@ WHERE {{
             if predicates_set is not None and inv_pred not in predicates_set:
                 continue
             inv_obj: Any = {"uri": other_uri, "label": other_label}
-            existing = properties.get(inv_pred)
-            if existing is None:
-                properties[inv_pred] = inv_obj
-            elif isinstance(existing, list):
-                existing.append(inv_obj)
-            else:
-                properties[inv_pred] = [existing, inv_obj]
+            _props_append(properties, inv_pred, inv_obj)
 
         return EntityResult(
             uri=uri, label=label, class_uri=class_uri, properties=properties
