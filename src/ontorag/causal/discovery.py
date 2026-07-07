@@ -55,6 +55,10 @@ async def discover_dag(
     Raises:
         BayesianEngineError: missing pgmpy/pandas or no usable observations.
     """
+    if not (0.0 < significance_level < 1.0):
+        raise BayesianEngineError(
+            f"significance_level must be in (0, 1), got {significance_level!r}."
+        )
     rows = await gather_observations(
         store, structure.variables, target_class, ontology=ontology, limit=limit
     )

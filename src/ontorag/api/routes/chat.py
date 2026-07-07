@@ -10,7 +10,8 @@ from pydantic import BaseModel
 
 from ontorag.api.deps import get_store
 from ontorag.chat import store as chat_store
-from ontorag.chat.agent import AgentLoop, _format_schema_for_prompt
+from ontorag.chat.agent import _format_schema_for_prompt
+from ontorag.chat.selector import make_chat_agent
 from ontorag.llm.factory import get_llm_provider
 from ontorag.stores.base import GraphStore
 
@@ -78,7 +79,7 @@ async def chat(
             "Schema load failed for chat request — proceeding without schema context"
         )
 
-    agent = AgentLoop(
+    agent = make_chat_agent(
         store,
         llm,
         schema_context=schema_context,
@@ -91,16 +92,16 @@ async def chat(
         try:
             async for event in agent.run(body.message):
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-        except Exception as exc:
+        except Exception:
             logger.exception("Agent loop error")
-            error_event = {"type": "error", "content": str(exc)}
+            error_event = {"type": "error", "content": "An internal error occurred. Check server logs."}
             yield f"data: {json.dumps(error_event, ensure_ascii=False)}\n\n"
         finally:
             # Persist history after the stream completes (including on error/disconnect)
             if body.session_id:
                 title = body.message[:40] if is_first_message else None
                 await chat_store.save_session(
-                    body.session_id, agent._history, title=title
+                    body.session_id, agent.history, title=title
                 )
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

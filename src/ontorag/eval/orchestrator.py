@@ -12,6 +12,7 @@ this orchestrator, no end-to-end benchmark number can be produced.
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import asdict, dataclass, field
 from statistics import mean
@@ -24,6 +25,8 @@ from ontorag.eval.goldset import Difficulty, Goldset, GoldsetQuestion
 from ontorag.eval.metrics.citation import citation_coverage
 from ontorag.eval.metrics.hallucination import hallucination_rate
 from ontorag.eval.metrics.inference import system_uses_inference_features
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -229,7 +232,12 @@ class BenchRunner:
                 reference_answer=gold_answer,
                 contexts=contexts,
             )
-        except Exception:  # noqa: BLE001 — non-fatal; record None
+        except Exception as exc:  # noqa: BLE001 — non-fatal; record None
+            logger.warning(
+                "RAGAS scoring failed (question=%r): %s",
+                question_text[:60],
+                exc,
+            )
             return None, None, None
         return (
             score.faithfulness,

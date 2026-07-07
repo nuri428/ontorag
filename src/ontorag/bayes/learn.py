@@ -198,6 +198,17 @@ def _fit_sync(
             estimator=MaximumLikelihoodEstimator,
             state_names=state_names,
         )
+        # MLE assigns 0.0 to unobserved states. If all states in a CPT column
+        # are zero, VE normalises 0/0 → NaN silently. Warn so callers know.
+        for tcpd in model.get_cpds():
+            vals = tcpd.get_values()
+            if any((vals[:, col] == 0).all() for col in range(vals.shape[1])):
+                logger.warning(
+                    "MLE CPT for %s has all-zero columns; evidence that eliminates "
+                    "all probability mass will produce NaN. Consider estimator='bayes' "
+                    "(BDeu) for sparse data.",
+                    tcpd.variable,
+                )
     else:
         model.fit(
             df,

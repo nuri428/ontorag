@@ -288,12 +288,17 @@ class LLMOntologyLearner:
                 candidate = load_mapping(mapping_path)
                 if validate_mapping_hash(candidate, schema):
                     mapping = candidate
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning(
+                    "Failed to load column mapping cache %s: %s — regenerating",
+                    mapping_path,
+                    exc,
+                )
 
         use_cache = mapping is not None
 
         if not use_cache:
+            # Always creates a valid MappingFile; mapping is non-None below this block
             mapping = MappingFile(
                 schema_hash=compute_schema_hash(schema),
                 class_uri=class_uri,
@@ -302,6 +307,10 @@ class LLMOntologyLearner:
                 last_row=0,
             )
 
+        if mapping is None:
+            raise RuntimeError(
+                "Column mapping is None after generation — this is a bug in the pipeline."
+            )
         col_map: dict[str, ColumnMapping] = {
             cm.column_name: cm for cm in mapping.columns
         }

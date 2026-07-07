@@ -38,11 +38,8 @@ def _coerce_term(term: Node | str) -> Node:
     if isinstance(term, str):
         s = term.strip()
         if s.startswith("<") and s.endswith(">"):
-            s = s[1:-1]
-        if (
-            s.startswith(("http://", "https://", "urn:", "file:"))
-            or (":" in s and not s.startswith('"'))
-        ):
+            return URIRef(s[1:-1])
+        if s.startswith(("http://", "https://", "urn:", "file://", "ftp://")):
             return URIRef(s)
         return Literal(s)
     raise TypeError(f"Cannot coerce {type(term).__name__} to rdflib term")

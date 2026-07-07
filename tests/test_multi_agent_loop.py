@@ -53,9 +53,18 @@ class FakeAgentLoop:
     consumed lazily so ``run()`` yields each event in order.
     """
 
-    def __init__(self, events: list[dict[str, Any]]) -> None:
+    def __init__(
+        self,
+        events: list[dict[str, Any]],
+        history_stub: list[dict[str, Any]] | None = None,
+    ) -> None:
         self._events = events
+        self._history_stub = history_stub if history_stub is not None else []
         self.received_message: str | None = None
+
+    @property
+    def history(self) -> list[dict[str, Any]]:
+        return self._history_stub
 
     async def run(self, user_message: str) -> AsyncGenerator[dict[str, Any], None]:
         self.received_message = user_message
@@ -116,6 +125,26 @@ class TestRouteAndShortCircuit:
         # No evaluator events
         assert "evaluate" not in types
         assert "iteration" not in types
+
+    @pytest.mark.asyncio
+    async def test_simple_route_accumulates_history_across_turns(self) -> None:
+        """loop.history appends across run() calls — not replaced on each call."""
+        schema = _schema(("http://example.org/Pokemon", None))
+        store = _mock_store(schema)
+        turn1 = [{"role": "user", "content": "hi"}, {"role": "assistant", "content": []}]
+        turn2 = [{"role": "user", "content": "bye"}, {"role": "assistant", "content": []}]
+        agents = iter([
+            FakeAgentLoop([{"type": "done"}], history_stub=turn1),
+            FakeAgentLoop([{"type": "done"}], history_stub=turn2),
+        ])
+        loop = MultiAgentLoop(store=store, llm=AsyncMock(), agent_factory=lambda: next(agents))
+
+        _ = [e async for e in loop.run("hi")]
+        assert loop.history == turn1
+
+        _ = [e async for e in loop.run("bye")]
+        # turn1 must be preserved — not overwritten by turn2
+        assert loop.history == turn1 + turn2
 
     @pytest.mark.asyncio
     async def test_route_event_carries_router_evidence(self) -> None:

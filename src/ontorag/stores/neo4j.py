@@ -155,59 +155,55 @@ class Neo4jStore(
         Returns:
             Configured Neo4jStore instance.
         """
+        password = os.environ.get("NEO4J_PASSWORD", "neo4j")
+        if "NEO4J_PASSWORD" not in os.environ:
+            logger.warning(
+                "NEO4J_PASSWORD is not set; using default password 'neo4j' — "
+                "set NEO4J_PASSWORD to a strong password in production"
+            )
         return cls(
             uri=os.environ.get("NEO4J_URI", "bolt://localhost:7687"),
             user=os.environ.get("NEO4J_USER", "neo4j"),
-            password=os.environ.get("NEO4J_PASSWORD", "neo4j"),
+            password=password,
             database=os.environ.get("NEO4J_DATABASE", "neo4j"),
             query_timeout=_env_timeout("NEO4J_QUERY_TIMEOUT", 30.0),
         )
 
     # ── Driver helpers ────────────────────────────────────────────────────────
 
-    async def _run(self, cypher: str, **params: Any) -> list[dict[str, Any]]:
-        """Execute a read Cypher query and return all records as dicts.
+    async def _execute(
+        self, cypher: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        """Execute a Cypher query inside a timed transaction and return records.
+
+        All three former helpers (_run, _run_write, _run_query) had identical
+        bodies; this single implementation is their shared core.
 
         Args:
             cypher: Cypher query string.
-            **params: Named parameters bound to the query.
+            params: Optional parameter dict bound to the query.
 
         Returns:
             List of record dicts (key = result column name).
         """
         async with self._driver.session(database=self._database) as session:
-            result = await session.run(cypher, timeout=self._query_timeout, **params)
-            records = await result.data()
-            return records
+            async with await session.begin_transaction(timeout=self._query_timeout) as tx:
+                result = await tx.run(cypher, **(params or {}))
+                records = await result.data()
+                await tx.commit()
+                return records
+
+    async def _run(self, cypher: str, **params: Any) -> list[dict[str, Any]]:
+        """Execute a read Cypher query; kwargs become query parameters."""
+        return await self._execute(cypher, params)
 
     async def _run_write(self, cypher: str, **params: Any) -> list[dict[str, Any]]:
-        """Execute a write Cypher query and return all records as dicts.
-
-        Args:
-            cypher: Cypher write query.
-            **params: Named parameters.
-
-        Returns:
-            List of record dicts.
-        """
-        async with self._driver.session(database=self._database) as session:
-            result = await session.run(cypher, timeout=self._query_timeout, **params)
-            records = await result.data()
-            return records
+        """Execute a write Cypher query; kwargs become query parameters."""
+        return await self._execute(cypher, params)
 
     async def _run_query(self, cypher: str, params: dict[str, Any]) -> list[dict[str, Any]]:
-        """Execute a Cypher query with an explicit params dict.
-
-        Args:
-            cypher: Cypher query string.
-            params: Parameter dict (for pattern_to_cypher output).
-
-        Returns:
-            List of record dicts.
-        """
-        async with self._driver.session(database=self._database) as session:
-            result = await session.run(cypher, timeout=self._query_timeout, **params)
-            return await result.data()
+        """Execute a Cypher query with an explicit params dict."""
+        return await self._execute(cypher, params)
 
     # ── Prefix map ────────────────────────────────────────────────────────────
 
@@ -359,10 +355,10 @@ class Neo4jStore(
                     ns=ns_str,
                 )
             except Exception as exc:
-                # "Prefix already exists" is fine; log others
+                # "Prefix already exists" is fine; warn on unexpected errors
                 msg = str(exc)
                 if "already" not in msg.lower():
-                    logger.debug("nsprefixes.add(%s): %s", prefix_str, exc)
+                    logger.warning("nsprefixes.add(%s): %s", prefix_str, exc)
         await self._reload_prefix_map()
 
     # ── TBox/ABox classification helpers ─────────────────────────────────────
@@ -919,5 +915,5 @@ class Neo4jStore(
         """Close the Neo4j driver and release resources (idempotent)."""
         try:
             await self._driver.close()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Neo4j driver close failed: %s", exc)

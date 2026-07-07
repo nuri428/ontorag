@@ -113,11 +113,17 @@ class FusekiStore(
         """
         from ontorag.core.config import env_timeout  # noqa: PLC0415
 
+        password = os.environ.get("FUSEKI_PASSWORD", "admin")
+        if "FUSEKI_PASSWORD" not in os.environ:
+            logger.warning(
+                "FUSEKI_PASSWORD is not set; using default password 'admin' — "
+                "set FUSEKI_PASSWORD to a strong password in production"
+            )
         return cls(
             url=os.environ.get("FUSEKI_URL", "http://localhost:3030"),
             dataset=os.environ.get("FUSEKI_DATASET", "ontorag"),
             user=os.environ.get("FUSEKI_USER", "admin"),
-            password=os.environ.get("FUSEKI_PASSWORD", "admin"),
+            password=password,
             timeout=env_timeout("FUSEKI_TIMEOUT", 60.0),
         )
 

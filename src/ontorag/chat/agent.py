@@ -547,6 +547,11 @@ class AgentLoop:
         # Persists across run() calls so REPL repeat-questions hit cache.
         self._tool_cache: dict[tuple[str, str], Any] = {}
 
+    @property
+    def history(self) -> list[dict[str, Any]]:
+        """Return accumulated conversation history (read-only view)."""
+        return self._history
+
     async def run(self, user_message: str) -> AsyncGenerator[dict[str, Any], None]:
         """Run one user turn and yield SSE event dicts until done.
 
@@ -587,7 +592,8 @@ class AgentLoop:
                     )
                     yield {"type": "rate_limit", "retry_after": wait}
                     await asyncio.sleep(wait)
-            assert response is not None
+            if response is None:
+                raise RuntimeError("LLM complete() returned None after retry loop")
             phase_timings.append(
                 {
                     "phase": "llm_call",

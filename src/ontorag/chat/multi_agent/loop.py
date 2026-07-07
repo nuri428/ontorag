@@ -146,6 +146,13 @@ class MultiAgentLoop:
         self._bayes_engine = bayes_engine
         self._max_iterations = max(1, min(_HARD_MAX_ITERATIONS, max_iterations))
         self._agent_factory = agent_factory or self._default_agent_factory
+        # Accumulates conversation turns across run() calls for session persistence.
+        self._accumulated_history: list[dict[str, Any]] = list(initial_history or [])
+
+    @property
+    def history(self) -> list[dict[str, Any]]:
+        """Return accumulated conversation history for session persistence."""
+        return self._accumulated_history
 
     def _default_agent_factory(self) -> AgentLoop:
         return AgentLoop(
@@ -180,6 +187,7 @@ class MultiAgentLoop:
             agent = self._agent_factory()
             async for event in agent.run(user_message):
                 yield event
+            self._accumulated_history = self._accumulated_history + list(agent.history)
             return
 
         evaluator = Evaluator(schema=schema, bayes_engine=self._bayes_engine)
@@ -247,6 +255,12 @@ class MultiAgentLoop:
             if last_decision.verdict == SufficientContext.SUFFICIENT:
                 break
 
+        # Synthesize a minimal session history entry so chat_store.save_session
+        # can persist the current turn (inner AgentLoops are stateless per-iteration).
+        self._accumulated_history = self._accumulated_history + [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": [{"type": "text", "text": candidate_answer}]},
+        ]
         yield {"type": "done"}
 
 

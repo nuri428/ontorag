@@ -60,10 +60,23 @@ async def test_neo4j_run_passes_timeout(monkeypatch):
         async def data(self):
             return []
 
-    class _Session:
+    class _Transaction:
         async def run(self, cypher, **kwargs):
-            captured["timeout"] = kwargs.get("timeout")
             return _Result()
+
+        async def commit(self):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+    class _Session:
+        async def begin_transaction(self, timeout=None):
+            captured["timeout"] = timeout
+            return _Transaction()
 
         async def __aenter__(self):
             return self

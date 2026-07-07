@@ -71,10 +71,7 @@ async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSON
     logger.exception("Unhandled error on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
-        content={
-            "detail": "Internal server error.",
-            "type": exc.__class__.__name__,
-        },
+        content={"detail": "Internal server error."},
     )
 
 # System routes

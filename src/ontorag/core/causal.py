@@ -101,25 +101,36 @@ class CausalModel(BaseModel):
         return self
 
     def _assert_acyclic(self, uris: set[str]) -> None:
-        """Reject cyclic DAGs early (a causal DAG must be acyclic)."""
+        """Reject cyclic DAGs early (a causal DAG must be acyclic).
+
+        Uses an iterative DFS with an explicit stack to avoid Python's
+        default recursion limit (1000 frames) on large graphs.
+        """
         adj: dict[str, list[str]] = {u: [] for u in uris}
         for cause, effect in self.edges:
             adj[cause].append(effect)
         WHITE, GRAY, BLACK = 0, 1, 2
         color = dict.fromkeys(uris, WHITE)
 
-        def visit(node: str) -> None:
-            color[node] = GRAY
-            for nxt in adj[node]:
-                if color[nxt] == GRAY:
-                    raise ValueError("Causal graph must be acyclic (cycle detected).")
-                if color[nxt] == WHITE:
-                    visit(nxt)
-            color[node] = BLACK
-
-        for u in uris:
-            if color[u] == WHITE:
-                visit(u)
+        for start in uris:
+            if color[start] != WHITE:
+                continue
+            stack: list[tuple[str, int]] = [(start, 0)]
+            color[start] = GRAY
+            while stack:
+                node, idx = stack[-1]
+                children = adj[node]
+                if idx < len(children):
+                    stack[-1] = (node, idx + 1)
+                    nxt = children[idx]
+                    if color[nxt] == GRAY:
+                        raise ValueError("Causal graph must be acyclic (cycle detected).")
+                    if color[nxt] == WHITE:
+                        color[nxt] = GRAY
+                        stack.append((nxt, 0))
+                else:
+                    color[node] = BLACK
+                    stack.pop()
 
     @property
     def observed_uris(self) -> list[str]:

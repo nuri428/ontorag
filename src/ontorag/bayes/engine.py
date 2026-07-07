@@ -23,6 +23,7 @@ state *labels* (not integer indices).
 from __future__ import annotations
 
 import asyncio
+import threading
 from typing import TYPE_CHECKING, Any
 
 from ontorag.core.bayes import BayesNetwork, BayesVariable
@@ -103,6 +104,7 @@ class BayesianEngine:
     def __init__(self, network: BayesNetwork) -> None:
         self._network = network
         self._model: DiscreteBayesianNetwork | None = None
+        self._model_lock = threading.Lock()
         self._by_uri: dict[str, BayesVariable] = {v.uri: v for v in network.variables}
         # label → uri, only for labels that are unambiguous.
         self._label_to_uri: dict[str, str] = {}
@@ -149,9 +151,10 @@ class BayesianEngine:
     # ── model construction ──────────────────────────────────────────────────────
 
     def _ensure_model(self) -> DiscreteBayesianNetwork:
-        if self._model is None:
-            self._model = build_discrete_bn(self._network)
-        return self._model
+        with self._model_lock:
+            if self._model is None:
+                self._model = build_discrete_bn(self._network)
+            return self._model
 
     # ── resolution helpers ──────────────────────────────────────────────────────
 

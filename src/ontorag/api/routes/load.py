@@ -5,7 +5,7 @@ import os
 import tempfile
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from ontorag.api.deps import get_store
 from ontorag.stores.base import GraphStore, LoadResult
@@ -45,7 +45,13 @@ async def load_rdf(
     Returns:
         Number of triples loaded, the resolved load mode, and ontology id.
     """
+    _MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
     content = await file.read()
+    if len(content) > _MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large (max {_MAX_UPLOAD_BYTES // (1024 * 1024)} MB).",
+        )
     suffix = _file_suffix(file.filename)
 
     tmp_path: str | None = None

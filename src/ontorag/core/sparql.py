@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import re
 
+from ontorag.core.ontology import DEFAULT_DATA_GRAPH as DATA_GRAPH_URI
 from ontorag.stores.base import PatternFilter, PatternQuery
-
-DATA_GRAPH_URI = "urn:ontorag:data"
 
 _SAFE_URI_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9+\-.]*:[^\s<>"{}|\\^`\[\]]*$')
 # Bare token (no scheme/prefix) — conservative local-name charset.
