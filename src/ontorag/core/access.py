@@ -250,3 +250,33 @@ class AccessPolicy:
             ``True`` only when the permission is :attr:`Permission.write`.
         """
         return self._permission_for(ontology) is Permission.write
+
+    def has_read_restricted_ontology(self) -> bool:
+        """Return ``True`` if any explicitly-listed ontology denies read.
+
+        Used to fail closed on ``ontology=None`` (union) reads: Fuseki's
+        union default graph (``tdb2:unionDefaultGraph``) is an RDF *merge* of
+        every named graph, so there is currently no way to query "the union
+        of only the readable ontologies" without either (a) enumerating
+        every ontology graph in the store and rewriting the query to an
+        explicit ``FROM``/``default-graph-uri`` list — a live-verified,
+        per-backend change out of scope for this policy layer — or (b)
+        switching to ``GRAPH ?g { }`` iteration, which changes result
+        multiplicity (a real regression risk in a codebase that has already
+        fixed several union-graph duplicate-row bugs). Until the real fix
+        lands, any read-denied ontology makes a union read a confidentiality
+        risk, so callers should treat this as "block the union read" rather
+        than "silently include everything."
+
+        The special ``"default"`` key (governing ``ontology=None`` itself)
+        is excluded — that case is already handled by :meth:`can_read`.
+
+        Returns:
+            ``True`` if at least one non-``"default"`` entry in the policy
+            has :attr:`Permission.none`.
+        """
+        return any(
+            perm is Permission.none
+            for key, perm in self._rules.items()
+            if key != _DEFAULT_GRAPH_KEY
+        )

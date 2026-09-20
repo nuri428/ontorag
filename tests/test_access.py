@@ -359,6 +359,30 @@ class TestPolicyParsing:
         monkeypatch.delenv("ONTOLOGY_ACCESS_DENY_BY_DEFAULT", raising=False)
         assert AccessPolicy.from_env() is None
 
+    # --- has_read_restricted_ontology (fail-closed union guard input) ----------
+
+    def test_has_read_restricted_ontology_false_when_empty(self):
+        assert not AccessPolicy.from_string("").has_read_restricted_ontology()
+
+    def test_has_read_restricted_ontology_false_for_rw_and_r_only(self):
+        """Read-only entries are not a confidentiality restriction."""
+        p = AccessPolicy.from_string("poke:rw,shop:r")
+        assert not p.has_read_restricted_ontology()
+
+    def test_has_read_restricted_ontology_true_for_any_none_entry(self):
+        p = AccessPolicy.from_string("poke:rw,secret:none")
+        assert p.has_read_restricted_ontology()
+
+    def test_has_read_restricted_ontology_ignores_default_key(self):
+        """'default:none' governs ontology=None itself (via can_read), not
+        the fail-closed guard, so it must not count here."""
+        p = AccessPolicy.from_string("default:none")
+        assert not p.has_read_restricted_ontology()
+
+    def test_has_read_restricted_ontology_true_with_default_key_present_too(self):
+        p = AccessPolicy.from_string("default:rw,secret:none")
+        assert p.has_read_restricted_ontology()
+
 
 # ── wrapper enforcement ────────────────────────────────────────────────────────
 
@@ -453,22 +477,61 @@ class TestAccessControlledStore:
         with pytest.raises(AccessDenied):
             await wrapper.dump_graph("all", ontology="secret")
 
-    # --- ontology=None read: open unless an explicit 'default:' policy denies -
+    # --- ontology=None read: open only when NOTHING is read-restricted --------
 
-    async def test_get_schema_none_ontology_open_when_default_unset(self):
-        """ontology=None stays open when the policy has no 'default:' entry.
-
-        A per-ontology rule like 'secret:none' must not affect the union
-        view — only an explicit 'default:' entry does (see the next test).
-        """
-        wrapper, spy = self._make("secret:none")
+    async def test_get_schema_none_ontology_open_when_no_restrictions(self):
+        """ontology=None stays open when nothing in the policy denies read."""
+        wrapper, spy = self._make("poke:rw,shop:r")
         await wrapper.get_schema(ontology=None)
         assert spy.calls[0][0] == "get_schema"
 
-    async def test_find_entities_none_ontology_open_when_default_unset(self):
-        wrapper, spy = self._make("secret:none")
+    async def test_find_entities_none_ontology_open_when_no_restrictions(self):
+        wrapper, spy = self._make("poke:rw,shop:r")
         await wrapper.find_entities("ex:Foo", ontology=None)
         assert spy.calls[0][0] == "find_entities"
+
+    # --- fail-closed union guard: any denied ontology blocks union reads ------
+
+    async def test_get_schema_none_ontology_denied_by_unrelated_none_entry(self):
+        """Regression: 'secret:none' must ALSO block union reads.
+
+        Previously ``_require_read`` special-cased ``ontology is not None``
+        and never evaluated ``can_read(None)`` at all, so a per-ontology
+        'none' entry had zero effect on union-scoped reads — get_schema(),
+        find_entities(), search_text(), query_pattern(), etc. with
+        ontology=None (or omitted) would silently return 'secret' data too.
+        Since there is no filtered-union implementation yet (see
+        AccessPolicy.has_read_restricted_ontology), the union read is now
+        blocked outright rather than silently leaking it.
+        """
+        wrapper, spy = self._make("secret:none")
+        with pytest.raises(AccessDenied):
+            await wrapper.get_schema(ontology=None)
+        assert not spy.calls
+
+    async def test_find_entities_none_ontology_denied_by_unrelated_none_entry(self):
+        wrapper, spy = self._make("secret:none")
+        with pytest.raises(AccessDenied):
+            await wrapper.find_entities("ex:Foo", ontology=None)
+        assert not spy.calls
+
+    async def test_none_ontology_denied_even_with_explicit_default_rw(self):
+        """The fail-closed guard fires even when 'default:' is explicitly open.
+
+        An operator who explicitly reopens the union scope ('default:rw')
+        still cannot see a ontology explicitly marked 'none' through it.
+        """
+        wrapper, spy = self._make("default:rw,secret:none")
+        with pytest.raises(AccessDenied):
+            await wrapper.get_schema(ontology=None)
+        assert not spy.calls
+
+    async def test_read_only_ontology_does_not_trigger_fail_closed_guard(self):
+        """A read-only ('r') entry is not a confidentiality restriction —
+        it must not block union reads (only 'none' entries do)."""
+        wrapper, spy = self._make("shop:r")
+        await wrapper.get_schema(ontology=None)
+        assert spy.calls[0][0] == "get_schema"
 
     # --- regression: union read must respect an explicit 'default:' policy ----
 
@@ -511,10 +574,11 @@ class TestAccessControlledStore:
     # --- __getattr__ delegation (unguarded attributes) -------------------------
 
     async def test_search_text_no_ontology_delegates_via_getattr(self):
-        """search_text is guarded, but with no ontology= kwarg it targets the
-        open-by-default union scope (ontology=None), so it still delegates
-        when no 'default:' policy entry denies it."""
-        wrapper, spy = self._make("poke:none")
+        """search_text is guarded via __getattr__, and with no ontology=
+        kwarg it targets the union scope (ontology=None). With nothing
+        read-restricted, it delegates exactly like an unguarded pass-through
+        would have."""
+        wrapper, spy = self._make("poke:rw")
         result = await wrapper.search_text("pikachu")
         assert spy.calls[0][0] == "search_text"
         assert result == []
@@ -597,6 +661,14 @@ class TestReadGuardedCapabilities:
         wrapper, spy = self._make("default:none")
         with pytest.raises(AccessDenied):
             await wrapper.search_text("pikachu", ontology=None)
+        assert not spy.calls
+
+    async def test_search_text_none_ontology_denied_by_fail_closed_guard(self):
+        """Fail-closed union guard: an unrelated 'secret:none' entry also
+        blocks search_text's union scope (ontology omitted -> None)."""
+        wrapper, spy = self._make("secret:none")
+        with pytest.raises(AccessDenied):
+            await wrapper.search_text("pikachu")
         assert not spy.calls
 
 
@@ -685,13 +757,21 @@ class TestQueryPatternGuard:
             await wrapper.query_pattern(_A_PATTERN_QUERY)
         assert not spy.calls
 
-    async def test_allowed_when_no_default_policy(self):
-        """Open-by-default — unaffected by unrelated per-ontology rules."""
+    async def test_denied_by_fail_closed_guard_with_unrelated_restriction(self):
+        """query_pattern's union scope is also blocked by the fail-closed
+        guard — an unlisted 'default' key does not save it when some other
+        ontology is explicitly denied read."""
         wrapper, spy = self._make("secret:none")
+        with pytest.raises(AccessDenied):
+            await wrapper.query_pattern(_A_PATTERN_QUERY)
+        assert not spy.calls
+
+    async def test_allowed_when_no_restrictions_at_all(self):
+        wrapper, spy = self._make("poke:rw")
         await wrapper.query_pattern(_A_PATTERN_QUERY)
         assert spy.calls[0][0] == "query_pattern"
 
-    async def test_allowed_when_default_explicitly_open(self):
+    async def test_allowed_when_default_explicitly_open_and_nothing_restricted(self):
         wrapper, spy = self._make("default:rw")
         await wrapper.query_pattern(_A_PATTERN_QUERY)
         assert spy.calls[0][0] == "query_pattern"
@@ -752,6 +832,20 @@ class TestAuditLogging:
                 await wrapper.search_text("pikachu", ontology="secret")
         assert caplog.records[0].audit_method == "search_text"
         assert caplog.records[0].audit_decision == "deny"
+
+    async def test_fail_closed_union_deny_is_audited(self, caplog):
+        """The fail-closed union guard denial is audited like any other deny,
+        with ontology=None (not the unrelated restricted ontology's id)."""
+        wrapper, _ = self._make("secret:none")
+        with caplog.at_level(logging.WARNING, logger="ontorag.access.audit"):
+            with pytest.raises(AccessDenied):
+                await wrapper.get_schema(ontology=None)
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.audit_method == "get_schema"
+        assert record.audit_ontology is None
+        assert record.audit_mode == "read"
+        assert record.audit_decision == "deny"
 
 
 # ── factory wiring ─────────────────────────────────────────────────────────────

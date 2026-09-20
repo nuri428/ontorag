@@ -15,12 +15,24 @@ Design decisions
   :meth:`~ontorag.core.access.AccessPolicy.can_read` for the given ontology,
   **including** ``ontology=None`` (the union/legacy view): a ``default:``
   policy entry now applies to union reads too. When no ``default`` entry is
-  set, ``ontology=None`` remains open, so callers that never configured a
-  policy are unaffected.
+  set, ``ontology=None`` remains open **unless** some other ontology is
+  explicitly denied read — see the fail-closed union guard below.
+* **Fail-closed union guard** — a union read (``ontology=None``) is blocked
+  outright whenever the policy denies read for *any* explicitly-listed
+  ontology, even if the union scope itself is open. This is a deliberate
+  over-restriction: there is currently no way to rewrite a union read to
+  "only the readable ontologies" (that needs a live-verified, per-backend
+  dataset-restriction change — see
+  :meth:`~ontorag.core.access.AccessPolicy.has_read_restricted_ontology`),
+  so allowing an open union through would leak the denied ontology's data.
+  It also blocks legitimate union queries that only wanted the allowed
+  ontologies — an accepted interim trade-off, not the final fix (roadmap
+  §3.2's "union of allowed ontologies only").
 * ``query_pattern`` (Layer 2 JSON DSL) has no ontology-scoped parameter and
   the SPARQL/Cypher translators run against the full/union dataset with no
-  named-graph restriction, so it is guarded as an ``ontology=None`` read.
-  This closes the total bypass; per-pattern ontology scoping would require a
+  named-graph restriction, so it is guarded as an ``ontology=None`` read —
+  including the fail-closed union guard above. This closes the total
+  bypass; per-pattern ontology scoping would require a
   ``PatternQuery.ontology`` field plus changes in every backend translator
   and is out of scope here.
 * **Capability methods with an ``ontology`` parameter** — ``search_text``,
@@ -159,13 +171,35 @@ class AccessControlledStore:
         the policy's ``default`` entry just like any other scope — it is only
         open when no ``default`` entry was configured (open-by-default).
 
+        Fail-closed union guard: even when the ``default`` scope itself is
+        open, a union read is blocked outright if the policy denies read for
+        *any* other ontology. There is currently no way to rewrite a union
+        read to "only the readable ontologies" (see
+        :meth:`~ontorag.core.access.AccessPolicy.has_read_restricted_ontology`
+        for why), so allowing the union through would leak the denied
+        ontology's data. This is a deliberate over-restriction — it also
+        blocks legitimate union queries that only wanted the allowed
+        ontologies — documented as an interim measure pending a verified,
+        per-backend filtered-union implementation
+        (``docs/design/agentic-governed-rag-roadmap.ko.md`` §3.2).
+
         Args:
             ontology: The ontology id being accessed, or ``None``.
             method: Method name used in the error message.
 
         Raises:
-            AccessDenied: If the policy denies read access.
+            AccessDenied: If the policy denies read access, or if
+                ``ontology`` is ``None`` and the policy denies read for some
+                other explicitly-listed ontology (fail-closed union guard).
         """
+        if ontology is None and self._policy.has_read_restricted_ontology():
+            self._audit(method, ontology, "read", "deny")
+            raise AccessDenied(
+                f"{method}: union read (ontology=None) is blocked because the "
+                "active policy denies read for at least one ontology, and "
+                "union reads cannot yet be filtered to only the readable "
+                "ontologies. Query a specific ontology instead."
+            )
         if self._policy.can_read(ontology):
             self._audit(method, ontology, "read", "allow")
             return
