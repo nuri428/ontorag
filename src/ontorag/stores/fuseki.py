@@ -3,7 +3,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import TYPE_CHECKING, Any, Literal
+import re
+from contextlib import asynccontextmanager
+from contextvars import ContextVar
+from typing import TYPE_CHECKING, Any, AsyncIterator, Literal
 
 import httpx
 from rdflib import Graph
@@ -49,6 +52,19 @@ DATA_GRAPH_URI = "urn:ontorag:data"
 # ontorag.core.ontology (single source of truth for scoping fragments).
 _scoped_graph = scoped_graph
 _graph_clause = graph_clause
+
+# Matches a semantic (schema) or state (data) layer graph URI for a
+# per-ontology scope, e.g. "urn:ontorag:poke:schema" -> group(1) == "poke".
+# Used by list_ontologies() to enumerate what's actually loaded.
+_ONTOLOGY_LAYER_GRAPH_RE = re.compile(r"^urn:ontorag:([a-zA-Z0-9_-]+):(?:schema|data)$")
+
+# Set (as a tuple of graph URIs) by restrict_default_graph() for the
+# duration of an ``async with`` block; read by _sparql_select() to inject
+# the SPARQL 1.1 protocol's default-graph-uri parameter. None (the default)
+# means "no restriction — use Fuseki's configured tdb2:unionDefaultGraph."
+_default_graph_restriction: ContextVar[tuple[str, ...] | None] = ContextVar(
+    "_fuseki_default_graph_restriction", default=None
+)
 
 
 class FusekiStore(
@@ -396,15 +412,34 @@ class FusekiStore(
     async def _sparql_select(self, sparql: str) -> dict[str, Any]:
         """Execute a SPARQL SELECT query (internal use only — not MCP-exposed).
 
+        Honors :data:`_default_graph_restriction` when set by an enclosing
+        :meth:`restrict_default_graph` context: adds the SPARQL 1.1 protocol
+        ``default-graph-uri`` parameter, which *overrides*
+        ``tdb2:unionDefaultGraph`` for this request — verified live that
+        this preserves RDF-merge multiplicity (no duplicate rows across
+        overlapping-URI graphs), unlike ``GRAPH ?g { }`` iteration.
+
         Args:
-            sparql: Validated SPARQL SELECT string.
+            sparql: Validated SPARQL SELECT string. Must not contain
+                explicit ``GRAPH <uri> { }`` sub-clauses when a restriction
+                is active — once ``default-graph-uri`` is set, the
+                protocol's *named*-graph set is otherwise empty, so
+                ``GRAPH <uri>`` would silently match nothing. Every
+                ``ontology=None`` query builder in this module already
+                emits bare (non-``GRAPH``-wrapped) patterns for exactly this
+                reason (see :func:`~ontorag.core.ontology.graph_clause`).
 
         Returns:
             Raw SPARQL JSON results dict.
         """
         client = await self._http()
+        params: dict[str, Any] = {}
+        restriction = _default_graph_restriction.get()
+        if restriction is not None:
+            params["default-graph-uri"] = list(restriction)
         response = await client.post(
             f"{self._base}/{self._dataset}/sparql",
+            params=params,
             data={"query": sparql},
             headers={"Accept": "application/sparql-results+json"},
         )
@@ -414,6 +449,89 @@ class FusekiStore(
             )
         response.raise_for_status()
         return response.json()
+
+    async def list_ontologies(self) -> list[str]:
+        """Enumerate ontology ids with a semantic (schema) or state (data)
+        graph loaded in this store.
+
+        Used by :class:`~ontorag.stores.access_wrapper.AccessControlledStore`
+        to compute the "readable ontologies" survivor set for a
+        policy-filtered union read (see :meth:`restrict_default_graph`) —
+        the policy alone only knows about ontologies someone explicitly
+        configured, not every ontology actually present in the store.
+
+        Only semantic/state layer graphs are considered: policy/provenance/
+        probabilistic/causal graphs are never part of the ambient union (see
+        :meth:`restrict_default_graph`'s docstring), so they're irrelevant
+        to this enumeration.
+
+        Returns:
+            Sorted list of ontology ids (e.g. ``["poke", "shop"]``). Empty
+            if only the legacy default graph pair is loaded.
+        """
+        result = await self._sparql_select("SELECT DISTINCT ?g WHERE { GRAPH ?g { } }")
+        bindings = result.get("results", {}).get("bindings", [])
+        ids: set[str] = set()
+        for binding in bindings:
+            uri = binding.get("g", {}).get("value", "")
+            match = _ONTOLOGY_LAYER_GRAPH_RE.match(uri)
+            if match:
+                ids.add(match.group(1))
+        return sorted(ids)
+
+    @asynccontextmanager
+    async def restrict_default_graph(
+        self, ontology_ids: frozenset[str], *, include_legacy: bool
+    ) -> AsyncIterator[None]:
+        """Restrict ``_sparql_select`` calls in this context to the semantic
+        + state graphs of *ontology_ids* (and the legacy
+        ``urn:ontorag:schema``/``:data`` pair when *include_legacy* is
+        True), via the SPARQL 1.1 protocol's ``default-graph-uri`` parameter.
+
+        This is the live-verified mechanism behind
+        :class:`~ontorag.stores.access_wrapper.AccessControlledStore`'s
+        filtered union read: ``default-graph-uri`` replaces
+        ``tdb2:unionDefaultGraph``'s ambient union with the RDF *merge* of
+        exactly the given graphs — same multiplicity semantics as the
+        ambient union (confirmed live: overlapping-URI entities across two
+        listed graphs do not duplicate), never the per-graph iteration of
+        ``GRAPH ?g { }`` that would change result counts.
+
+        Only covers the pure-SPARQL L1/L2 methods
+        (``AccessControlledStore``'s explicit read methods and
+        ``query_pattern``) — capabilities backed by an external index
+        (``search_text`` -> Lucene, ``find_similar`` -> Qdrant) are not
+        restricted by this and must not be routed through it; Qdrant in
+        particular never even sees ``_sparql_select``, so this context would
+        have zero effect and silently return unfiltered results.
+
+        Args:
+            ontology_ids: Ontology ids whose graphs should be included.
+            include_legacy: Whether to also include the legacy
+                ``urn:ontorag:schema``/``:data`` pair (the ``ontology=None``
+                scope's own readability, per
+                :meth:`~ontorag.core.access.AccessPolicy.can_read`).
+
+        Yields:
+            None. Restriction is active for the duration of the ``async
+            with`` block only, and is reset (even on exception) afterwards.
+        """
+        uris: list[str] = []
+        for oid in sorted(ontology_ids):
+            uris.append(schema_graph_uri(oid))
+            uris.append(data_graph_uri(oid))
+        if include_legacy:
+            uris.append(schema_graph_uri(None))
+            uris.append(data_graph_uri(None))
+        if not uris:
+            # Verified live: an unmatched default-graph-uri returns zero
+            # rows rather than falling back to the unrestricted union.
+            uris = ["urn:ontorag:__no_readable_ontology__"]
+        token = _default_graph_restriction.set(tuple(uris))
+        try:
+            yield
+        finally:
+            _default_graph_restriction.reset(token)
 
     async def _count_graph(self, named_graph: str) -> int:
         result = await self._sparql_select(

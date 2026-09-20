@@ -251,22 +251,40 @@ class AccessPolicy:
         """
         return self._permission_for(ontology) is Permission.write
 
+    @property
+    def deny_by_default(self) -> bool:
+        """Whether unlisted ontologies default to :attr:`Permission.none`.
+
+        Used alongside :meth:`has_read_restricted_ontology` to decide
+        whether a union read might need restricting: under
+        ``deny_by_default``, an ontology can be effectively denied without
+        ever appearing in :attr:`_rules`, so callers must not rely on
+        :meth:`has_read_restricted_ontology` alone to detect that.
+        """
+        return self._deny_by_default
+
     def has_read_restricted_ontology(self) -> bool:
         """Return ``True`` if any explicitly-listed ontology denies read.
 
-        Used to fail closed on ``ontology=None`` (union) reads: Fuseki's
-        union default graph (``tdb2:unionDefaultGraph``) is an RDF *merge* of
-        every named graph, so there is currently no way to query "the union
-        of only the readable ontologies" without either (a) enumerating
-        every ontology graph in the store and rewriting the query to an
-        explicit ``FROM``/``default-graph-uri`` list — a live-verified,
-        per-backend change out of scope for this policy layer — or (b)
-        switching to ``GRAPH ?g { }`` iteration, which changes result
-        multiplicity (a real regression risk in a codebase that has already
-        fixed several union-graph duplicate-row bugs). Until the real fix
-        lands, any read-denied ontology makes a union read a confidentiality
-        risk, so callers should treat this as "block the union read" rather
-        than "silently include everything."
+        Used, together with :attr:`deny_by_default`, to decide whether an
+        ``ontology=None`` (union) read might need restricting.
+
+        Backends that can enumerate their loaded ontologies and restrict a
+        query's default graph to a specific list (currently Fuseki —
+        ``AccessControlledStore`` detects this via the
+        ``list_ontologies``/``restrict_default_graph`` capability pair, and
+        applies it only to the pure-SPARQL L1/L2 methods it has been
+        live-verified against; index-backed capabilities like
+        ``search_text``/``find_similar`` are not covered — see
+        ``access_wrapper.py``) can answer "the union of only the readable
+        ontologies" precisely, by computing :meth:`can_read` over the
+        enumerated set. Backends without that capability (Neo4j, FalkorDB)
+        fall back to blocking the union read outright whenever this (or
+        ``deny_by_default``) is ``True``, because switching to
+        ``GRAPH ?g { }`` iteration would change result multiplicity — a real
+        regression risk in a codebase that has already fixed several
+        union-graph duplicate-row bugs — and no live-verified mechanism
+        exists yet for those backends.
 
         The special ``"default"`` key (governing ``ontology=None`` itself)
         is excluded — that case is already handled by :meth:`can_read`.

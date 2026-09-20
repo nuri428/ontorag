@@ -11,41 +11,58 @@ Design decisions
 * **Read methods that accept an ``ontology`` parameter** — ``get_schema``,
   ``get_class_detail``, ``find_entities``, ``describe_entity``,
   ``count_entities``, ``aggregate``, ``traverse``, ``find_path``,
-  ``find_related``, ``property_path_closure``, ``dump_graph`` — check
-  :meth:`~ontorag.core.access.AccessPolicy.can_read` for the given ontology,
-  **including** ``ontology=None`` (the union/legacy view): a ``default:``
-  policy entry now applies to union reads too. When no ``default`` entry is
-  set, ``ontology=None`` remains open **unless** some other ontology is
-  explicitly denied read — see the fail-closed union guard below.
-* **Fail-closed union guard** — a union read (``ontology=None``) is blocked
-  outright whenever the policy denies read for *any* explicitly-listed
-  ontology, even if the union scope itself is open. This is a deliberate
-  over-restriction: there is currently no way to rewrite a union read to
-  "only the readable ontologies" (that needs a live-verified, per-backend
-  dataset-restriction change — see
-  :meth:`~ontorag.core.access.AccessPolicy.has_read_restricted_ontology`),
-  so allowing an open union through would leak the denied ontology's data.
-  It also blocks legitimate union queries that only wanted the allowed
-  ontologies — an accepted interim trade-off, not the final fix (roadmap
-  §3.2's "union of allowed ontologies only").
-* ``query_pattern`` (Layer 2 JSON DSL) has no ontology-scoped parameter and
-  the SPARQL/Cypher translators run against the full/union dataset with no
-  named-graph restriction, so it is guarded as an ``ontology=None`` read —
-  including the fail-closed union guard above. This closes the total
-  bypass; per-pattern ontology scoping would require a
-  ``PatternQuery.ontology`` field plus changes in every backend translator
-  and is out of scope here.
+  ``find_related``, ``property_path_closure`` — go through
+  :meth:`_read_guard`: :meth:`~ontorag.core.access.AccessPolicy.can_read`
+  for the given ontology, **including** ``ontology=None`` (the union/legacy
+  view): a ``default:`` policy entry now applies to union reads too. When
+  no ``default`` entry is set, ``ontology=None`` remains open **unless**
+  some other ontology is read-restricted — see the filtered/fail-closed
+  union handling below. ``dump_graph`` and ``query_pattern`` accept
+  ``ontology``/act like a union read too but use plain
+  :meth:`_require_read` instead — see their docstrings for why they never
+  touch multiple ontologies' graphs at all, so filtering them would be a
+  no-op.
+* **Filtered union read (Fuseki, pure-SPARQL methods only)** — when a union
+  read (``ontology=None``) is requested and something in the policy might
+  restrict it (:meth:`~ontorag.core.access.AccessPolicy.has_read_restricted_ontology`
+  or :attr:`~ontorag.core.access.AccessPolicy.deny_by_default`),
+  :meth:`_read_guard` looks for the wrapped store's
+  ``list_ontologies``/``restrict_default_graph`` capability pair
+  (implemented by :class:`~ontorag.stores.fuseki.FusekiStore` — see its
+  docstrings for the live-verified mechanism: the SPARQL 1.1 protocol's
+  ``default-graph-uri`` parameter, which overrides
+  ``tdb2:unionDefaultGraph`` with the RDF merge of exactly the readable
+  ontologies' graphs, preserving multiplicity — not ``GRAPH ?g { }``
+  iteration, which would risk reintroducing this repo's already-fixed
+  union-graph duplicate-row bugs). When present, the query proceeds
+  filtered to only the readable ontologies — the actual roadmap §3.2 fix.
+  Only wired up for the methods above; ``dump_graph`` (GSP GET, a separate
+  HTTP endpoint from ``_sparql_select``) and ``query_pattern`` (hardcodes
+  ``GRAPH <urn:ontorag:data>`` — verified live it never reads a
+  per-ontology graph at all) structurally cannot leak across ontologies,
+  so there's nothing for this mechanism to filter for them.
+* **Fail-closed union guard (fallback)** — when the filtering capability is
+  absent (Neo4j, FalkorDB — not live-verified this round, so not wired up;
+  a documented backend-parity gap) or the union scope itself
+  (``ontology=None``) is explicitly denied, the union read is blocked
+  outright instead of silently leaking a restricted ontology's data. This
+  also still applies to ``dump_graph``, ``query_pattern``, and capability
+  methods that can't be filtered even on Fuseki — see below.
 * **Capability methods with an ``ontology`` parameter** — ``search_text``,
   ``find_similar``, ``sameas_closure`` (read); ``build_embeddings``,
   ``put_bayes_network``, ``clear_bayes_network``, ``put_causal_model``,
   ``clear_causal_model`` (write); ``get_bayes_network``, ``get_causal_model``
   (read) — are not defined as explicit methods on this class (some backends
   don't implement all of them), but ``__getattr__`` wraps them with the same
-  read/write guard, keyed on the ``ontology=`` keyword argument callers
-  already pass. Looking the method up on the wrapped store first means an
-  unsupported capability still raises :class:`AttributeError`, so the
-  existing ``getattr(store, name, None) is None`` → HTTP 501 pattern used by
-  routes is preserved.
+  guard, keyed on the ``ontology=`` keyword argument callers already pass.
+  These stay on the fail-closed union path even on Fuseki: ``find_similar``
+  is backed by Qdrant, not SPARQL, so ``restrict_default_graph`` would have
+  no effect on it at all — filtering only every method it verifiably covers,
+  not everything with an ``ontology`` parameter, is the point. Looking the
+  method up on the wrapped store first means an unsupported capability still
+  raises :class:`AttributeError`, so the existing
+  ``getattr(store, name, None) is None`` → HTTP 501 pattern used by routes
+  is preserved.
 * **Everything else** — ``status``, ``aclose``, and any future capability
   method without an ``ontology`` parameter — is delegated transparently,
   unguarded. This ensures the wrapper never silently blocks unrelated calls.
@@ -60,7 +77,8 @@ Design decisions
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Literal
+from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING, Any, AsyncIterator, Literal
 
 from ontorag.core.access import AccessPolicy
 from ontorag.stores.base import (
@@ -147,7 +165,9 @@ class AccessControlledStore:
             method: Guarded method name.
             ontology: The ontology scope being accessed, or ``None`` (union).
             mode: ``"read"`` or ``"write"``.
-            decision: ``"allow"`` or ``"deny"``.
+            decision: ``"allow"``, ``"deny"``, or ``"allow-filtered"`` (a
+                union read that was allowed but restricted to a subset of
+                readable ontologies — see :meth:`_read_guard`).
         """
         log = audit_logger.warning if decision == "deny" else audit_logger.info
         log(
@@ -227,6 +247,67 @@ class AccessControlledStore:
             f"{method}: write access denied for ontology {ontology!r}. "
             "Check ONTOLOGY_ACCESS configuration."
         )
+
+    @asynccontextmanager
+    async def _read_guard(self, ontology: str | None, method: str) -> AsyncIterator[None]:
+        """Guard a pure-SPARQL read call, filtering the union when possible.
+
+        For an explicit scope (``ontology is not None``) this is exactly
+        :meth:`_require_read` — explicit scopes are already precise, nothing
+        to filter.
+
+        For a union read (``ontology is None``):
+
+        * If nothing in the policy could possibly restrict it (no
+          read-denied ontology and :attr:`~ontorag.core.access.AccessPolicy.deny_by_default`
+          is off), falls back to :meth:`_require_read`'s plain
+          ``can_read(None)`` check — fast path, no store round-trip.
+        * If something might restrict it, the union scope itself is
+          readable, and the wrapped store exposes the
+          ``list_ontologies``/``restrict_default_graph`` capability pair
+          (Fuseki only, this round — see ``fuseki.py``), enumerates the
+          store's actual ontologies, computes which are readable, and
+          delegates *inside* ``restrict_default_graph(...)`` so the query is
+          filtered to exactly those — the real roadmap §3.2 fix, live-verified.
+        * Otherwise (capability absent, or ``ontology=None`` itself is
+          denied) falls back to :meth:`_require_read`'s fail-closed
+          behavior — blocks the union read outright rather than risk a leak.
+
+        Args:
+            ontology: The ontology id being accessed, or ``None`` (union).
+            method: Method name used in error messages and audit records.
+
+        Yields:
+            None. The caller's store delegation must happen inside this
+            context so a filtered union call runs under the active
+            ``restrict_default_graph`` restriction.
+
+        Raises:
+            AccessDenied: Per :meth:`_require_read`'s conditions, when
+                filtering isn't applicable or isn't available.
+        """
+        if ontology is not None:
+            self._require_read(ontology, method)
+            yield
+            return
+
+        if not (self._policy.has_read_restricted_ontology() or self._policy.deny_by_default):
+            self._require_read(ontology, method)
+            yield
+            return
+
+        list_ontologies = getattr(self._store, "list_ontologies", None)
+        restrict = getattr(self._store, "restrict_default_graph", None)
+        if self._policy.can_read(None) and list_ontologies is not None and restrict is not None:
+            all_ids = await list_ontologies()
+            survivors = frozenset(oid for oid in all_ids if self._policy.can_read(oid))
+            self._audit(method, None, "read", "allow-filtered")
+            async with restrict(survivors, include_legacy=True):
+                yield
+            return
+
+        self._require_read(ontology, method)
+        yield
 
     # ── transparent delegation (unguarded) ────────────────────────────────────
 
@@ -357,8 +438,8 @@ class AccessControlledStore:
         Raises:
             AccessDenied: If the policy denies read for an explicit *ontology*.
         """
-        self._require_read(ontology, "get_schema")
-        return await self._store.get_schema(ontology=ontology)
+        async with self._read_guard(ontology, "get_schema"):
+            return await self._store.get_schema(ontology=ontology)
 
     async def get_class_detail(
         self, class_uri: str, ontology: str | None = None
@@ -375,8 +456,8 @@ class AccessControlledStore:
         Raises:
             AccessDenied: If the policy denies read for an explicit *ontology*.
         """
-        self._require_read(ontology, "get_class_detail")
-        return await self._store.get_class_detail(class_uri, ontology=ontology)
+        async with self._read_guard(ontology, "get_class_detail"):
+            return await self._store.get_class_detail(class_uri, ontology=ontology)
 
     async def find_entities(
         self,
@@ -399,10 +480,10 @@ class AccessControlledStore:
         Raises:
             AccessDenied: If the policy denies read for an explicit *ontology*.
         """
-        self._require_read(ontology, "find_entities")
-        return await self._store.find_entities(
-            class_uri, filters=filters, limit=limit, ontology=ontology
-        )
+        async with self._read_guard(ontology, "find_entities"):
+            return await self._store.find_entities(
+                class_uri, filters=filters, limit=limit, ontology=ontology
+            )
 
     async def describe_entity(
         self,
@@ -423,8 +504,10 @@ class AccessControlledStore:
         Raises:
             AccessDenied: If the policy denies read for an explicit *ontology*.
         """
-        self._require_read(ontology, "describe_entity")
-        return await self._store.describe_entity(uri, predicates=predicates, ontology=ontology)
+        async with self._read_guard(ontology, "describe_entity"):
+            return await self._store.describe_entity(
+                uri, predicates=predicates, ontology=ontology
+            )
 
     async def count_entities(
         self,
@@ -445,8 +528,10 @@ class AccessControlledStore:
         Raises:
             AccessDenied: If the policy denies read for an explicit *ontology*.
         """
-        self._require_read(ontology, "count_entities")
-        return await self._store.count_entities(class_uri, filters=filters, ontology=ontology)
+        async with self._read_guard(ontology, "count_entities"):
+            return await self._store.count_entities(
+                class_uri, filters=filters, ontology=ontology
+            )
 
     async def aggregate(
         self,
@@ -469,8 +554,8 @@ class AccessControlledStore:
         Raises:
             AccessDenied: If the policy denies read for an explicit *ontology*.
         """
-        self._require_read(ontology, "aggregate")
-        return await self._store.aggregate(class_uri, group_by, agg=agg, ontology=ontology)
+        async with self._read_guard(ontology, "aggregate"):
+            return await self._store.aggregate(class_uri, group_by, agg=agg, ontology=ontology)
 
     async def traverse(
         self,
@@ -495,14 +580,14 @@ class AccessControlledStore:
         Raises:
             AccessDenied: If the policy denies read for an explicit *ontology*.
         """
-        self._require_read(ontology, "traverse")
-        return await self._store.traverse(
-            start_uri,
-            predicate=predicate,
-            max_depth=max_depth,
-            direction=direction,
-            ontology=ontology,
-        )
+        async with self._read_guard(ontology, "traverse"):
+            return await self._store.traverse(
+                start_uri,
+                predicate=predicate,
+                max_depth=max_depth,
+                direction=direction,
+                ontology=ontology,
+            )
 
     async def find_path(
         self,
@@ -525,8 +610,10 @@ class AccessControlledStore:
         Raises:
             AccessDenied: If the policy denies read for an explicit *ontology*.
         """
-        self._require_read(ontology, "find_path")
-        return await self._store.find_path(uri_a, uri_b, max_depth=max_depth, ontology=ontology)
+        async with self._read_guard(ontology, "find_path"):
+            return await self._store.find_path(
+                uri_a, uri_b, max_depth=max_depth, ontology=ontology
+            )
 
     async def find_related(
         self,
@@ -555,27 +642,30 @@ class AccessControlledStore:
         Raises:
             AccessDenied: If the policy denies read for an explicit *ontology*.
         """
-        self._require_read(ontology, "find_related")
-        return await self._store.find_related(
-            class_uri_a,
-            predicate,
-            class_uri_b,
-            filters_a=filters_a,
-            filters_b=filters_b,
-            limit=limit,
-            ontology=ontology,
-        )
+        async with self._read_guard(ontology, "find_related"):
+            return await self._store.find_related(
+                class_uri_a,
+                predicate,
+                class_uri_b,
+                filters_a=filters_a,
+                filters_b=filters_b,
+                limit=limit,
+                ontology=ontology,
+            )
 
     async def query_pattern(self, query: PatternQuery) -> QueryResult:
         """Guard as an ``ontology=None`` (union) read, then delegate.
 
-        ``PatternQuery`` has no ontology scope field and backend translators
-        run it against the full/union dataset, so — absent per-pattern
-        scoping (out of scope; would need a ``PatternQuery.ontology`` field
-        plus every backend translator updated) — the closest correct guard is
-        the same one applied to any other union read: it is blocked only when
-        the policy has an explicit ``default:none``/``default:r`` entry
-        that denies it.
+        Deliberately uses :meth:`_require_read` (fail-closed only), not
+        :meth:`_read_guard`: ``PatternQuery`` has no ontology field, and
+        Fuseki's translator (``pattern_to_sparql``) hardcodes
+        ``GRAPH <urn:ontorag:data>`` — verified live — so ``query_pattern``
+        only ever reads the single legacy data graph, never a real union
+        across per-ontology graphs. There is nothing for
+        ``restrict_default_graph`` to filter (it would be a no-op detour,
+        like ``dump_graph``); the only real gap is that it was previously
+        unguarded by policy at all, which the plain ``can_read(None)`` check
+        already closes.
 
         Args:
             query: JSON DSL query.
@@ -614,15 +704,15 @@ class AccessControlledStore:
         Raises:
             AccessDenied: If the policy denies read for an explicit *ontology*.
         """
-        self._require_read(ontology, "property_path_closure")
-        return await self._store.property_path_closure(
-            predicate_uri,
-            start_uri=start_uri,
-            start_label=start_label,
-            start_class_uri=start_class_uri,
-            limit=limit,
-            ontology=ontology,
-        )
+        async with self._read_guard(ontology, "property_path_closure"):
+            return await self._store.property_path_closure(
+                predicate_uri,
+                start_uri=start_uri,
+                start_label=start_label,
+                start_class_uri=start_class_uri,
+                limit=limit,
+                ontology=ontology,
+            )
 
     async def dump_graph(
         self,
@@ -631,6 +721,19 @@ class AccessControlledStore:
         ontology: str | None = None,
     ) -> bytes:
         """Guard read access then delegate.
+
+        Deliberately uses :meth:`_require_read` (fail-closed only), not
+        :meth:`_read_guard`: Fuseki's ``dump_graph`` fetches a specific
+        named graph pair via GSP GET (``_gsp_get``, a different HTTP
+        endpoint from ``_sparql_select``) — even with ``ontology=None`` it
+        only ever reads the legacy ``urn:ontorag:schema``/``:data`` graphs,
+        never a real ambient union of every ontology. The filtered-union
+        restriction (``default-graph-uri``, honored only by
+        ``_sparql_select``) would have no effect on it, so routing it
+        through the filtering path would be a silent no-op that looks like
+        it did something. The fail-closed guard over-blocks it exactly like
+        ``get_bayes_network``/``get_causal_model`` (accepted safe false
+        positive, see ``AccessPolicy.has_read_restricted_ontology``).
 
         Args:
             target: Which graph(s) to export.

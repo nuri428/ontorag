@@ -18,6 +18,7 @@ Covers:
 from __future__ import annotations
 
 import logging
+from contextlib import asynccontextmanager
 
 import pytest
 
@@ -198,6 +199,31 @@ class _PartialSpyStore(_SpyStore):
     """
 
     find_similar = None  # type: ignore[assignment]
+
+
+class _FilteringSpyStore(_SpyStore):
+    """Spy that additionally implements list_ontologies/restrict_default_graph
+    (the Fuseki-only capability pair), to exercise
+    AccessControlledStore._read_guard's filtered-union path without a live
+    backend. Live behavior of the actual filter (does default-graph-uri
+    really exclude the denied ontology) is verified separately against
+    Fuseki in tests/test_access_fuseki_integration.py — this spy only proves
+    the WRAPPER calls the capability correctly (right survivor set, right
+    include_legacy, only for the methods that should use it)."""
+
+    def __init__(self, ontology_ids: list[str]) -> None:
+        super().__init__()
+        self._ontology_ids = list(ontology_ids)
+        self.restrict_calls: list[tuple[frozenset[str], bool]] = []
+
+    async def list_ontologies(self) -> list[str]:
+        self._record("list_ontologies")
+        return list(self._ontology_ids)
+
+    @asynccontextmanager
+    async def restrict_default_graph(self, ontology_ids, *, include_legacy):  # noqa: ANN001
+        self.restrict_calls.append((frozenset(ontology_ids), include_legacy))
+        yield
 
 
 # ── policy parsing ─────────────────────────────────────────────────────────────
@@ -775,6 +801,144 @@ class TestQueryPatternGuard:
         wrapper, spy = self._make("default:rw")
         await wrapper.query_pattern(_A_PATTERN_QUERY)
         assert spy.calls[0][0] == "query_pattern"
+
+
+# ── filtered union read (Fuseki-only capability: list_ontologies +
+#    restrict_default_graph) ─────────────────────────────────────────────────
+
+
+class TestFilteredUnionRead:
+    """AccessControlledStore._read_guard's filtered-union path — exercised
+    against a spy that implements list_ontologies/restrict_default_graph,
+    proving the WRAPPER's survivor-set computation and capability dispatch
+    are correct. Whether the underlying default-graph-uri mechanism itself
+    actually excludes denied data is verified live against Fuseki in
+    tests/test_access_fuseki_integration.py, not here."""
+
+    def _make(self, policy_str: str, ontology_ids: list[str], **policy_kwargs):
+        spy = _FilteringSpyStore(ontology_ids)
+        policy = AccessPolicy.from_string(policy_str, **policy_kwargs)
+        return AccessControlledStore(spy, policy), spy
+
+    async def test_get_schema_filtered_not_denied(self):
+        """The core fix: previously this raised AccessDenied (increment 2).
+        With the filtering capability present, it now succeeds, filtered."""
+        wrapper, spy = self._make("secret:none,public:rw", ["public", "secret"])
+        result = await wrapper.get_schema(ontology=None)
+        assert result is not None
+        assert spy.calls[-1][0] == "get_schema"
+
+    async def test_get_schema_filtered_survivor_set_excludes_denied(self):
+        wrapper, spy = self._make("secret:none,public:rw", ["public", "secret"])
+        await wrapper.get_schema(ontology=None)
+        assert spy.restrict_calls == [(frozenset({"public"}), True)]
+
+    async def test_get_schema_filtered_survivor_set_with_unlisted_ontology(self):
+        """An ontology present in the store but never mentioned in the
+        policy is open-by-default (no deny_by_default), so it survives."""
+        wrapper, spy = self._make("secret:none", ["public", "secret", "unlisted"])
+        await wrapper.get_schema(ontology=None)
+        assert spy.restrict_calls == [(frozenset({"public", "unlisted"}), True)]
+
+    async def test_query_pattern_stays_fail_closed_even_with_capability_present(self):
+        """query_pattern hardcodes GRAPH <urn:ontorag:data> (verified live —
+        see fuseki.py/core/sparql.py) and never touches a per-ontology
+        graph, so there's nothing to filter; it must stay on the plain
+        fail-closed _require_read path, not be routed through
+        restrict_default_graph."""
+        wrapper, spy = self._make("secret:none,public:rw", ["public", "secret"])
+        with pytest.raises(AccessDenied):
+            await wrapper.query_pattern(_A_PATTERN_QUERY)
+        assert not spy.restrict_calls
+
+    async def test_find_entities_filtered_not_denied(self):
+        wrapper, spy = self._make("secret:none,public:rw", ["public", "secret"])
+        await wrapper.find_entities("ex:Foo", ontology=None)
+        assert spy.restrict_calls == [(frozenset({"public"}), True)]
+
+    async def test_empty_survivor_set_still_delegates_not_denied(self):
+        """Everything denied -> restrict_default_graph is called with an
+        empty set (which the real Fuseki implementation maps to a
+        guaranteed-empty result — see fuseki.py); the wrapper does not
+        itself raise, since the filter (not a hard denial) is the guard."""
+        wrapper, spy = self._make("public:none,secret:none", ["public", "secret"])
+        await wrapper.get_schema(ontology=None)
+        assert spy.restrict_calls == [(frozenset(), True)]
+
+    async def test_deny_by_default_triggers_filtered_path(self):
+        """deny_by_default alone (no explicit per-ontology 'none' entries)
+        must still trigger the filtered path — has_read_restricted_ontology()
+        alone would miss this (a known pre-filtering gap, now fixed as a
+        side-effect of computing survivors via can_read() directly). The
+        union scope itself ('default') needs an explicit override to stay
+        open under deny_by_default -- without it, can_read(None) is also
+        False and the union is denied outright (tested separately)."""
+        wrapper, spy = self._make(
+            "public:rw,default:rw", ["public", "secret"], deny_by_default=True
+        )
+        await wrapper.get_schema(ontology=None)
+        assert spy.restrict_calls == [(frozenset({"public"}), True)]
+
+    async def test_deny_by_default_without_default_override_denies_union_outright(self):
+        """Without an explicit 'default:' override, deny_by_default also
+        closes the union scope itself -- correctly a hard denial, not
+        something to filter (there's nothing 'readable union' about it)."""
+        wrapper, spy = self._make("public:rw", ["public", "secret"], deny_by_default=True)
+        with pytest.raises(AccessDenied):
+            await wrapper.get_schema(ontology=None)
+        assert not spy.restrict_calls
+
+    async def test_explicit_default_none_still_denies_outright_no_filtering(self):
+        """An explicit 'default:none' means the operator denied the union
+        scope itself — that's a hard stop, not something to filter around."""
+        wrapper, spy = self._make("default:none,secret:none", ["public", "secret"])
+        with pytest.raises(AccessDenied):
+            await wrapper.get_schema(ontology=None)
+        assert not spy.restrict_calls
+        assert not spy.calls
+
+    async def test_no_restriction_does_not_invoke_filtering_capability(self):
+        """Fast path: nothing could be restricted, so list_ontologies/
+        restrict_default_graph are never called (avoids the round-trip)."""
+        wrapper, spy = self._make("public:rw", ["public", "secret"])
+        await wrapper.get_schema(ontology=None)
+        assert not spy.restrict_calls
+        assert ("list_ontologies", {}) not in spy.calls
+
+    async def test_scoped_read_does_not_invoke_filtering_capability(self):
+        """An explicit ontology is already precise -- no filtering needed."""
+        wrapper, spy = self._make("secret:none,public:rw", ["public", "secret"])
+        await wrapper.get_schema(ontology="public")
+        assert not spy.restrict_calls
+
+    # --- methods that must NOT use the filtered path even when the
+    #     capability is present (find_similar=Qdrant, dump_graph=GSP GET) ---
+
+    async def test_find_similar_stays_fail_closed_even_with_capability_present(self):
+        """find_similar is Qdrant-backed; default-graph-uri would have zero
+        effect on it, so it must stay on the fail-closed union guard, not be
+        routed through restrict_default_graph."""
+        wrapper, spy = self._make("secret:none,public:rw", ["public", "secret"])
+        with pytest.raises(AccessDenied):
+            await wrapper.find_similar("ex:pikachu", ontology=None)
+        assert not spy.restrict_calls
+
+    async def test_dump_graph_stays_fail_closed_even_with_capability_present(self):
+        """dump_graph uses GSP GET (_gsp_get), not _sparql_select; routing
+        it through restrict_default_graph would be a silent no-op."""
+        wrapper, spy = self._make("secret:none,public:rw", ["public", "secret"])
+        with pytest.raises(AccessDenied):
+            await wrapper.dump_graph("all", ontology=None)
+        assert not spy.restrict_calls
+
+    async def test_get_bayes_network_stays_fail_closed_even_with_capability_present(self):
+        """get_bayes_network always resolves to one concrete graph, never a
+        real union across ontologies -- not routed through filtering
+        either way, but must not silently start leaking if it ever were."""
+        wrapper, spy = self._make("secret:none,public:rw", ["public", "secret"])
+        with pytest.raises(AccessDenied):
+            await wrapper.get_bayes_network(ontology=None)
+        assert not spy.restrict_calls
 
 
 # ── audit logging ────────────────────────────────────────────────────────────
