@@ -298,3 +298,16 @@ class AccessPolicy:
             for key, perm in self._rules.items()
             if key != _DEFAULT_GRAPH_KEY
         )
+
+    def has_write_restricted_ontology(self) -> bool:
+        """Return whether any explicitly-listed ontology denies writes.
+
+        A union embedding rebuild replaces a shared index after reading every
+        ontology, so it must fail closed when one named ontology is read-only
+        as well as when it is completely hidden.
+        """
+        return any(
+            perm is not Permission.write
+            for key, perm in self._rules.items()
+            if key != _DEFAULT_GRAPH_KEY
+        )

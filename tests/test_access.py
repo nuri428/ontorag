@@ -68,6 +68,16 @@ class _SpyStore:
         self._record("clear_graph", target=target, ontology=ontology)
         return {}
 
+    async def assert_triple(self, subject, predicate, obj, *, object_is_uri=False, ontology=None):
+        self._record("assert_triple", ontology=ontology)
+
+    async def retract_triple(self, subject, predicate, obj, *, object_is_uri=False, ontology=None):
+        self._record("retract_triple", ontology=ontology)
+
+    async def assert_triples(self, triples, *, ontology=None):
+        self._record("assert_triples", ontology=ontology)
+        return len(triples)
+
     async def get_schema(self, ontology=None):
         self._record("get_schema", ontology=ontology)
         return _NO_CLASSES
@@ -199,6 +209,7 @@ class _PartialSpyStore(_SpyStore):
     """
 
     find_similar = None  # type: ignore[assignment]
+    build_embeddings = None  # type: ignore[assignment]
 
 
 class _FilteringSpyStore(_SpyStore):
@@ -697,6 +708,16 @@ class TestReadGuardedCapabilities:
             await wrapper.search_text("pikachu")
         assert not spy.calls
 
+    async def test_union_read_fails_closed_for_deny_by_default_despite_default_rw(self):
+        """Without a filtering-capable backend, default:rw must not reopen
+        unlisted ontologies implicitly denied by deny_by_default."""
+        spy = _SpyStore()
+        policy = AccessPolicy.from_string("public:rw,default:rw", deny_by_default=True)
+        wrapper = AccessControlledStore(spy, policy)
+        with pytest.raises(AccessDenied):
+            await wrapper.get_schema(ontology=None)
+        assert not spy.calls
+
 
 class TestWriteGuardedCapabilities:
     """build_embeddings / put_bayes_network / clear_bayes_network /
@@ -741,6 +762,106 @@ class TestWriteGuardedCapabilities:
         await getattr(wrapper, method)(*args, ontology="poke")
         assert spy.calls[0][0] == method
 
+    async def test_union_embedding_rebuild_fails_closed_when_an_ontology_is_hidden(self):
+        """A rebuild reads all source text and replaces one shared index, so
+        default:rw cannot override a hidden named ontology for the union."""
+        wrapper, spy = self._make("default:rw,secret:none")
+        with pytest.raises(AccessDenied):
+            await wrapper.build_embeddings(ontology=None)
+        assert not spy.calls
+
+    async def test_scoped_embedding_rebuild_allows_writable_readable_ontology(self):
+        wrapper, spy = self._make("poke:rw,secret:none")
+        await wrapper.build_embeddings(ontology="poke")
+        assert spy.calls[0][0] == "build_embeddings"
+
+    async def test_union_embedding_rebuild_fails_closed_when_an_ontology_is_read_only(self):
+        wrapper, spy = self._make("default:rw,secret:r")
+        with pytest.raises(AccessDenied):
+            await wrapper.build_embeddings(ontology=None)
+        assert not spy.calls
+
+    async def test_empty_ontology_embedding_rebuild_is_rejected_before_delegation(self):
+        """Empty scope is invalid, never a backend-defined alias for union."""
+        wrapper, spy = self._make("default:rw,secret:none")
+        with pytest.raises(ValueError, match="Invalid ontology id"):
+            await wrapper.build_embeddings("textual", None, "")
+        assert not spy.calls
+
+
+class TestPositionalCapabilityGuards:
+    def _make(self, policy_str: str) -> tuple[AccessControlledStore, _SpyStore]:
+        spy = _SpyStore()
+        policy = AccessPolicy.from_string(policy_str)
+        return AccessControlledStore(spy, policy), spy
+
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("get_bayes_network", ("secret",)),
+            ("get_causal_model", ("secret",)),
+            ("put_bayes_network", (None, "secret")),
+            ("clear_bayes_network", ("secret",)),
+            ("put_causal_model", (None, "secret")),
+            ("clear_causal_model", ("secret",)),
+        ],
+    )
+    async def test_denied_when_ontology_is_positional(self, method, args):
+        wrapper, spy = self._make("secret:none")
+        with pytest.raises(AccessDenied):
+            await getattr(wrapper, method)(*args)
+        assert not spy.calls
+
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("get_bayes_network", ("poke",)),
+            ("get_causal_model", ("poke",)),
+            ("put_bayes_network", (None, "poke")),
+            ("clear_bayes_network", ("poke",)),
+            ("put_causal_model", (None, "poke")),
+            ("clear_causal_model", ("poke",)),
+        ],
+    )
+    async def test_allows_when_ontology_is_positional_and_permitted(self, method, args):
+        wrapper, spy = self._make("poke:rw")
+        await getattr(wrapper, method)(*args)
+        assert spy.calls[0][0] == method
+
+
+class TestTripleWriteGuards:
+    def _make(self, policy_str: str) -> tuple[AccessControlledStore, _SpyStore]:
+        spy = _SpyStore()
+        policy = AccessPolicy.from_string(policy_str)
+        return AccessControlledStore(spy, policy), spy
+
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("assert_triple", ("ex:s", "ex:p", "value")),
+            ("retract_triple", ("ex:s", "ex:p", "value")),
+            ("assert_triples", ([("ex:s", "ex:p", "value", False)],)),
+        ],
+    )
+    async def test_denied_for_read_only_ontology(self, method, args):
+        wrapper, spy = self._make("poke:r")
+        with pytest.raises(AccessDenied):
+            await getattr(wrapper, method)(*args, ontology="poke")
+        assert not spy.calls
+
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("assert_triple", ("ex:s", "ex:p", "value")),
+            ("retract_triple", ("ex:s", "ex:p", "value")),
+            ("assert_triples", ([("ex:s", "ex:p", "value", False)],)),
+        ],
+    )
+    async def test_delegates_for_writable_ontology(self, method, args):
+        wrapper, spy = self._make("poke:rw")
+        await getattr(wrapper, method)(*args, ontology="poke")
+        assert spy.calls[0][0] == method
+
 
 class TestUnsupportedCapabilityFallback:
     """A backend that doesn't implement a capability must still look
@@ -753,6 +874,12 @@ class TestUnsupportedCapabilityFallback:
         policy = AccessPolicy.from_string("poke:r")
         wrapper = AccessControlledStore(spy, policy)
         assert getattr(wrapper, "find_similar", None) is None
+
+    def test_missing_embedding_capability_getattr_default_returns_none(self):
+        spy = _PartialSpyStore()
+        policy = AccessPolicy.from_string("poke:r")
+        wrapper = AccessControlledStore(spy, policy)
+        assert getattr(wrapper, "build_embeddings", None) is None
 
     def test_missing_capability_matches_raw_store_behavior(self):
         """The wrapper must not appear MORE capable than the raw store."""

@@ -6,8 +6,9 @@ enforces read/write guards at the GraphStore boundary.  Store adapters
 
 Design decisions
 ----------------
-* **Write methods** — ``load_rdf`` and ``clear_graph`` — check
-  :meth:`~ontorag.core.access.AccessPolicy.can_write` before delegating.
+* **Write methods** — ``load_rdf``, ``clear_graph``, and the triple mutation
+  methods — check :meth:`~ontorag.core.access.AccessPolicy.can_write` before
+  delegating.
 * **Read methods that accept an ``ontology`` parameter** — ``get_schema``,
   ``get_class_detail``, ``find_entities``, ``describe_entity``,
   ``count_entities``, ``aggregate``, ``traverse``, ``find_path``,
@@ -49,12 +50,14 @@ Design decisions
   also still applies to ``dump_graph``, ``query_pattern``, and capability
   methods that can't be filtered even on Fuseki — see below.
 * **Capability methods with an ``ontology`` parameter** — ``search_text``,
-  ``find_similar``, ``sameas_closure`` (read); ``build_embeddings``,
-  ``put_bayes_network``, ``clear_bayes_network``, ``put_causal_model``,
-  ``clear_causal_model`` (write); ``get_bayes_network``, ``get_causal_model``
-  (read) — are not defined as explicit methods on this class (some backends
-  don't implement all of them), but ``__getattr__`` wraps them with the same
-  guard, keyed on the ``ontology=`` keyword argument callers already pass.
+  ``find_similar``, ``sameas_closure`` (read); ``put_bayes_network``,
+  ``clear_bayes_network``, ``put_causal_model``, ``clear_causal_model``
+  (write); ``get_bayes_network``, ``get_causal_model`` (read) — are not
+  defined as explicit methods on this class (some backends don't implement
+  all of them), but ``__getattr__`` wraps them with the appropriate guard for
+  either positional or keyword ontology arguments. ``build_embeddings`` is
+  also dispatched this way, but checks both read and write access because an
+  unscoped rebuild reads all ontology text before replacing a shared index.
   These stay on the fail-closed union path even on Fuseki: ``find_similar``
   is backed by Qdrant, not SPARQL, so ``restrict_default_graph`` would have
   no effect on it at all — filtering only every method it verifiably covers,
@@ -81,6 +84,7 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, AsyncIterator, Literal
 
 from ontorag.core.access import AccessPolicy
+from ontorag.core.ontology import validate_ontology_id
 from ontorag.stores.base import (
     AggFunc,
     AggregateResult,
@@ -115,13 +119,28 @@ _READ_GUARDED_CAPABILITIES = frozenset(
 )
 _WRITE_GUARDED_CAPABILITIES = frozenset(
     {
-        "build_embeddings",
         "put_bayes_network",
         "clear_bayes_network",
         "put_causal_model",
         "clear_causal_model",
     }
 )
+
+# Ontology's position in each capability signature.  Capability methods are
+# forwarded through ``__getattr__``, so their positional calls must receive the
+# same policy enforcement as their keyword calls.
+_CAPABILITY_ONTOLOGY_POSITION = {
+    "build_embeddings": 2,
+    "search_text": 3,
+    "find_similar": 4,
+    "sameas_closure": 1,
+    "get_bayes_network": 0,
+    "get_causal_model": 0,
+    "put_bayes_network": 1,
+    "clear_bayes_network": 0,
+    "put_causal_model": 1,
+    "clear_causal_model": 0,
+}
 
 
 class AccessDenied(PermissionError):
@@ -212,7 +231,10 @@ class AccessControlledStore:
                 ``ontology`` is ``None`` and the policy denies read for some
                 other explicitly-listed ontology (fail-closed union guard).
         """
-        if ontology is None and self._policy.has_read_restricted_ontology():
+        ontology = validate_ontology_id(ontology)
+        if ontology is None and (
+            self._policy.has_read_restricted_ontology() or self._policy.deny_by_default
+        ):
             self._audit(method, ontology, "read", "deny")
             raise AccessDenied(
                 f"{method}: union read (ontology=None) is blocked because the "
@@ -239,6 +261,7 @@ class AccessControlledStore:
         Raises:
             AccessDenied: If the policy denies write access.
         """
+        ontology = validate_ontology_id(ontology)
         if self._policy.can_write(ontology):
             self._audit(method, ontology, "write", "allow")
             return
@@ -323,7 +346,7 @@ class AccessControlledStore:
         ``find_similar``, ``build_embeddings``, ``sameas_closure``, the
         Bayesian/causal get/put/clear methods, …) are additionally wrapped
         with the same read/write guard used by the explicit methods below,
-        keyed on the ``ontology=`` keyword argument. Everything else (e.g.
+        whether ontology is passed positionally or by keyword. Everything else (e.g.
         ``status``, ``aclose``) passes through unguarded.
 
         Args:
@@ -334,6 +357,8 @@ class AccessControlledStore:
             it when *name* is a known ontology-scoped capability method.
         """
         attr = getattr(self._store, name)
+        if callable(attr) and name == "build_embeddings":
+            return self._guarded_embedding_capability(attr)
         if callable(attr) and name in _READ_GUARDED_CAPABILITIES:
             return self._guarded_capability(name, attr, mode="read")
         if callable(attr) and name in _WRITE_GUARDED_CAPABILITIES:
@@ -355,7 +380,43 @@ class AccessControlledStore:
         require = self._require_read if mode == "read" else self._require_write
 
         async def _wrapped(*args: Any, **kwargs: Any) -> Any:
-            require(kwargs.get("ontology"), name)
+            ontology = kwargs.get("ontology")
+            if "ontology" not in kwargs:
+                ontology_position = _CAPABILITY_ONTOLOGY_POSITION[name]
+                if len(args) > ontology_position:
+                    ontology = args[ontology_position]
+            require(ontology, name)
+            return await attr(*args, **kwargs)
+
+        return _wrapped
+
+    def _guarded_embedding_capability(self, attr: Any) -> Any:
+        """Guard embedding rebuilds as reads plus writes without inventing a
+        capability on stores that do not implement it.
+
+        The unscoped rebuild reads every ontology and replaces a shared index.
+        It therefore cannot safely proceed if a named ontology is hidden or
+        read-only, even if the ``default`` scope is writable.
+        """
+
+        async def _wrapped(*args: Any, **kwargs: Any) -> Any:
+            ontology = kwargs.get("ontology")
+            if "ontology" not in kwargs and len(args) > _CAPABILITY_ONTOLOGY_POSITION[
+                "build_embeddings"
+            ]:
+                ontology = args[_CAPABILITY_ONTOLOGY_POSITION["build_embeddings"]]
+
+            if ontology is None and (
+                self._policy.has_write_restricted_ontology() or self._policy.deny_by_default
+            ):
+                self._audit("build_embeddings", None, "write", "deny")
+                raise AccessDenied(
+                    "build_embeddings: union rebuild is blocked because the active policy "
+                    "denies writes for at least one ontology. Rebuild a specific writable "
+                    "ontology instead."
+                )
+            self._require_read(ontology, "build_embeddings")
+            self._require_write(ontology, "build_embeddings")
             return await attr(*args, **kwargs)
 
         return _wrapped
@@ -423,6 +484,54 @@ class AccessControlledStore:
         """
         self._require_write(ontology, "clear_graph")
         return await self._store.clear_graph(target, ontology=ontology)
+
+    async def assert_triple(
+        self,
+        subject: str,
+        predicate: str,
+        obj: str,
+        *,
+        object_is_uri: bool = False,
+        ontology: str | None = None,
+    ) -> None:
+        """Guard a single-triple write then delegate."""
+        self._require_write(ontology, "assert_triple")
+        await self._store.assert_triple(
+            subject,
+            predicate,
+            obj,
+            object_is_uri=object_is_uri,
+            ontology=ontology,
+        )
+
+    async def retract_triple(
+        self,
+        subject: str,
+        predicate: str,
+        obj: str,
+        *,
+        object_is_uri: bool = False,
+        ontology: str | None = None,
+    ) -> None:
+        """Guard a single-triple retraction then delegate."""
+        self._require_write(ontology, "retract_triple")
+        await self._store.retract_triple(
+            subject,
+            predicate,
+            obj,
+            object_is_uri=object_is_uri,
+            ontology=ontology,
+        )
+
+    async def assert_triples(
+        self,
+        triples: list[tuple[str, str, str, bool]],
+        *,
+        ontology: str | None = None,
+    ) -> int:
+        """Guard a batch triple write then delegate."""
+        self._require_write(ontology, "assert_triples")
+        return await self._store.assert_triples(triples, ontology=ontology)
 
     # ── READ methods (ontology-scoped) ────────────────────────────────────────
 
