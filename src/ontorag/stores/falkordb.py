@@ -513,7 +513,14 @@ class FalkorDBStore(
         return rows[0]["deleted"] if rows else 0
 
     async def _tag_ontology_nodes(self, graph: Graph, ontology: str) -> int:
-        """Tag :Resource nodes whose URI appears in *graph* with the ontology id."""
+        """Tag :Resource nodes whose URI appears in *graph* with the ontology id.
+
+        This is node-membership metadata, not per-assertion provenance: a
+        shared URI can have more than one ontology id while its relationships
+        and properties do not retain their originating assertion. It is
+        therefore unsafe to implement a read-restricted union with a Cypher
+        node filter; the access wrapper intentionally fails such unions closed.
+        """
         uris = list(
             {str(t) for triple in graph for t in triple if isinstance(t, URIRef)}
         )

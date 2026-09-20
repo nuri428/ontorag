@@ -385,8 +385,10 @@ class Neo4jStore(
 
         When ``ontology`` is not None, all :Resource nodes whose URI appears in
         the parsed graph are tagged with the id in the ``_ontology`` list
-        property after the n10s import.  A shared URI (e.g. owl:Class) gets
-        both ontology ids in its list.  ``ontology=None`` skips tagging,
+        property after the n10s import. A shared URI (e.g. owl:Class) gets
+        both ontology ids in its list. This is node-membership metadata, not
+        per-assertion provenance, so it must not be used to filter a
+        read-restricted union safely. ``ontology=None`` skips tagging,
         preserving the current (unscoped) behavior.
 
         Args:
@@ -476,7 +478,10 @@ class Neo4jStore(
         Uses the precise approach: extract subject+object IRIs from the parsed
         graph and filter by URI IN $uris, so only nodes actually imported by
         this file are touched — even if the graph store already contains nodes
-        from a different ontology with the same URI.
+        from a different ontology with the same URI. This deliberately cannot
+        retain which RDF assertion introduced a shared node; access control
+        must keep restricted union reads fail-closed rather than treat this
+        list as assertion-level provenance.
 
         Args:
             graph: The rdflib Graph that was just imported.
