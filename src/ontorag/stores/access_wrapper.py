@@ -43,12 +43,16 @@ Design decisions
   per-ontology graph at all) structurally cannot leak across ontologies,
   so there's nothing for this mechanism to filter for them.
 * **Fail-closed union guard (fallback)** — when the filtering capability is
-  absent (Neo4j, FalkorDB — not live-verified this round, so not wired up;
-  a documented backend-parity gap) or the union scope itself
+  absent (Neo4j, FalkorDB — their ``_ontology`` node-membership lists lose
+  per-assertion provenance, so a Cypher ``WHERE`` filter is not a safe
+  filtered-union implementation) or the union scope itself
   (``ontology=None``) is explicitly denied, the union read is blocked
   outright instead of silently leaking a restricted ontology's data. This
   also still applies to ``dump_graph``, ``query_pattern``, and capability
   methods that can't be filtered even on Fuseki — see below.
+  This guard guarantees only that a restricted **union** is rejected before
+  backend access. It does not establish assertion-level isolation for an
+  explicit scope with a shared URI on Neo4j/FalkorDB.
 * **Capability methods with an ``ontology`` parameter** — ``search_text``,
   ``find_similar``, ``sameas_closure`` (read); ``put_bayes_network``,
   ``clear_bayes_network``, ``put_causal_model``, ``clear_causal_model``
@@ -212,14 +216,17 @@ class AccessControlledStore:
 
         Fail-closed union guard: even when the ``default`` scope itself is
         open, a union read is blocked outright if the policy denies read for
-        *any* other ontology. There is currently no way to rewrite a union
-        read to "only the readable ontologies" (see
+        *any* other ontology. There is currently no safe way to rewrite every
+        union read to "only the readable ontologies" (see
         :meth:`~ontorag.core.access.AccessPolicy.has_read_restricted_ontology`
         for why), so allowing the union through would leak the denied
         ontology's data. This is a deliberate over-restriction — it also
         blocks legitimate union queries that only wanted the allowed
         ontologies — documented as an interim measure pending a verified,
-        per-backend filtered-union implementation
+        per-backend filtered-union implementation. In particular, Neo4j and
+        FalkorDB tag shared *nodes* with ontology ids, which loses the
+        provenance of individual RDF assertions; a node-level Cypher filter
+        could therefore mix a denied assertion into an allowed result.
         (``docs/design/agentic-governed-rag-roadmap.ko.md`` §3.2).
 
         Args:
@@ -276,8 +283,9 @@ class AccessControlledStore:
         """Guard a pure-SPARQL read call, filtering the union when possible.
 
         For an explicit scope (``ontology is not None``) this is exactly
-        :meth:`_require_read` — explicit scopes are already precise, nothing
-        to filter.
+        :meth:`_require_read`. That policy check is separate from the
+        fail-closed union guarantee: on Neo4j/FalkorDB, node membership does
+        not establish assertion-level isolation for shared URIs.
 
         For a union read (``ontology is None``):
 
@@ -292,8 +300,9 @@ class AccessControlledStore:
           store's actual ontologies, computes which are readable, and
           delegates *inside* ``restrict_default_graph(...)`` so the query is
           filtered to exactly those — the real roadmap §3.2 fix, live-verified.
-        * Otherwise (capability absent, or ``ontology=None`` itself is
-          denied) falls back to :meth:`_require_read`'s fail-closed
+        * Otherwise (capability absent — notably Neo4j/FalkorDB's unsafe
+          node-membership model — or ``ontology=None`` itself is denied)
+          falls back to :meth:`_require_read`'s fail-closed
           behavior — blocks the union read outright rather than risk a leak.
 
         Args:

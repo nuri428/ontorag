@@ -156,6 +156,16 @@ backward-compatible). Fuseki isolates with per-ontology named graphs; Neo4j tags
 nodes with an `_ontology` property. A scoped `embed` only rebuilds that
 ontology's vectors and leaves the others intact.
 
+When `ONTOLOGY_ACCESS` hides any ontology, unrestricted union reads are
+fail-closed on Neo4j and FalkorDB. Their `_ontology` field is node-membership
+metadata, not assertion-level provenance: a shared URI can belong to more than
+one ontology, so a node-level Cypher filter cannot safely reconstruct an
+allowed-only union. Explicit-scope isolation for shared URIs remains unverified
+under this storage model and is not a confidentiality workaround. Fuseki's
+verified pure-SPARQL filtering path is the exception; capability retrieval
+methods stay fail-closed unless their backend-specific filtering semantics are
+verified.
+
 ---
 
 ## Web UI
@@ -1245,7 +1255,7 @@ FUSEKI_DATASET=ontorag uv run python scripts/bench_query_speed_4domain.py --n 20
 - **v0.5** — Neo4j + n10s adapter · `GRAPH_STORE=fuseki|neo4j` · **full backend parity** (OWL `rdfs:subClassOf` reasoning · BM25 `search_text` · graph-embedding `find_similar`, each backend's native tech) · L2 `query_pattern` → Cypher · multi-ontology per instance (`ontology` scope, named-graphs / node tags) · per-ontology embedding scoping ✅
 - **v0.5.x** — agent now wields the full **13-tool set** (BM25 `search_text`, vector `find_similar`, `aggregate` wired into the agent loop, previously MCP-route-only) · `find_similar` subClassOf-aware `class_uri` filter (both backends) · fixes: Neo4j predicate-`traverse` Cypher, `[bench]` extra dependency pins ✅
 - **v0.6** — directory/multi-file loader (`load <DIR>` + `ontorag.yaml` manifest) · agent 14-tool set · `find_similar` `class_uri` filter · CLI backend config (`config set --graph-store/--neo4j-*`) · Web UI search/similar/aggregate panels ✅
-- **v0.6.1** — **per-ontology access control** (config-driven read/write/none via `ONTOLOGY_ACCESS`, GraphStore-boundary wrapper) · **cross-ontology entity alignment** (`owl:sameAs` closure → `find_aligned`) · `load_rdf` pre-parsed-graph fast path ✅
+- **v0.6.1** — **per-ontology access control** (config-driven read/write/none via `ONTOLOGY_ACCESS`, GraphStore-boundary wrapper; Fuseki pure-SPARQL filtered union verified; Neo4j/FalkorDB restricted unions intentionally fail-closed because node membership lacks assertion provenance) · **cross-ontology entity alignment** (`owl:sameAs` closure → `find_aligned`) · `load_rdf` pre-parsed-graph fast path ✅
 - **v0.7** — **Probabilistic layer (Bayesian)**: named-graph foundation (`OntologyLayer`, layer/ontology graph URIs) · `bn:` vocabulary + RDF round-trip · `BayesianStore` (Fuseki + Neo4j parity) · `BayesianEngine` (pgmpy) → `compute_posterior` / `mpe` MCP tools · `ontorag bayes` CLI incl. `learn-cpt` (CPT estimation from ABox). pgmpy is the `[bayes]` extra. ✅
 - **v0.8** — **Causal layer (Pearl Rung 2-3)**: `causal:` vocabulary + `urn:ontorag:causal` graph (Fuseki + Neo4j parity) · `CausalEngine` (pgmpy-native, **not DoWhy**) → `do_query` (intervention + back-door adjustment) · `identify_effect` (back-door/front-door sets) · `counterfactual` (canonical-SCM) MCP tools · PC structure discovery (`learn-dag`, proposal-only) · `ontorag causal` CLI · smoking confounder example (`do` 0.60 ≠ `see` 0.72). Causal DAG is user-supplied; ontorag does not validate causal semantics. ✅
 - **v0.8.4** — **Reasoning WebUI**: single `🧮 Reasoning` tab with Bayesian / Causal sub-tabs (HTMX) · evidence/query → posterior/mpe · do / observed / query → do_query / counterfactual / identify_effect · DAG view + "do(X) vs see" cross-link · Playwright E2E 16/16. ✅

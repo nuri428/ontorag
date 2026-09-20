@@ -212,6 +212,20 @@ class _PartialSpyStore(_SpyStore):
     build_embeddings = None  # type: ignore[assignment]
 
 
+class _NodeTaggedBackendSpy(_SpyStore):
+    """Spy for the Neo4j/FalkorDB node-membership storage model.
+
+    Those adapters retain an ``_ontology`` list on nodes, not on individual
+    RDF assertions. Deliberately do *not* expose Fuseki's
+    ``list_ontologies``/``restrict_default_graph`` capability: filtering a
+    union from node membership would not prove which assertions are safe.
+    """
+
+    def __init__(self, backend: str) -> None:
+        super().__init__()
+        self.backend = backend
+
+
 class _FilteringSpyStore(_SpyStore):
     """Spy that additionally implements list_ontologies/restrict_default_graph
     (the Fuseki-only capability pair), to exercise
@@ -717,6 +731,39 @@ class TestReadGuardedCapabilities:
         with pytest.raises(AccessDenied):
             await wrapper.get_schema(ontology=None)
         assert not spy.calls
+
+
+class TestNodeTaggedBackendsFailClosed:
+    """Neo4j/FalkorDB union reads must stop before their query boundary.
+
+    Their ``_ontology`` node lists are membership metadata, not assertion
+    provenance. A shared URI can carry both ids, so adding a Cypher ``WHERE``
+    filter would not establish that every returned edge/property came from a
+    readable ontology. These focused wrapper tests intentionally make no
+    claim that an explicit shared-URI scope is safe.
+    """
+
+    @pytest.mark.parametrize("backend", ["Neo4j", "FalkorDB"])
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("get_schema", ()),
+            ("find_entities", ("ex:Thing",)),
+            ("search_text", ("confidential",)),
+            ("find_similar", ("ex:shared",)),
+        ],
+    )
+    async def test_restricted_union_is_denied_before_backend_access(
+        self, backend, method, args
+    ):
+        store = _NodeTaggedBackendSpy(backend)
+        policy = AccessPolicy.from_string("default:rw,public:rw,secret:none")
+        wrapper = AccessControlledStore(store, policy)
+
+        with pytest.raises(AccessDenied, match="union read"):
+            await getattr(wrapper, method)(*args)
+
+        assert store.calls == []
 
 
 class TestWriteGuardedCapabilities:

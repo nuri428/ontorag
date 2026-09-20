@@ -113,6 +113,15 @@ class RequestContext(BaseModel):
 - `assert_triple`, `assert_triples`, `retract_triple`, `load_rdf`, `clear_graph`은 동일 write policy와 approval policy를 통과한다.
 - tool response에 `policy_decision`, `permitted_scope`, `redacted_fields`를 포함한다.
 
+현재 상태 (2026-09): Fuseki의 순수 SPARQL read는 허용 ontology의 named
+graph만 `default-graph-uri`로 구성하는 경로가 검증되어 있다. 반면 Neo4j와
+FalkorDB의 `_ontology`는 node membership만 보존하며, shared URI의 개별
+relationship/property가 어느 ontology assertion에서 왔는지는 보존하지 않는다.
+따라서 이 두 backend에 node-level `WHERE`를 더해 filtered union을 흉내 내는
+것은 안전하지 않다. 제한 ontology가 하나라도 있으면 union read는 backend
+접근 전에 **fail-closed**로 거부하며, assertion-level provenance를 보존하는
+저장 모델과 backend별 누출 회귀 검증이 있기 전에는 이 상태를 유지한다.
+
 #### 3.3 감사 event
 
 정책 deny도 포함해 모든 tool call에 다음을 기록한다.
