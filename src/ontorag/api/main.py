@@ -24,6 +24,7 @@ from ontorag.api.routes.tools import (
     traversal,
     write,
 )
+from ontorag.stores.access_wrapper import AccessDenied
 from ontorag.web.router import router as web_router
 
 load_dotenv()
@@ -57,6 +58,21 @@ app = FastAPI(
     version=__version__,
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(AccessDenied)
+async def _access_denied_handler(request: Request, exc: AccessDenied) -> JSONResponse:
+    """Return a structured 403 for a policy-denied request.
+
+    Without this handler, ``AccessDenied`` (raised deep inside a store call —
+    see :mod:`ontorag.stores.access_wrapper`) falls through to the catch-all
+    handler below and surfaces as an opaque 500, indistinguishable from an
+    actual bug. It is an expected, policy-driven outcome, not an unexpected
+    error, so it gets its own handler and its message (which never contains
+    triple/entity content, only the method name and ontology scope) is safe
+    to return to the caller.
+    """
+    return JSONResponse(status_code=403, content={"detail": str(exc)})
 
 
 @app.exception_handler(Exception)
