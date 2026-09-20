@@ -11,21 +11,44 @@ Design decisions
 * **Read methods that accept an ``ontology`` parameter** — ``get_schema``,
   ``get_class_detail``, ``find_entities``, ``describe_entity``,
   ``count_entities``, ``aggregate``, ``traverse``, ``find_path``,
-  ``find_related``, ``query_pattern``, ``property_path_closure``,
-  ``dump_graph`` — check :meth:`~ontorag.core.access.AccessPolicy.can_read`
-  when an explicit (non-``None``) ontology is given.  ``ontology=None`` (the
-  union/legacy view) is always allowed through so callers that have never set
-  an explicit scope are unaffected.
-* **Everything else** — capability methods such as ``search_text``,
-  ``find_similar``, ``build_embeddings``, ``status``, ``aclose``, and any
-  future methods — is delegated transparently via ``__getattr__``.  This
-  ensures the wrapper never silently blocks unrelated calls.
+  ``find_related``, ``property_path_closure``, ``dump_graph`` — check
+  :meth:`~ontorag.core.access.AccessPolicy.can_read` for the given ontology,
+  **including** ``ontology=None`` (the union/legacy view): a ``default:``
+  policy entry now applies to union reads too. When no ``default`` entry is
+  set, ``ontology=None`` remains open, so callers that never configured a
+  policy are unaffected.
+* ``query_pattern`` (Layer 2 JSON DSL) has no ontology-scoped parameter and
+  the SPARQL/Cypher translators run against the full/union dataset with no
+  named-graph restriction, so it is guarded as an ``ontology=None`` read.
+  This closes the total bypass; per-pattern ontology scoping would require a
+  ``PatternQuery.ontology`` field plus changes in every backend translator
+  and is out of scope here.
+* **Capability methods with an ``ontology`` parameter** — ``search_text``,
+  ``find_similar``, ``sameas_closure`` (read); ``build_embeddings``,
+  ``put_bayes_network``, ``clear_bayes_network``, ``put_causal_model``,
+  ``clear_causal_model`` (write); ``get_bayes_network``, ``get_causal_model``
+  (read) — are not defined as explicit methods on this class (some backends
+  don't implement all of them), but ``__getattr__`` wraps them with the same
+  read/write guard, keyed on the ``ontology=`` keyword argument callers
+  already pass. Looking the method up on the wrapped store first means an
+  unsupported capability still raises :class:`AttributeError`, so the
+  existing ``getattr(store, name, None) is None`` → HTTP 501 pattern used by
+  routes is preserved.
+* **Everything else** — ``status``, ``aclose``, and any future capability
+  method without an ``ontology`` parameter — is delegated transparently,
+  unguarded. This ensures the wrapper never silently blocks unrelated calls.
+* **Audit** — every guard decision (allow or deny) is logged via the
+  ``ontorag.access.audit`` logger with the method name, ontology scope,
+  mode (read/write), and decision. This is a minimal subset of the roadmap's
+  §3.3 audit event (no ``request_id``/``subject``/``tenant`` — those require
+  ``RequestContext``, which is out of scope; see ``CLAUDE.md`` "Open
+  questions").
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from ontorag.core.access import AccessPolicy
 from ontorag.stores.base import (
@@ -43,7 +66,32 @@ from ontorag.stores.base import (
     TraversalResult,
 )
 
+if TYPE_CHECKING:
+    from rdflib import Graph
+
 logger = logging.getLogger(__name__)
+audit_logger = logging.getLogger("ontorag.access.audit")
+
+# Capability methods (not defined explicitly below, dispatched via
+# __getattr__) that carry an `ontology=` kwarg and must be guarded.
+_READ_GUARDED_CAPABILITIES = frozenset(
+    {
+        "search_text",
+        "find_similar",
+        "sameas_closure",
+        "get_bayes_network",
+        "get_causal_model",
+    }
+)
+_WRITE_GUARDED_CAPABILITIES = frozenset(
+    {
+        "build_embeddings",
+        "put_bayes_network",
+        "clear_bayes_network",
+        "put_causal_model",
+        "clear_causal_model",
+    }
+)
 
 
 class AccessDenied(PermissionError):
@@ -80,11 +128,36 @@ class AccessControlledStore:
 
     # ── helpers ────────────────────────────────────────────────────────────────
 
+    def _audit(self, method: str, ontology: str | None, mode: str, decision: str) -> None:
+        """Log a structured audit line for one access-control decision.
+
+        Args:
+            method: Guarded method name.
+            ontology: The ontology scope being accessed, or ``None`` (union).
+            mode: ``"read"`` or ``"write"``.
+            decision: ``"allow"`` or ``"deny"``.
+        """
+        log = audit_logger.warning if decision == "deny" else audit_logger.info
+        log(
+            "access_decision method=%s ontology=%s mode=%s decision=%s",
+            method,
+            ontology,
+            mode,
+            decision,
+            extra={
+                "audit_method": method,
+                "audit_ontology": ontology,
+                "audit_mode": mode,
+                "audit_decision": decision,
+            },
+        )
+
     def _require_read(self, ontology: str | None, method: str) -> None:
         """Raise :class:`AccessDenied` when read is denied for *ontology*.
 
-        ``ontology=None`` (the union/legacy default graph) is always allowed
-        through — callers that never set an explicit scope are not affected.
+        ``ontology=None`` (the union/legacy default graph) is checked against
+        the policy's ``default`` entry just like any other scope — it is only
+        open when no ``default`` entry was configured (open-by-default).
 
         Args:
             ontology: The ontology id being accessed, or ``None``.
@@ -93,11 +166,14 @@ class AccessControlledStore:
         Raises:
             AccessDenied: If the policy denies read access.
         """
-        if ontology is not None and not self._policy.can_read(ontology):
-            raise AccessDenied(
-                f"{method}: read access denied for ontology {ontology!r}. "
-                "Check ONTOLOGY_ACCESS configuration."
-            )
+        if self._policy.can_read(ontology):
+            self._audit(method, ontology, "read", "allow")
+            return
+        self._audit(method, ontology, "read", "deny")
+        raise AccessDenied(
+            f"{method}: read access denied for ontology {ontology!r}. "
+            "Check ONTOLOGY_ACCESS configuration."
+        )
 
     def _require_write(self, ontology: str | None, method: str) -> None:
         """Raise :class:`AccessDenied` when write is denied for *ontology*.
@@ -109,28 +185,65 @@ class AccessControlledStore:
         Raises:
             AccessDenied: If the policy denies write access.
         """
-        if not self._policy.can_write(ontology):
-            raise AccessDenied(
-                f"{method}: write access denied for ontology {ontology!r}. "
-                "Check ONTOLOGY_ACCESS configuration."
-            )
+        if self._policy.can_write(ontology):
+            self._audit(method, ontology, "write", "allow")
+            return
+        self._audit(method, ontology, "write", "deny")
+        raise AccessDenied(
+            f"{method}: write access denied for ontology {ontology!r}. "
+            "Check ONTOLOGY_ACCESS configuration."
+        )
 
     # ── transparent delegation (unguarded) ────────────────────────────────────
 
     def __getattr__(self, name: str) -> Any:
         """Delegate any attribute not defined here to the wrapped store.
 
-        This catches capability methods (``search_text``, ``find_similar``,
-        ``build_embeddings``, …) as well as any future methods added to the
-        protocol — they all pass through without an access check.
+        Looking the attribute up on the wrapped store first means an
+        unsupported capability raises :class:`AttributeError` exactly as it
+        would without this wrapper, preserving the
+        ``getattr(store, name, None) is None`` → HTTP 501 pattern used by
+        routes. Capability methods in :data:`_READ_GUARDED_CAPABILITIES` /
+        :data:`_WRITE_GUARDED_CAPABILITIES` (``search_text``,
+        ``find_similar``, ``build_embeddings``, ``sameas_closure``, the
+        Bayesian/causal get/put/clear methods, …) are additionally wrapped
+        with the same read/write guard used by the explicit methods below,
+        keyed on the ``ontology=`` keyword argument. Everything else (e.g.
+        ``status``, ``aclose``) passes through unguarded.
 
         Args:
             name: Attribute name.
 
         Returns:
-            The attribute from the wrapped store.
+            The attribute from the wrapped store, or a guarded wrapper around
+            it when *name* is a known ontology-scoped capability method.
         """
-        return getattr(self._store, name)
+        attr = getattr(self._store, name)
+        if callable(attr) and name in _READ_GUARDED_CAPABILITIES:
+            return self._guarded_capability(name, attr, mode="read")
+        if callable(attr) and name in _WRITE_GUARDED_CAPABILITIES:
+            return self._guarded_capability(name, attr, mode="write")
+        return attr
+
+    def _guarded_capability(self, name: str, attr: Any, *, mode: Literal["read", "write"]) -> Any:
+        """Wrap a capability method with an ontology-scoped access guard.
+
+        Args:
+            name: Capability method name, used in audit/error messages.
+            attr: The bound method on the wrapped store.
+            mode: ``"read"`` or ``"write"`` — which guard to apply.
+
+        Returns:
+            An async callable with the same signature as *attr* that checks
+            the policy before delegating.
+        """
+        require = self._require_read if mode == "read" else self._require_write
+
+        async def _wrapped(*args: Any, **kwargs: Any) -> Any:
+            require(kwargs.get("ontology"), name)
+            return await attr(*args, **kwargs)
+
+        return _wrapped
 
     # ── store management (pass-through, no check) ─────────────────────────────
 
@@ -154,6 +267,7 @@ class AccessControlledStore:
         mode: Literal["schema", "data", "auto"] = "auto",
         replace: bool = False,
         ontology: str | None = None,
+        graph: Graph | None = None,
     ) -> LoadResult:
         """Guard write access then delegate to the wrapped store.
 
@@ -162,6 +276,7 @@ class AccessControlledStore:
             mode: Load mode (schema / data / auto).
             replace: Replace existing data graph if ``True``.
             ontology: Target ontology scope.
+            graph: Optional pre-parsed RDF graph (skips re-parsing *path*).
 
         Returns:
             Load result from the wrapped store.
@@ -170,7 +285,9 @@ class AccessControlledStore:
             AccessDenied: If the policy denies write for *ontology*.
         """
         self._require_write(ontology, "load_rdf")
-        return await self._store.load_rdf(path, mode=mode, replace=replace, ontology=ontology)
+        return await self._store.load_rdf(
+            path, mode=mode, replace=replace, ontology=ontology, graph=graph
+        )
 
     async def clear_graph(
         self,
@@ -416,18 +533,26 @@ class AccessControlledStore:
         )
 
     async def query_pattern(self, query: PatternQuery) -> QueryResult:
-        """Delegate directly — PatternQuery has no ontology scope parameter.
+        """Guard as an ``ontology=None`` (union) read, then delegate.
 
-        The Layer 2 DSL does not carry an ontology scope, so no access check
-        is applied here.  If you need scoped pattern queries, pass
-        explicit GRAPH-scoped triples in the pattern.
+        ``PatternQuery`` has no ontology scope field and backend translators
+        run it against the full/union dataset, so — absent per-pattern
+        scoping (out of scope; would need a ``PatternQuery.ontology`` field
+        plus every backend translator updated) — the closest correct guard is
+        the same one applied to any other union read: it is blocked only when
+        the policy has an explicit ``default:none``/``default:r`` entry
+        that denies it.
 
         Args:
             query: JSON DSL query.
 
         Returns:
             Query results.
+
+        Raises:
+            AccessDenied: If the policy denies read for the union scope.
         """
+        self._require_read(None, "query_pattern")
         return await self._store.query_pattern(query)
 
     async def property_path_closure(

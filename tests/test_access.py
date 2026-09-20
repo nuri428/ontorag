@@ -2,15 +2,22 @@
 
 Covers:
 * Policy parsing (formats, write-implies-read, unlisted=open, none denies
-  both, malformed→ValueError, invalid id→ValueError).
+  both, malformed→ValueError, invalid id→ValueError, deny_by_default).
 * Wrapper enforcement against a spy GraphStore (denied write raises
   AccessDenied; allowed write delegates; denied scoped read raises;
-  ontology=None read always allowed; unknown method delegates via __getattr__).
+  ontology=None read follows the 'default' policy entry; unknown method
+  delegates via __getattr__; ontology-scoped capability methods are guarded;
+  unsupported capability still raises AttributeError, preserving the
+  route-level 501 pattern).
+* query_pattern guarded as an ontology=None read.
+* Audit logging (allow/deny) for guarded decisions.
 * Factory wiring (ONTOLOGY_ACCESS set → AccessControlledStore;
   env unset → raw store).
 """
 
 from __future__ import annotations
+
+import logging
 
 import pytest
 
@@ -19,6 +26,8 @@ from ontorag.stores.access_wrapper import AccessControlledStore, AccessDenied
 from ontorag.stores.base import (
     AggFunc,
     LoadResult,
+    PatternQuery,
+    PatternTriple,
     SchemaResult,
     TraversalDirection,
 )
@@ -27,6 +36,10 @@ from ontorag.stores.base import (
 
 _NO_CLASSES = SchemaResult(
     total_classes=0, total_properties=0, namespaces={}, classes=[]
+)
+
+_A_PATTERN_QUERY = PatternQuery(
+    select=["?x"], where=[PatternTriple(s="?x", p="rdf:type", o="ex:Thing")]
 )
 
 
@@ -46,8 +59,8 @@ class _SpyStore:
     def _record(self, method: str, **kwargs: object) -> None:
         self.calls.append((method, kwargs))
 
-    async def load_rdf(self, path, mode="auto", replace=False, ontology=None):
-        self._record("load_rdf", path=path, ontology=ontology)
+    async def load_rdf(self, path, mode="auto", replace=False, ontology=None, graph=None):
+        self._record("load_rdf", path=path, ontology=ontology, graph=graph)
         return LoadResult(triples_loaded=1, source=path, mode="data", ontology=ontology)
 
     async def clear_graph(self, target, ontology=None):
@@ -133,10 +146,58 @@ class _SpyStore:
     async def aclose(self):
         self._record("aclose")
 
-    async def search_text(self, query, **kwargs):
-        """Capability method — not guarded, must pass through via __getattr__."""
-        self._record("search_text", query=query)
+    async def search_text(self, query, class_uri=None, limit=20, ontology=None):
+        """Capability method — guarded via __getattr__ (ontology=)."""
+        self._record("search_text", query=query, ontology=ontology)
         return []
+
+    async def find_similar(self, uri, top_k=10, mode="structural", class_uri=None, ontology=None):
+        self._record("find_similar", uri=uri, ontology=ontology)
+        return []
+
+    async def sameas_closure(self, uri, ontology=None):
+        self._record("sameas_closure", uri=uri, ontology=ontology)
+        return []
+
+    async def get_bayes_network(self, ontology=None):
+        self._record("get_bayes_network", ontology=ontology)
+        return None
+
+    async def get_causal_model(self, ontology=None):
+        self._record("get_causal_model", ontology=ontology)
+        return None
+
+    async def build_embeddings(self, mode="both", embedding_provider=None, ontology=None):
+        self._record("build_embeddings", ontology=ontology)
+        return {}
+
+    async def put_bayes_network(self, network, ontology=None):
+        self._record("put_bayes_network", ontology=ontology)
+        return 0
+
+    async def clear_bayes_network(self, ontology=None):
+        self._record("clear_bayes_network", ontology=ontology)
+        return 0
+
+    async def put_causal_model(self, model, ontology=None):
+        self._record("put_causal_model", ontology=ontology)
+        return 0
+
+    async def clear_causal_model(self, ontology=None):
+        self._record("clear_causal_model", ontology=ontology)
+        return 0
+
+
+class _PartialSpyStore(_SpyStore):
+    """Spy missing a guarded capability, to verify the 501-detection pattern.
+
+    ``find_similar`` is shadowed to ``None`` — exactly how an unsupported
+    backend looks to ``getattr(store, "find_similar", None)`` (the pattern
+    routes use to return HTTP 501). The guard's ``callable(attr)`` check
+    must see this and skip wrapping, so the wrapper also exposes ``None``.
+    """
+
+    find_similar = None  # type: ignore[assignment]
 
 
 # ── policy parsing ─────────────────────────────────────────────────────────────
@@ -248,6 +309,56 @@ class TestPolicyParsing:
         assert p.can_read("poke")
         assert not p.can_write("poke")
 
+    # --- deny_by_default --------------------------------------------------------
+
+    def test_deny_by_default_off_unlisted_is_open(self):
+        """deny_by_default defaults to False — unchanged open-by-default behaviour."""
+        p = AccessPolicy.from_string("poke:r")
+        assert p.can_read("unlisted")
+        assert p.can_write("unlisted")
+
+    def test_deny_by_default_on_unlisted_denied(self):
+        p = AccessPolicy.from_string("poke:r", deny_by_default=True)
+        assert not p.can_read("unlisted")
+        assert not p.can_write("unlisted")
+        # Explicitly listed ontologies are unaffected.
+        assert p.can_read("poke")
+        assert not p.can_write("poke")
+
+    def test_deny_by_default_on_none_ontology_denied(self):
+        """deny_by_default also flips the fallback for ontology=None."""
+        p = AccessPolicy.from_string("poke:r", deny_by_default=True)
+        assert not p.can_read(None)
+        assert not p.can_write(None)
+
+    def test_deny_by_default_explicit_default_overrides(self):
+        """An explicit 'default:' entry still wins over deny_by_default."""
+        p = AccessPolicy.from_string("default:rw", deny_by_default=True)
+        assert p.can_read(None)
+        assert p.can_write(None)
+
+    def test_from_env_deny_by_default_alone_builds_policy(self, monkeypatch):
+        """ONTOLOGY_ACCESS unset but the deny flag set must still build a policy."""
+        monkeypatch.delenv("ONTOLOGY_ACCESS", raising=False)
+        monkeypatch.setenv("ONTOLOGY_ACCESS_DENY_BY_DEFAULT", "true")
+        p = AccessPolicy.from_env()
+        assert p is not None
+        assert not p.can_read("anything")
+        assert not p.can_write("anything")
+
+    @pytest.mark.parametrize("value", ["1", "true", "True", "yes", "on"])
+    def test_from_env_deny_by_default_truthy_values(self, monkeypatch, value):
+        monkeypatch.delenv("ONTOLOGY_ACCESS", raising=False)
+        monkeypatch.setenv("ONTOLOGY_ACCESS_DENY_BY_DEFAULT", value)
+        p = AccessPolicy.from_env()
+        assert p is not None
+        assert not p.can_write("anything")
+
+    def test_from_env_deny_by_default_false_by_default(self, monkeypatch):
+        monkeypatch.delenv("ONTOLOGY_ACCESS", raising=False)
+        monkeypatch.delenv("ONTOLOGY_ACCESS_DENY_BY_DEFAULT", raising=False)
+        assert AccessPolicy.from_env() is None
+
 
 # ── wrapper enforcement ────────────────────────────────────────────────────────
 
@@ -342,18 +453,48 @@ class TestAccessControlledStore:
         with pytest.raises(AccessDenied):
             await wrapper.dump_graph("all", ontology="secret")
 
-    # --- ontology=None read always allowed ------------------------------------
+    # --- ontology=None read: open unless an explicit 'default:' policy denies -
 
-    async def test_get_schema_none_ontology_always_allowed(self):
-        """ontology=None must never be blocked by the read guard (union view)."""
+    async def test_get_schema_none_ontology_open_when_default_unset(self):
+        """ontology=None stays open when the policy has no 'default:' entry.
+
+        A per-ontology rule like 'secret:none' must not affect the union
+        view — only an explicit 'default:' entry does (see the next test).
+        """
         wrapper, spy = self._make("secret:none")
         await wrapper.get_schema(ontology=None)
         assert spy.calls[0][0] == "get_schema"
 
-    async def test_find_entities_none_ontology_allowed(self):
+    async def test_find_entities_none_ontology_open_when_default_unset(self):
         wrapper, spy = self._make("secret:none")
         await wrapper.find_entities("ex:Foo", ontology=None)
         assert spy.calls[0][0] == "find_entities"
+
+    # --- regression: union read must respect an explicit 'default:' policy ----
+
+    async def test_get_schema_none_ontology_denied_by_explicit_default_none(self):
+        """Regression: 'default:none' must block union reads too.
+
+        Previously ``_require_read`` special-cased ``ontology is not None``
+        and never evaluated ``can_read(None)`` at all, so this policy was
+        silently ignored for every union-scoped read method.
+        """
+        wrapper, spy = self._make("default:none")
+        with pytest.raises(AccessDenied):
+            await wrapper.get_schema(ontology=None)
+        assert not spy.calls
+
+    async def test_find_entities_none_ontology_denied_by_explicit_default_none(self):
+        wrapper, spy = self._make("default:none")
+        with pytest.raises(AccessDenied):
+            await wrapper.find_entities("ex:Foo", ontology=None)
+        assert not spy.calls
+
+    async def test_get_schema_none_ontology_allowed_by_explicit_default_rw(self):
+        """An explicit 'default:rw' (or 'default:r') keeps union reads allowed."""
+        wrapper, spy = self._make("default:rw")
+        await wrapper.get_schema(ontology=None)
+        assert spy.calls[0][0] == "get_schema"
 
     # --- scoped read allowed --------------------------------------------------
 
@@ -367,12 +508,13 @@ class TestAccessControlledStore:
         await wrapper.get_class_detail("ex:Foo", ontology="poke")
         assert spy.calls[0][0] == "get_class_detail"
 
-    # --- __getattr__ delegation -----------------------------------------------
+    # --- __getattr__ delegation (unguarded attributes) -------------------------
 
-    async def test_search_text_delegates_via_getattr(self):
-        """Capability method not defined on wrapper must delegate via __getattr__."""
+    async def test_search_text_no_ontology_delegates_via_getattr(self):
+        """search_text is guarded, but with no ontology= kwarg it targets the
+        open-by-default union scope (ontology=None), so it still delegates
+        when no 'default:' policy entry denies it."""
         wrapper, spy = self._make("poke:none")
-        # search_text is NOT a guarded method — it should pass through directly.
         result = await wrapper.search_text("pikachu")
         assert spy.calls[0][0] == "search_text"
         assert result == []
@@ -403,6 +545,213 @@ class TestAccessControlledStore:
         wrapper, _ = self._make("secret:none")
         with pytest.raises(AccessDenied, match="secret"):
             await wrapper.get_schema(ontology="secret")
+
+
+# ── capability method guards (search_text, find_similar, bayes, causal, …) ─────
+
+
+class TestReadGuardedCapabilities:
+    """search_text / find_similar / sameas_closure / get_bayes_network /
+    get_causal_model are dispatched via __getattr__ but must still honour the
+    ontology= kwarg the caller passes, exactly like the explicit read methods.
+    """
+
+    def _make(self, policy_str: str) -> tuple[AccessControlledStore, _SpyStore]:
+        spy = _SpyStore()
+        policy = AccessPolicy.from_string(policy_str)
+        return AccessControlledStore(spy, policy), spy
+
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("search_text", ("pikachu",)),
+            ("find_similar", ("ex:pikachu",)),
+            ("sameas_closure", ("ex:pikachu",)),
+            ("get_bayes_network", ()),
+            ("get_causal_model", ()),
+        ],
+    )
+    async def test_denied_for_restricted_ontology(self, method, args):
+        wrapper, spy = self._make("secret:none")
+        with pytest.raises(AccessDenied):
+            await getattr(wrapper, method)(*args, ontology="secret")
+        assert not spy.calls
+
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("search_text", ("pikachu",)),
+            ("find_similar", ("ex:pikachu",)),
+            ("sameas_closure", ("ex:pikachu",)),
+            ("get_bayes_network", ()),
+            ("get_causal_model", ()),
+        ],
+    )
+    async def test_allowed_for_readable_ontology(self, method, args):
+        wrapper, spy = self._make("poke:r")
+        await getattr(wrapper, method)(*args, ontology="poke")
+        assert spy.calls[0][0] == method
+
+    async def test_search_text_none_ontology_denied_by_explicit_default_none(self):
+        """Same union-read regression as get_schema, for a capability method."""
+        wrapper, spy = self._make("default:none")
+        with pytest.raises(AccessDenied):
+            await wrapper.search_text("pikachu", ontology=None)
+        assert not spy.calls
+
+
+class TestWriteGuardedCapabilities:
+    """build_embeddings / put_bayes_network / clear_bayes_network /
+    put_causal_model / clear_causal_model mutate state and must be
+    write-guarded, not read-guarded.
+    """
+
+    def _make(self, policy_str: str) -> tuple[AccessControlledStore, _SpyStore]:
+        spy = _SpyStore()
+        policy = AccessPolicy.from_string(policy_str)
+        return AccessControlledStore(spy, policy), spy
+
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("build_embeddings", ()),
+            ("put_bayes_network", (None,)),
+            ("clear_bayes_network", ()),
+            ("put_causal_model", (None,)),
+            ("clear_causal_model", ()),
+        ],
+    )
+    async def test_denied_for_read_only_ontology(self, method, args):
+        """read-only ('poke:r') must not be enough to write."""
+        wrapper, spy = self._make("poke:r")
+        with pytest.raises(AccessDenied):
+            await getattr(wrapper, method)(*args, ontology="poke")
+        assert not spy.calls
+
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("build_embeddings", ()),
+            ("put_bayes_network", (None,)),
+            ("clear_bayes_network", ()),
+            ("put_causal_model", (None,)),
+            ("clear_causal_model", ()),
+        ],
+    )
+    async def test_allowed_for_writable_ontology(self, method, args):
+        wrapper, spy = self._make("poke:rw")
+        await getattr(wrapper, method)(*args, ontology="poke")
+        assert spy.calls[0][0] == method
+
+
+class TestUnsupportedCapabilityFallback:
+    """A backend that doesn't implement a capability must still look
+    unsupported through the wrapper, so route-level 501 detection
+    (`getattr(store, name, None) is None`) keeps working.
+    """
+
+    def test_missing_capability_getattr_default_returns_none(self):
+        spy = _PartialSpyStore()
+        policy = AccessPolicy.from_string("poke:r")
+        wrapper = AccessControlledStore(spy, policy)
+        assert getattr(wrapper, "find_similar", None) is None
+
+    def test_missing_capability_matches_raw_store_behavior(self):
+        """The wrapper must not appear MORE capable than the raw store."""
+        spy = _PartialSpyStore()
+        assert getattr(spy, "find_similar", None) is None
+
+        policy = AccessPolicy.from_string("poke:r")
+        wrapper = AccessControlledStore(spy, policy)
+        assert getattr(wrapper, "find_similar", None) is None
+
+
+# ── query_pattern guard ──────────────────────────────────────────────────────
+
+
+class TestQueryPatternGuard:
+    """query_pattern (L2 DSL) has no ontology field and the translators run
+    against the full/union dataset, so it is guarded as an ontology=None read.
+    """
+
+    def _make(self, policy_str: str) -> tuple[AccessControlledStore, _SpyStore]:
+        spy = _SpyStore()
+        policy = AccessPolicy.from_string(policy_str)
+        return AccessControlledStore(spy, policy), spy
+
+    async def test_denied_when_default_none(self):
+        wrapper, spy = self._make("default:none")
+        with pytest.raises(AccessDenied):
+            await wrapper.query_pattern(_A_PATTERN_QUERY)
+        assert not spy.calls
+
+    async def test_allowed_when_no_default_policy(self):
+        """Open-by-default — unaffected by unrelated per-ontology rules."""
+        wrapper, spy = self._make("secret:none")
+        await wrapper.query_pattern(_A_PATTERN_QUERY)
+        assert spy.calls[0][0] == "query_pattern"
+
+    async def test_allowed_when_default_explicitly_open(self):
+        wrapper, spy = self._make("default:rw")
+        await wrapper.query_pattern(_A_PATTERN_QUERY)
+        assert spy.calls[0][0] == "query_pattern"
+
+
+# ── audit logging ────────────────────────────────────────────────────────────
+
+
+class TestAuditLogging:
+    """Every guard decision (allow/deny) is logged via the
+    'ontorag.access.audit' logger — a minimal subset of the roadmap's §3.3
+    audit event (no request_id/subject/tenant; those need RequestContext,
+    which is out of scope here).
+    """
+
+    def _make(self, policy_str: str) -> tuple[AccessControlledStore, _SpyStore]:
+        spy = _SpyStore()
+        policy = AccessPolicy.from_string(policy_str)
+        return AccessControlledStore(spy, policy), spy
+
+    async def test_deny_logged_as_warning(self, caplog):
+        wrapper, _ = self._make("secret:none")
+        with caplog.at_level(logging.WARNING, logger="ontorag.access.audit"):
+            with pytest.raises(AccessDenied):
+                await wrapper.get_schema(ontology="secret")
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.levelno == logging.WARNING
+        assert record.audit_method == "get_schema"
+        assert record.audit_ontology == "secret"
+        assert record.audit_mode == "read"
+        assert record.audit_decision == "deny"
+
+    async def test_allow_logged_as_info(self, caplog):
+        wrapper, _ = self._make("poke:r")
+        with caplog.at_level(logging.INFO, logger="ontorag.access.audit"):
+            await wrapper.get_schema(ontology="poke")
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.levelno == logging.INFO
+        assert record.audit_method == "get_schema"
+        assert record.audit_ontology == "poke"
+        assert record.audit_mode == "read"
+        assert record.audit_decision == "allow"
+
+    async def test_write_deny_logged(self, caplog):
+        wrapper, _ = self._make("poke:r")
+        with caplog.at_level(logging.WARNING, logger="ontorag.access.audit"):
+            with pytest.raises(AccessDenied):
+                await wrapper.load_rdf("/tmp/f.ttl", ontology="poke")
+        assert caplog.records[0].audit_mode == "write"
+        assert caplog.records[0].audit_decision == "deny"
+
+    async def test_capability_guard_also_audited(self, caplog):
+        wrapper, _ = self._make("secret:none")
+        with caplog.at_level(logging.WARNING, logger="ontorag.access.audit"):
+            with pytest.raises(AccessDenied):
+                await wrapper.search_text("pikachu", ontology="secret")
+        assert caplog.records[0].audit_method == "search_text"
+        assert caplog.records[0].audit_decision == "deny"
 
 
 # ── factory wiring ─────────────────────────────────────────────────────────────

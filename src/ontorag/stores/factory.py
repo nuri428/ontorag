@@ -19,11 +19,12 @@ def create_store() -> GraphStore:
     :class:`~ontorag.stores.base.GraphStore` protocol, never on a concrete
     adapter, so swapping backends is an env-var change.
 
-    When ``ONTOLOGY_ACCESS`` is set (non-empty), the concrete store is wrapped
-    in an :class:`~ontorag.stores.access_wrapper.AccessControlledStore` that
+    When ``ONTOLOGY_ACCESS`` is set (non-empty) or ``ONTOLOGY_ACCESS_DENY_BY_DEFAULT``
+    is truthy, the concrete store is wrapped in an
+    :class:`~ontorag.stores.access_wrapper.AccessControlledStore` that
     enforces per-ontology read/write permissions at the GraphStore boundary.
-    When ``ONTOLOGY_ACCESS`` is absent or empty the raw store is returned
-    unchanged (zero overhead, fully backward-compatible).
+    When neither is set the raw store is returned unchanged (zero overhead,
+    fully backward-compatible).
 
     Mirrors :func:`ontorag.api.deps.get_llm_provider` for the LLM layer.
 
